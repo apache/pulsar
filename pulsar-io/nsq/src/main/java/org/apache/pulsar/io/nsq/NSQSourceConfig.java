@@ -70,7 +70,7 @@ public class NSQSourceConfig implements Serializable {
 
     public static NSQSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return applyDefaults(mapper.readValue(new ObjectMapper().writeValueAsString(map), NSQSourceConfig.class));
+        return applyDefaults(mapper.readValue(mapper.writeValueAsString(map), NSQSourceConfig.class));
     }
 
     private static NSQSourceConfig applyDefaults(NSQSourceConfig config) {

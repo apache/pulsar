@@ -614,8 +614,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     }
 
     @Override
-    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
-        super.beforePulsarStartMocks(pulsar);
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
         doAnswer(i0 -> {
             ManagedLedgerFactory factory = (ManagedLedgerFactory) spy(i0.callRealMethod());
             doAnswer(i1 -> {
@@ -2296,7 +2296,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .addEncryptionKey("client-non-existant-rsa.pem")
                 .cryptoKeyReader(new EncKeyReader())
                 .create();
-            Assert.fail("Producer creation should not suceed if failing to read key");
+            Assert.fail("Producer creation should not succeed if failing to read key");
         } catch (Exception e) {
             // ok
         }

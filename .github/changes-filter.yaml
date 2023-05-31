@@ -3,13 +3,13 @@
 all:
   - '**'
 docs:
-  - 'site2/**'
-  - 'deployment/**'
-  - '.asf.yaml'
   - '*.md'
   - '**/*.md'
+  - '.asf.yaml'
   - '.github/changes-filter.yaml'
   - '.github/ISSUE_TEMPLATE/**'
+  - '.idea/**'
+  - 'deployment/**'
   - 'wiki/**'
 tests:
   - added|modified: '**/src/test/java/**/*.java'

@@ -53,7 +53,7 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
         }
     }
 
-    private final PulsarAdminBuilder adminBuilder;
+    protected final PulsarAdminBuilder adminBuilder;
     private RootParamsKey currentParamsKey;
     private PulsarAdmin admin;
 
@@ -102,6 +102,9 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
         }
         if (isNotBlank(rootParams.tlsProvider)) {
             adminBuilder.sslProvider(rootParams.tlsProvider);
+        }
+        if (isNotBlank(rootParams.tlsTrustCertsFilePath)) {
+            adminBuilder.tlsTrustCertsFilePath(rootParams.tlsTrustCertsFilePath);
         }
     }
 

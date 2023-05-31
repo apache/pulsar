@@ -43,6 +43,7 @@ import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -53,7 +54,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -114,7 +115,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected volatile Boolean isAllowAutoUpdateSchema;
 
-    protected volatile PublishRateLimiter topicPublishRateLimiter;
+    protected volatile PublishRateLimiter topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
     private final Object topicPublishRateLimiterLock = new Object();
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
@@ -148,7 +149,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
-    protected Map<String, EntryFilterWithClassLoader> entryFilters;
+    protected volatile Pair<String, List<EntryFilter>> entryFilters;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -188,8 +189,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return this.topicPolicies.getEntryFilters().get();
     }
 
-    public Map<String, EntryFilterWithClassLoader> getEntryFilters() {
-        return this.entryFilters;
+    public List<EntryFilter> getEntryFilters() {
+        return this.entryFilters.getRight();
     }
 
     public DispatchRateImpl getReplicatorDispatchRate() {
@@ -240,14 +241,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
+
+        updateEntryFilters();
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
         if (log.isDebugEnabled()) {
             log.debug("[{}]updateTopicPolicyByNamespacePolicy,data={}", topic, namespacePolicies);
-        }
-        if (namespacePolicies.deleted) {
-            return;
         }
         topicPolicies.getRetentionPolicies().updateNamespaceValue(namespacePolicies.retention_policies);
         topicPolicies.getCompactionThreshold().updateNamespaceValue(namespacePolicies.compaction_threshold);
@@ -288,6 +288,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updateNamespaceDispatchRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
         topicPolicies.getSchemaValidationEnforced().updateNamespaceValue(namespacePolicies.schema_validation_enforced);
         topicPolicies.getEntryFilters().updateNamespaceValue(namespacePolicies.entryFilters);
+
+        updateEntryFilters();
     }
 
     private void updateNamespaceDispatchRate(Policies namespacePolicies, String cluster) {
@@ -384,6 +386,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaValidationEnforced().updateBrokerValue(config.isSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateBrokerValue(new EntryFilters(String.join(",",
                 config.getEntryFilterNames())));
+
+        updateEntryFilters();
     }
 
     private DispatchRateImpl dispatchRateInBroker(ServiceConfiguration config) {
@@ -1158,6 +1162,26 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
+    public void updateEntryFilters() {
+        final EntryFilters entryFiltersPolicy = getEntryFiltersPolicy();
+        if (entryFiltersPolicy == null || StringUtils.isBlank(entryFiltersPolicy.getEntryFilterNames())) {
+            entryFilters = Pair.of(null, Collections.emptyList());
+            return;
+        }
+        final String entryFilterNames = entryFiltersPolicy.getEntryFilterNames();
+        if (entryFilters != null && entryFilterNames.equals(entryFilters.getLeft())) {
+            return;
+        }
+        try {
+            final List<EntryFilter> filters =
+                    brokerService.getEntryFilterProvider().loadEntryFiltersForPolicy(entryFiltersPolicy);
+            entryFilters = Pair.of(entryFilterNames, filters);
+        } catch (Throwable e) {
+            log.error("Failed to load entry filters on topic {}: {}", topic, e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
     public long getMsgInCounter() {
         return this.msgInCounter.longValue();
     }
@@ -1250,7 +1274,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                     // create new rateLimiter if rate-limiter is disabled
                     if (preciseTopicPublishRateLimitingEnable) {
-                        this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
+                        this.topicPublishRateLimiter = new PrecisePublishLimiter(publishRate,
                             () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
                     } else {
                         this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);

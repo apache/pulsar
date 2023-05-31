@@ -88,6 +88,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -665,11 +666,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         boolean isBatchFull = batchMessageContainer.add(msg, callback);
                         lastSendFuture = callback.getFuture();
                         payload.release();
-                        if (isBatchFull) {
-                            batchMessageAndSend(false);
-                        } else {
-                            maybeScheduleBatchFlushTask();
-                        }
+                        triggerSendIfFullOrScheduleFlush(isBatchFull);
                     }
                     isLastSequenceIdPotentialDuplicated = false;
                 }
@@ -737,11 +734,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, e);
             return false;
         }
+
         byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
         if (schemaVersion != null) {
-            msgMetadataBuilder.setSchemaVersion(schemaVersion);
+            if (schemaVersion != SchemaVersion.Empty.bytes()) {
+                msgMetadataBuilder.setSchemaVersion(schemaVersion);
+            }
+
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
         }
+
         return true;
     }
 
@@ -750,7 +752,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (schemaVersion == null) {
             return false;
         }
-        msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+
+        if (schemaVersion != SchemaVersion.Empty.bytes()) {
+            msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+        }
+
         msg.setSchemaState(MessageImpl.SchemaState.Ready);
         return true;
     }
@@ -773,12 +779,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             } else {
                 log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
-                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema. In this
-                // case, we should not cache the schema version so that the schema version of the message metadata will
-                // be null, instead of an empty array.
+                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema.
+                // In this case, we cache the schema version to `SchemaVersion.Empty.bytes()`.
+                // When we need to set the schema version of the message metadata,
+                // we should check if the cached schema version is `SchemaVersion.Empty.bytes()`
                 if (v.length != 0) {
                     schemaCache.putIfAbsent(msg.getSchemaHash(), v);
                     msg.getMessageBuilder().setSchemaVersion(v);
+                } else {
+                    schemaCache.putIfAbsent(msg.getSchemaHash(), SchemaVersion.Empty.bytes());
                 }
                 msg.setSchemaState(MessageImpl.SchemaState.Ready);
             }
@@ -873,6 +882,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 && batchMessageContainer.hasSameTxn(msg);
     }
 
+    private void triggerSendIfFullOrScheduleFlush(boolean isBatchFull) {
+        if (isBatchFull) {
+            batchMessageAndSend(false);
+        } else {
+            maybeScheduleBatchFlushTask();
+        }
+    }
+
     private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
@@ -880,7 +897,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         try {
             batchMessageAndSend(false);
-            batchMessageContainer.add(msg, callback);
+            boolean isBatchFull = batchMessageContainer.add(msg, callback);
+            triggerSendIfFullOrScheduleFlush(isBatchFull);
             lastSendFuture = callback.getFuture();
         } finally {
             payload.release();

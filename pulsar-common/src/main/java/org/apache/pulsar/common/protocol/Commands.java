@@ -234,10 +234,21 @@ public class Commands {
     public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
                                      String targetBroker, String originalPrincipal, AuthData originalAuthData,
                                      String originalAuthMethod) {
+        return newConnect(authMethodName, authData, protocolVersion, libVersion, targetBroker, originalPrincipal,
+                originalAuthData, originalAuthMethod, null);
+    }
+
+    public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
+                                     String targetBroker, String originalPrincipal, AuthData originalAuthData,
+                                     String originalAuthMethod, String proxyVersion) {
         BaseCommand cmd = localCmd(Type.CONNECT);
         CommandConnect connect = cmd.setConnect()
                 .setClientVersion(libVersion != null ? libVersion : "Pulsar Client")
                 .setAuthMethodName(authMethodName);
+
+        if (proxyVersion != null) {
+            connect.setProxyVersion(proxyVersion);
+        }
 
         if (targetBroker != null) {
             // When connecting through a proxy, we need to specify which broker do we want to be proxied through
@@ -368,7 +379,7 @@ public class Commands {
         cmd.setError()
                 .setRequestId(requestId)
                 .setError(serverError)
-                .setMessage(message);
+                .setMessage(message != null ? message : "");
         return cmd;
     }
 
@@ -401,7 +412,7 @@ public class Commands {
                 .setProducerId(producerId)
                 .setSequenceId(sequenceId)
                 .setError(error)
-                .setMessage(errorMsg);
+                .setMessage(errorMsg != null ? errorMsg : "");
         return cmd;
     }
 
@@ -499,25 +510,25 @@ public class Commands {
                         DEFAULT_CONSUMER_EPOCH), metadataAndPayload);
     }
 
-    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
                                       long ledgerId, long entryId, MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessaegs,
+        return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessages,
                 messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
                 messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
                 checksumType, ledgerId, entryId, messageMetadata, payload);
     }
 
-    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
                                       MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessaegs,
+        return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessages,
                 messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
                 messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
                 checksumType, -1, -1, messageMetadata, payload);
     }
 
-    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
               ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs,
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessages,
                 messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
                 messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
                 checksumType, -1, -1, messageMetadata, payload);
@@ -771,7 +782,9 @@ public class Commands {
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
-        if (type.getValue() < 0) {
+        if (type == SchemaType.AUTO_CONSUME) {
+            return Schema.Type.AutoConsume;
+        } else if (type.getValue() < 0) {
             return Schema.Type.None;
         } else {
             return Schema.Type.valueOf(type.getValue());
@@ -779,7 +792,9 @@ public class Commands {
     }
 
     public static SchemaType getSchemaType(Schema.Type type) {
-        if (type.getValue() < 0) {
+        if (type == Schema.Type.AutoConsume) {
+            return SchemaType.AUTO_CONSUME;
+        } else if (type.getValue() < 0) {
             // this is unexpected
             return SchemaType.NONE;
         } else {
@@ -1367,12 +1382,16 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
-           String errorMsg) {
+    public static ByteBuf newAddPartitionToTxnResponse(long requestId,
+                                                       long txnIdLeastBits,
+                                                       long txnIdMostBits,
+                                                       ServerError error,
+                                                       String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
         CommandAddPartitionToTxnResponse response = cmd.setAddPartitionToTxnResponse()
                 .setRequestId(requestId)
                 .setError(error)
+                .setTxnidLeastBits(txnIdLeastBits)
                 .setTxnidMostBits(txnIdMostBits);
 
         if (errorMsg != null) {
@@ -1401,12 +1420,13 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
-          String errorMsg) {
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdLeastBits,
+                                                          long txnIdMostBits, ServerError error, String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE);
         CommandAddSubscriptionToTxnResponse response = cmd.setAddSubscriptionToTxnResponse()
                 .setRequestId(requestId)
                 .setTxnidMostBits(txnIdMostBits)
+                .setTxnidLeastBits(txnIdLeastBits)
                 .setError(error);
         if (errorMsg != null) {
             response.setMessage(errorMsg);
@@ -1432,11 +1452,12 @@ public class Commands {
         return cmd;
     }
 
-    public static BaseCommand newEndTxnResponse(long requestId, long txnIdMostBits,
+    public static BaseCommand newEndTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits,
                                                 ServerError error, String errorMsg) {
         BaseCommand cmd = localCmd(Type.END_TXN_RESPONSE);
         CommandEndTxnResponse response = cmd.setEndTxnResponse()
                 .setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
                 .setTxnidMostBits(txnIdMostBits)
                 .setError(error);
         if (errorMsg != null) {
@@ -1959,6 +1980,10 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v17.getValue();
     }
 
+    public static boolean peerSupportsCarryAutoConsumeSchemaToBroker(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v21.getValue();
+    }
+
     private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(
             ProducerAccessMode accessMode) {
         switch (accessMode) {
@@ -1987,7 +2012,7 @@ public class Commands {
         case ExclusiveWithFencing:
             return ProducerAccessMode.ExclusiveWithFencing;
         default:
-            throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
+            throw new IllegalArgumentException("Unknown access mode: " + accessMode);
         }
     }
 

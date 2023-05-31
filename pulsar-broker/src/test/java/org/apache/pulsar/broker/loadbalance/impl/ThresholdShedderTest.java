@@ -23,7 +23,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -55,6 +58,21 @@ public class ThresholdShedderTest {
     public void testNoBrokers() {
         LoadData loadData = new LoadData();
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
+    }
+
+    @Test
+    public void testCleanCache() throws Exception {
+        testBrokerReachThreshold();
+        Field field = ThresholdShedder.class.getDeclaredField("brokerAvgResourceUsage");
+        field.setAccessible(true);
+        Map<String, Double> map = (Map<String, Double>) field.get(thresholdShedder);
+        assertFalse(map.isEmpty());
+        HashSet<String> activeBrokers = new HashSet<>();
+        activeBrokers.add("leader");
+        thresholdShedder.onActiveBrokersChange(activeBrokers);
+        thresholdShedder.findBundlesForUnloading(new LoadData(), conf);
+        map = (Map<String, Double>) field.get(thresholdShedder);
+        assertTrue(map.isEmpty());
     }
 
     @Test

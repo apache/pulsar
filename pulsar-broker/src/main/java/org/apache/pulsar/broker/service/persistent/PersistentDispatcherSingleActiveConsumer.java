@@ -38,7 +38,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallba
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
@@ -149,9 +148,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void readEntriesComplete(final List<Entry> entries, Object obj) {
-        topicExecutor.execute(SafeRun.safeRun(() -> {
-            internalReadEntriesComplete(entries, obj);
-        }));
+        topicExecutor.execute(() -> internalReadEntriesComplete(entries, obj));
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
@@ -229,21 +226,19 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                             sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket.
-                    topicExecutor.execute(SafeRun.safeRun(() -> {
+                    topicExecutor.execute(() -> {
                             synchronized (PersistentDispatcherSingleActiveConsumer.this) {
                                 Consumer newConsumer = getActiveConsumer();
                                 readMoreEntries(newConsumer);
                             }
-                        }));
+                        });
                 }
             });
     }
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topicExecutor.execute(SafeRun.safeRun(() -> {
-            internalConsumerFlow(consumer);
-        }));
+        topicExecutor.execute(() -> internalConsumerFlow(consumer));
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer) {
@@ -272,9 +267,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-        topicExecutor.execute(SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch);
-        }));
+        topicExecutor.execute(() -> internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch));
     }
 
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
@@ -466,9 +459,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        topicExecutor.execute(SafeRun.safeRun(() -> {
-            internalReadEntriesFailed(exception, ctx);
-        }));
+        topicExecutor.execute(() -> internalReadEntriesFailed(exception, ctx));
     }
 
     private synchronized void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
@@ -516,7 +507,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         topic.getBrokerService().executor().schedule(() -> {
 
             // Jump again into dispatcher dedicated thread
-            topicExecutor.execute(SafeRun.safeRun(() -> {
+            topicExecutor.execute(() -> {
                 synchronized (PersistentDispatcherSingleActiveConsumer.this) {
                     Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                     // we should retry the read if we have an active consumer and there is no pending read
@@ -533,7 +524,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                                 currentConsumer, havePendingRead);
                     }
                 }
-            }));
+            });
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
 
     }

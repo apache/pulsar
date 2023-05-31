@@ -71,7 +71,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private static final long MIN_ACK_TIMEOUT_MILLIS = 1000;
     private static final long MIN_TICK_TIME_MILLIS = 100;
-    private static final long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
 
     public ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
@@ -199,13 +198,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> topicsPattern(Pattern topicsPattern) {
-        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
+        checkArgument(conf.getTopicsPattern() == null && !topicsPattern.pattern().isEmpty(),
+                "Pattern has already been set or is empty.");
         conf.setTopicsPattern(topicsPattern);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> topicsPattern(String topicsPattern) {
+        checkArgument(StringUtils.isNotEmpty(topicsPattern), "topicsPattern should not be null or empty");
         return topicsPattern(Pattern.compile(topicsPattern));
     }
 
@@ -438,9 +439,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {
         if (deadLetterPolicy != null) {
-            if (conf.getAckTimeoutMillis() == 0) {
-                conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
-            }
             checkArgument(deadLetterPolicy.getMaxRedeliverCount() > 0, "MaxRedeliverCount must be > 0.");
         }
         conf.setDeadLetterPolicy(deadLetterPolicy);

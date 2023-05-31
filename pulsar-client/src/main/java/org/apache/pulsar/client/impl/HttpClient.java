@@ -244,7 +244,7 @@ public class HttpClient implements Closeable {
                     }
 
                     try {
-                        T data = ObjectMapperFactory.getThreadLocal().readValue(
+                        T data = ObjectMapperFactory.getMapper().reader().readValue(
                                 response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {

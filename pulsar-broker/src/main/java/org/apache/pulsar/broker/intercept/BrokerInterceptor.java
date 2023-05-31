@@ -231,44 +231,6 @@ public interface BrokerInterceptor extends AutoCloseable {
      */
     void initialize(PulsarService pulsarService) throws Exception;
 
-    BrokerInterceptor DISABLED = new BrokerInterceptorDisabled();
-
-    /**
-     * Broker interceptor disabled implementation.
-     */
-    class BrokerInterceptorDisabled implements BrokerInterceptor {
-
-        @Override
-        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
-            // no-op
-        }
-
-        @Override
-        public void onConnectionClosed(ServerCnx cnx) {
-            // no-op
-        }
-
-        @Override
-        public void onWebserviceRequest(ServletRequest request) {
-            // no-op
-        }
-
-        @Override
-        public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
-            // no-op
-        }
-
-        @Override
-        public void initialize(PulsarService pulsarService) throws Exception {
-            // no-op
-        }
-
-        @Override
-        public void close() {
-            // no-op
-        }
-    }
-
     /**
      * Close this broker interceptor.
      */

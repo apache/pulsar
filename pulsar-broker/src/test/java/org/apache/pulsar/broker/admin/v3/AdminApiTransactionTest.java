@@ -630,6 +630,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
                         coordinatorSize * 2);
         pulsar.getConfiguration().setAuthenticationEnabled(true);
+        pulsar.getConfiguration().setAuthorizationEnabled(true);
         Set<String> proxyRoles = spy(Set.class);
         doReturn(true).when(proxyRoles).contains(any());
         pulsar.getConfiguration().setProxyRoles(proxyRoles);

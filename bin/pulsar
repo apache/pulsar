@@ -274,7 +274,7 @@ if [ -z "$PULSAR_TRINO_CONF" ]; then
     fi
 fi
 
-if [ -z "$FUNCTIONS_LOG_CONF"]; then
+if [ -z "$FUNCTIONS_LOG_CONF" ]; then
   FUNCTIONS_LOG_CONF=$DEFAULT_FUNCTIONS_LOG_CONF
 fi
 
@@ -291,7 +291,7 @@ OPTS="$OPTS -Dzookeeper.clientTcpKeepAlive=true"
 
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
-IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
+IS_JAVA_8=$( $JAVA -version 2>&1 | grep version | grep '"1\.8' )
 # Start --add-opens options
 # '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
@@ -307,6 +307,8 @@ if [[ -z "$IS_JAVA_8" ]]; then
   OPTS="$OPTS --add-opens java.management/sun.management=ALL-UNNAMED"
   # MBeanStatsGenerator
   OPTS="$OPTS --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED"
+  # LinuxInfoUtils
+  OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"

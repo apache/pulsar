@@ -38,6 +38,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -204,9 +205,15 @@ public class RuntimeUtils {
                 instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
-            for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
-                goInstanceConfig.setSourceSpecsTopic(inputTopic);
+            Map<String, String> sourceInputSpecs = new HashMap<>();
+            for (Map.Entry<String, Function.ConsumerSpec> entry :
+                    instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
+                String topic = entry.getKey();
+                Function.ConsumerSpec spec = entry.getValue();
+                sourceInputSpecs.put(topic, JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
+                goInstanceConfig.setSourceSpecsTopic(topic);
             }
+            goInstanceConfig.setSourceInputSpecs(sourceInputSpecs);
         }
 
         if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {
@@ -247,7 +254,7 @@ public class RuntimeUtils {
         goInstanceConfig.setPort(instanceConfig.getPort());
 
         // Parse the contents of goInstanceConfig into json form string
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
         args.add(originalCodeFileName);
@@ -304,7 +311,7 @@ public class RuntimeUtils {
             }
 
             if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
-               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
             } else {
                 // add complete classpath for broker/worker so that the function instance can load
                 // the functions instance dependencies separately from user code dependencies
@@ -435,10 +442,14 @@ public class RuntimeUtils {
         args.add("--metrics_port");
         args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
-        // only the Java instance supports --pending_async_requests right now.
+        // params supported only by the Java instance runtime.
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("--pending_async_requests");
             args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+
+            if (instanceConfig.isIgnoreUnknownConfigFields()) {
+                args.add("--ignore_unknown_config_fields");
+            }
         }
 
         // state storage configs
@@ -499,7 +510,7 @@ public class RuntimeUtils {
     }
 
     public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
-        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
+        return ObjectMapperFactory.getMapper().getObjectMapper().convertValue(configMap, functionRuntimeConfigClass);
     }
 
     public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {

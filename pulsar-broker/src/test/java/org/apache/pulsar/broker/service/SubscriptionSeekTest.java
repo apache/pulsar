@@ -50,7 +50,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
@@ -599,7 +598,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 .subscriptionName("my-subscription")
                 .subscribe();
 
-        pulsarClient.newConsumer()
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscriptionName("my-subscription")
@@ -616,8 +615,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
         assertEquals(connectedSinceSet.size(), 2);
         consumer1.seek(MessageId.earliest);
-        // Wait for consumer to reconnect
-        Awaitility.await().until(consumer1::isConnected);
+        // Wait for consumers to reconnect
+        Awaitility.await().until(() -> consumer1.isConnected() && consumer2.isConnected());
 
         consumers = topicRef.getSubscriptions().get("my-subscription").getConsumers();
         assertEquals(consumers.size(), 2);
@@ -679,8 +678,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             if (message == null) {
                 break;
             }
-            TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) message.getMessageId();
-            received.add(topicMessageId.getInnerMessageId());
+            received.add(message.getMessageId());
         }
         int msgNumFromPartition1 = list.size() / 2;
         int msgNumFromPartition2 = 1;

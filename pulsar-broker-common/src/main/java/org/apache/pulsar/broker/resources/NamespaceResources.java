@@ -50,7 +50,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final PartitionedTopicResources partitionedTopicResources;
     private final MetadataStore configurationStore;
 
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+    public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
     private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
@@ -258,8 +258,18 @@ public class NamespaceResources extends BaseResources<Policies> {
         }
 
         public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn) {
-            return getAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
-                    tn.getEncodedLocalName()));
+            return getPartitionedTopicMetadataAsync(tn, false);
+        }
+
+        public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn,
+                                                                                                      boolean refresh) {
+            if (refresh) {
+                return refreshAndGetAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                        tn.getEncodedLocalName()));
+            } else {
+                return getAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                        tn.getEncodedLocalName()));
+            }
         }
 
         public boolean partitionedTopicExists(TopicName tn) throws MetadataStoreException {
@@ -317,7 +327,7 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 tn = TopicName.get(tn.getPartitionedTopicName());
             }
-            return getPartitionedTopicMetadataAsync(tn)
+            return getPartitionedTopicMetadataAsync(tn, true)
                     .thenApply(mdOpt -> mdOpt.map(partitionedTopicMetadata -> partitionedTopicMetadata.deleted)
                             .orElse(false));
         }

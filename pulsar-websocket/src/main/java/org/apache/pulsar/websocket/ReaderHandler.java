@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.websocket;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.MessageId;
@@ -38,8 +41,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
@@ -157,7 +160,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
+                        .sendString(objectWriter().writeValueAsString(dm),
+                                new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
@@ -207,7 +211,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = consumerCommandReader.readValue(message);
             if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
                 return;
@@ -230,7 +234,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            String msg = objectWriter().writeValueAsString(
                     new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
             getSession().getRemote()
                     .sendString(msg, new WriteCallback() {
@@ -310,8 +314,21 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
-                this.subscription);
+        try {
+            AuthenticationDataSubscription subscription = new AuthenticationDataSubscription(authenticationData,
+                    this.subscription);
+            return service.getAuthorizationService()
+                    .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                    .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     private int getReceiverQueueSize() {

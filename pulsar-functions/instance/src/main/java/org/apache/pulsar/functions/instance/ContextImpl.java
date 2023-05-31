@@ -148,7 +148,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.clientBuilder = clientBuilder;
         this.client = client;
         this.pulsarAdmin = pulsarAdmin;
-        this.topicSchema = new TopicSchema(client);
+        this.topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
         this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)

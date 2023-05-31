@@ -191,6 +191,6 @@ public abstract class PulsarTestBase extends TestRetrySupport {
     }
 
     protected ObjectMapper jsonMapper () {
-        return ObjectMapperFactory.getThreadLocal();
+        return ObjectMapperFactory.getMapper().getObjectMapper();
     }
 }

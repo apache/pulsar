@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.magicBrokerEntryMetadata;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -92,6 +94,14 @@ public class RawBatchConverter {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
         ByteBuf payload = msg.getHeadersAndPayload();
+        int readerIndex = payload.readerIndex();
+        ByteBuf brokerMeta = null;
+        if (payload.getShort(readerIndex) == magicBrokerEntryMetadata) {
+            payload.skipBytes(Short.BYTES);
+            int brokerEntryMetadataSize = payload.readInt();
+            payload.readerIndex(readerIndex);
+            brokerMeta = payload.readSlice(brokerEntryMetadataSize + Short.BYTES + Integer.BYTES);
+        }
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
         ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
 
@@ -139,8 +149,15 @@ public class RawBatchConverter {
 
                 ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
                                                                                   metadata, compressedPayload);
-                Optional<RawMessage> result = Optional.of(new RawMessageImpl(msg.getMessageIdData(),
-                                                                             metadataAndPayload));
+
+                if (brokerMeta != null) {
+                    CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeDirectBuffer();
+                    compositeByteBuf.addComponents(true, brokerMeta.retain(), metadataAndPayload);
+                    metadataAndPayload = compositeByteBuf;
+                }
+
+                Optional<RawMessage> result =
+                        Optional.of(new RawMessageImpl(msg.getMessageIdData(), metadataAndPayload));
                 metadataAndPayload.release();
                 compressedPayload.release();
                 return result;

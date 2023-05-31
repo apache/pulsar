@@ -73,6 +73,8 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -152,9 +154,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-
     private MockedPulsarService mockPulsarSetup;
 
     private PulsarService otherPulsar;
@@ -170,14 +169,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         setupConfigAndStart(null);
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        pulsarTestContextBuilder.spyConfigCustomizer(
+                // verify(compactor) is used in this test class
+                builder -> builder.compactor(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
+    }
+
     private void applyDefaultConfig() {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setMessageExpiryCheckIntervalInMinutes(1);
         conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
@@ -194,7 +200,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
-        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         // create otherbroker to test redirect on calls that need
@@ -684,7 +690,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
 
         pulsar.getLocalMetadataStore().put("/admin/configuration",
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
@@ -1211,11 +1217,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
 
-        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedManagedLedgerInfo);
+        String expectedResult = ObjectMapperFactory.getMapper().writer().writeValueAsString(partitionedManagedLedgerInfo);
 
         String partitionTopicInfoResponse = admin.topics().getInternalInfo(partitionedTopicName);
         assertEquals(partitionTopicInfoResponse, expectedResult);
@@ -1234,14 +1240,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), -1);
 
         // publish several messages
         publishMessagesOnPersistentTopic(topic, 10);
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, true, true);
         assertTrue(topicStats.getEarliestMsgPublishTimeInBacklogs() > 0);
         assertTrue(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() > 0);
+        assertTrue(topicStats.getSubscriptions().get(subName).getBacklogSize() > 0);
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
@@ -1249,9 +1257,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, true, true);
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 0);
+    }
+
+    @Test
+    public void testGetPartitionedStatsContainSubscriptionType() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/my-topic" + UUID.randomUUID();
+        final int numPartitions = 4;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        // create consumer and subscription
+        final String subName = "my-sub";
+        @Cleanup Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+        assertEquals(topicStats.getSubscriptions().size(), 1);
+        assertEquals(topicStats.getSubscriptions().get(subName).getType(), SubscriptionType.Exclusive.toString());
     }
 
 
@@ -1293,8 +1320,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // partitioned internal stats
         PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
 
-        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(expectedInternalStats);
-        String result = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedInternalStats);
+        String expectedResult = ObjectMapperFactory.getMapper().writer().writeValueAsString(expectedInternalStats);
+        String result = ObjectMapperFactory.getMapper().writer().writeValueAsString(partitionedInternalStats);
 
         assertEquals(result, expectedResult);
     }
@@ -2271,7 +2298,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testJacksonWithTypeDifferences() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"test\"]}";
-        IncompatibleTenantAdmin r1 = ObjectMapperFactory.getThreadLocal().readerFor(IncompatibleTenantAdmin.class)
+        IncompatibleTenantAdmin r1 = ObjectMapperFactory.getMapper().reader().forType(IncompatibleTenantAdmin.class)
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Set.of("test", "usw"));
         assertEquals(r1.someNewIntField, 0);
