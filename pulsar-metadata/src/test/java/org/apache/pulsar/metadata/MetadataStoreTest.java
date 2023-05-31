@@ -432,10 +432,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "conditionOfSwitchThread")
     public void testThreadSwitchOfZkMetadataStore(boolean hasSynchronizer, boolean enabledBatch) throws Exception {
         final String prefix = newKey();
-        final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
+        final String metadataStoreNamePrefix = "metadata-store-";
         MetadataStoreConfig.MetadataStoreConfigBuilder builder =
-                MetadataStoreConfig.builder().metadataStoreName(metadataStoreName);
-        builder.fsyncEnable(false);
+                MetadataStoreConfig.builder();
         builder.batchingEnabled(enabledBatch);
         if (!hasSynchronizer) {
             builder.synchronizer(null);
@@ -447,8 +446,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
             String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
-                    metadataStoreName, currentThreadName);
-            assertTrue(Thread.currentThread().getName().startsWith(metadataStoreName), errorMessage);
+                    metadataStoreNamePrefix, currentThreadName);
+            assertTrue(Thread.currentThread().getName().startsWith(metadataStoreNamePrefix), errorMessage);
         };
 
         // put with node which has parent(but the parent node is not exists).
