@@ -1243,7 +1243,7 @@ public class NamespaceService implements AutoCloseable {
                     bundleSplitListener.onSplit(bundle);
                 }
             } catch (Throwable t) {
-                LOG.error("Call bundle {} split lister error", bundle, t);
+                LOG.error("Call bundle {} split listener {} error", bundle, bundleSplitListener, t);
             }
         }
     }
