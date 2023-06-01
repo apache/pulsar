@@ -251,7 +251,6 @@ public interface AuthorizationProvider extends Closeable {
                         topicName)));
     }
 
-
     /**
      * Check if a given <tt>role</tt> is allowed to execute a given <tt>operation</tt> on the tenant.
      *

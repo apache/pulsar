@@ -1098,8 +1098,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             grantRoles.add(role);
             return CompletableFuture.completedFuture(null);
         }
-
-
     }
 
 }
