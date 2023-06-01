@@ -70,7 +70,7 @@ N/A
 
 ### Configuration
 
-The only name change is for function worker config. I propose we replace `tlsEnableHostnameVerification` with `tlsHostnameVerificationEnabled` to match the other server components.
+There are two name changes. For function worker config, I propose we replace `tlsEnableHostnameVerification` with `tlsHostnameVerificationEnabled` to match the other server components. For the client.conf config which is used by CLI tools, I propose we change `tlsEnableHostnameVerification` to `tlsHostnameVerificationEnabled`.
 
 ### CLI
 
@@ -86,7 +86,7 @@ N/A
 
 This PIP will improve Pulsar's security by making it secure by default for hostname verification.
 
-# Backward & Forward Compatability
+# Backward & Forward Compatibility
 
 ## Revert
 
