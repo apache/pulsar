@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timer;
+import javax.annotation.Nullable;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -33,15 +36,23 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     private Connector connector;
     private final int autoCertRefreshTimeSeconds;
 
-    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    private final EventLoopGroup eventLoopGroup;
+    private final Timer nettyTimer;
+
+    public AsyncHttpConnectorProvider(ClientConfigurationData conf,
+                                      @Nullable EventLoopGroup eventLoopGroup,
+                                      @Nullable Timer nettyTimer,
+                                      int autoCertRefreshTimeSeconds) {
         this.conf = conf;
         this.autoCertRefreshTimeSeconds = autoCertRefreshTimeSeconds;
+        this.eventLoopGroup = eventLoopGroup;
+        this.nettyTimer = nettyTimer;
     }
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds);
+            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, eventLoopGroup, nettyTimer);
         }
         return connector;
     }
@@ -50,6 +61,6 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
             int autoCertRefreshTimeSeconds) {
         return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf);
+                conf, eventLoopGroup, nettyTimer);
     }
 }

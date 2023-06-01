@@ -48,7 +48,7 @@ public class PulsarAdminImplTest {
 
     @SneakyThrows
     private Authentication createAdminAndGetAuth(ClientConfigurationData conf) {
-        try (PulsarAdminImpl admin = new PulsarAdminImpl("http://localhost:8080", conf, null)) {
+        try (PulsarAdminImpl admin = new PulsarAdminImpl("http://localhost:8080", conf, null, null, null)) {
             return admin.auth;
         }
     }

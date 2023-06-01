@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timer;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -104,7 +107,10 @@ public class PulsarAdminImpl implements PulsarAdmin {
     protected final WebTarget root;
     protected final Authentication auth;
 
-    public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
+    public PulsarAdminImpl(String serviceUrl,
+                           ClientConfigurationData clientConfigData,
+                           @Nullable EventLoopGroup eventLoopGroup,
+                           @Nullable Timer nettyTimer,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
 
@@ -119,6 +125,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
+                eventLoopGroup, nettyTimer,
                 clientConfigData.getAutoCertRefreshSeconds());
 
         ClientConfig httpConfig = new ClientConfig();
@@ -195,7 +202,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     @Deprecated
     public PulsarAdminImpl(URL serviceUrl, Authentication auth) throws PulsarClientException {
-        this(serviceUrl.toString(), getConfigData(auth), null);
+        this(serviceUrl.toString(), getConfigData(auth), null, null, null);
     }
 
     private static ClientConfigurationData getConfigData(Authentication auth) {

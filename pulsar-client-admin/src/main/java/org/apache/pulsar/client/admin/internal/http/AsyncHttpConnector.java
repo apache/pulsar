@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslProvider;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -84,18 +86,26 @@ public class AsyncHttpConnector implements Connector {
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
             new DefaultThreadFactory("delayer"));
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    public AsyncHttpConnector(Client client,
+                              ClientConfigurationData conf,
+                              int autoCertRefreshTimeSeconds,
+                              EventLoopGroup eventLoopGroup,
+                              Timer nettyTimer) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf);
+                conf, eventLoopGroup, nettyTimer);
     }
 
     @SneakyThrows
-    public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
+    public AsyncHttpConnector(int connectTimeoutMs,
+                              int readTimeoutMs,
                               int requestTimeoutMs,
-                              int autoCertRefreshTimeSeconds, ClientConfigurationData conf) {
+                              int autoCertRefreshTimeSeconds,
+                              ClientConfigurationData conf,
+                              EventLoopGroup eventLoopGroup,
+                              Timer nettyTimer) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
@@ -116,13 +126,13 @@ public class AsyncHttpConnector implements Connector {
         });
 
         // reuse eventLoopGroup if provided.
-        if (conf.getEventLoopGroup() != null) {
-            confBuilder.setEventLoopGroup(conf.getEventLoopGroup());
+        if (eventLoopGroup != null) {
+            confBuilder.setEventLoopGroup(eventLoopGroup);
         }
 
         // reuse nettyTimer if provided.
-        if (conf.getNettyTimer() != null) {
-            confBuilder.setNettyTimer(conf.getNettyTimer());
+        if (nettyTimer != null) {
+            confBuilder.setNettyTimer(nettyTimer);
         }
 
         serviceNameResolver = new PulsarServiceNameResolver();

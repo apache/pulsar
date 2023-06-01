@@ -123,6 +123,7 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -1485,10 +1486,12 @@ public class BrokerService implements Closeable {
                 // zk-operation timeout
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
-                // reuse eventLoop
-                builder.setEventLoopGroup(pulsar.getIoEventLoopGroup());
-                // reuse nettyTimer
-                builder.setNettyTimer(pulsar.getBrokerClientSharedTimer());
+                if (builder instanceof PulsarAdminBuilderImpl impl) {
+                    // reuse eventLoop
+                    impl.setEventLoopGroup(pulsar.getIoEventLoopGroup());
+                    // reuse nettyTimer
+                    impl.setNettyTimer(pulsar.getBrokerClientSharedTimer());
+                }
 
                 PulsarAdmin adminClient = builder.build();
                 log.info("created admin with url {} ", adminApiUrl);

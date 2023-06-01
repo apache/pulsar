@@ -40,10 +40,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     protected ClientConfigurationData conf;
 
     private ClassLoader clientBuilderClassLoader = null;
+    private EventLoopGroup eventLoopGroup;
+    private Timer nettyTimer;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, eventLoopGroup, nettyTimer, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -230,15 +232,13 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         return this;
     }
 
-    @Override
     public PulsarAdminBuilder setEventLoopGroup(EventLoopGroup eventLoopGroup) {
-        this.conf.setEventLoopGroup(eventLoopGroup);
+        this.eventLoopGroup = eventLoopGroup;
         return this;
     }
 
-    @Override
     public PulsarAdminBuilder setNettyTimer(Timer nettyTimer) {
-        this.conf.setNettyTimer(nettyTimer);
+        this.nettyTimer = nettyTimer;
         return this;
     }
 }

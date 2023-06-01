@@ -123,6 +123,7 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarSe
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -1650,10 +1651,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 // zk-operation timeout
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
-                // reuse eventLoop
-                builder.setEventLoopGroup(this.getIoEventLoopGroup());
-                // reuse nettyTimer
-                builder.setNettyTimer(this.getBrokerClientSharedTimer());
+                if (builder instanceof PulsarAdminBuilderImpl impl) {
+                    // reuse eventLoop
+                    impl.setEventLoopGroup(this.getIoEventLoopGroup());
+                    // reuse nettyTimer
+                    impl.setNettyTimer(this.getBrokerClientSharedTimer());
+                }
 
                 this.adminClient = builder.build();
                 LOG.info("created admin with url {} ", adminApiUrl);
