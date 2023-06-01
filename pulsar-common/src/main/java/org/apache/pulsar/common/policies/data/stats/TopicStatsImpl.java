@@ -140,6 +140,7 @@ public class TopicStatsImpl implements TopicStats {
     public long delayedMessageIndexSizeInBytes;
 
     /** Map of bucket delayed index statistics. */
+    @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** The compaction stats. */

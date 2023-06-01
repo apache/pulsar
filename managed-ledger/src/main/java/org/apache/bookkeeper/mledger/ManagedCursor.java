@@ -787,6 +787,12 @@ public interface ManagedCursor {
     long getEstimatedSizeSinceMarkDeletePosition();
 
     /**
+     * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
+     * used to delete information about this ledger in the ManagedCursor.
+     */
+    default void skipNonRecoverableLedger(long ledgerId){}
+
+    /**
      * Returns cursor throttle mark-delete rate.
      *
      * @return
