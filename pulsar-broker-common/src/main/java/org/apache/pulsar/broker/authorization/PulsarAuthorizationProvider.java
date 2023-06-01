@@ -261,8 +261,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             return pulsarResources.getNamespaceResources()
                     .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
                         policies.auth_policies.getTopicAuthentication()
-                                .computeIfAbsent(topicName.toString(), __ -> new HashMap<>())
-                                .remove(role);
+                                .computeIfPresent(topicName.toString(), (k, v) -> {
+                                        v.remove(role);
+                                        return null;
+                                });
                         return policies;
                     }).whenComplete((__, ex) -> {
                         if (ex != null) {
