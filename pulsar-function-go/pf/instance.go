@@ -196,9 +196,8 @@ CLOSE:
 
 const (
 	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
-	authPluginNone = ""
+	authPluginNone  = ""
 )
-
 
 func (gi *goInstance) setupClient() error {
 	ic := gi.context.instanceConf
@@ -211,7 +210,7 @@ func (gi *goInstance) setupClient() error {
 			authProvider = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
 		case strings.HasPrefix(ic.authParams, "token:"):
 			authProvider = pulsar.NewAuthenticationToken(ic.authParams[6:])
-		case ic.authParams == "" :
+		case ic.authParams == "":
 			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
 		default:
 			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
