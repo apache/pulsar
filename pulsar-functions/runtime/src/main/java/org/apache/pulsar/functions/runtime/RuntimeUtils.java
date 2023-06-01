@@ -427,7 +427,7 @@ public class RuntimeUtils {
             args.add("--tls_allow_insecure");
             args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
             args.add("--hostname_verification_enabled");
-            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
+            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnabled()));
             if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
                 args.add("--tls_trust_cert_path");
                 args.add(authConfig.getTlsTrustCertsFilePath());

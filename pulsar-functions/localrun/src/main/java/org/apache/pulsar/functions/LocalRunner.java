@@ -418,7 +418,7 @@ public class LocalRunner implements AutoCloseable {
                     (clientAuthPlugin)
                     .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
                     .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
-                    .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                    .tlsHostnameVerificationEnabled(tlsHostNameVerificationEnabled)
                     .tlsTrustCertsFilePath(tlsTrustCertFilePath).build();
 
             String serviceUrl = DEFAULT_SERVICE_URL;

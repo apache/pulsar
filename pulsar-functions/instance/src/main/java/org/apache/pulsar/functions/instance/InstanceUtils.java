@@ -168,7 +168,7 @@ public class InstanceUtils {
                 }
                 clientBuilder.enableTls(authConfig.isUseTls());
                 clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
-                clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+                clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnabled());
                 clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
             }
             if (memoryLimit.isPresent()) {
@@ -206,7 +206,7 @@ public class InstanceUtils {
                     pulsarAdminBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
                 }
                 pulsarAdminBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
-                pulsarAdminBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+                pulsarAdminBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnabled());
             }
             return pulsarAdminBuilder.build();
         }

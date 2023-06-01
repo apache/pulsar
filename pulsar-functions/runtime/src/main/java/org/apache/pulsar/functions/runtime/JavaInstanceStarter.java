@@ -240,7 +240,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
-                        .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
+                        .tlsHostnameVerificationEnabled(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
                 exposePulsarAdminClientEnabled, webServiceUrl, fnCache);
