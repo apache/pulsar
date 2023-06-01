@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <hadoop2.version>2.10.2</hadoop2.version>
     <hadoop3.version>3.3.5</hadoop3.version>
     <hbase.version>2.4.16</hbase.version>
-    <guava.version>31.0.1-jre</guava.version>
+    <guava.version>32.0.0-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
