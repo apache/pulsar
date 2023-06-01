@@ -281,7 +281,7 @@ public class ConsumerImplTest {
 
         // then
         assertTrue(firstResult.isDone());
-        assertTrue(secondResult.isCancelled());
+        assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
     }
 }

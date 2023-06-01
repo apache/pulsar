@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -30,21 +31,38 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class TlsHostVerificationTest extends TlsProducerConsumerBase {
 
+    @Override
+    @Test(enabled = false)
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        builder.configCustomizer(config -> {
+            // Advertise a hostname that routes but is not on the certificate
+            // Note that if you are on a Mac, you'll need to run the following to make loopback work for 127.0.0.2
+            // $ sudo ifconfig lo0 alias 127.0.0.2 up
+            config.setAdvertisedAddress("127.0.0.2");
+        });
+    }
+
     @Test
     public void testTlsHostVerificationAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
-        String websocketTlsAddress = pulsar.getWebServiceAddressTls();
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
+        Assert.assertTrue(pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"),
+                "Test relies on this address");
         PulsarAdmin adminClientTls = PulsarAdmin.builder()
-                .serviceHttpUrl(websocketTlsAddress.replace("localhost", "127.0.0.1"))
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .serviceHttpUrl(pulsar.getWebServiceAddressTls())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(true)
+                .requestTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
 
         try {
             adminClientTls.tenants().getTenants();
             Assert.fail("Admin call should be failed due to hostnameVerification enabled");
+        } catch (PulsarAdminException.TimeoutException e) {
+            // The test was previously able to fail here, but that is not the right way for the test to pass.
+            // If you hit this error and are running on OSX, you may need to run "sudo ifconfig lo0 alias 127.0.0.2 up"
+            Assert.fail("Admin call should not timeout, it should fail due to SSL error");
         } catch (PulsarAdminException e) {
             // Ok
         }
@@ -53,11 +71,13 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
     @Test
     public void testTlsHostVerificationDisabledAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
+        Assert.assertTrue(pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"),
+                "Test relies on this address");
         PulsarAdmin adminClient = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsar.getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(false)
                 .build();
 

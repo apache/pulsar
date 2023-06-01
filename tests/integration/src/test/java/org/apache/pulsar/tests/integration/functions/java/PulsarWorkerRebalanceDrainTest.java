@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.functions.java;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.MappingIterator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,10 +29,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.databind.MappingIterator;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -41,8 +43,6 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
@@ -251,9 +251,12 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
 
+        Map<String, String> inputTopicsSerde = new HashedMap<>();
+        inputTopicsSerde.put(inputTopicName, SERDE_CLASS);
+
         submitFunction(
-                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS,
-                SERDE_OUTPUT_CLASS, Collections.singletonMap(topicPrefix, outputTopicName)
+                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS, inputTopicsSerde,
+                SERDE_CLASS, Collections.singletonMap(topicPrefix, outputTopicName)
         );
     }
 

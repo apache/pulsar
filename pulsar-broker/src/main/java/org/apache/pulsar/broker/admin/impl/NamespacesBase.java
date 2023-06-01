@@ -883,7 +883,7 @@ public abstract class NamespacesBase extends AdminResource {
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
                                 policies.namespaceAntiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
+                        .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
                                 bookieAffinityGroup,
                                 null));
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
@@ -1710,7 +1710,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             return getLocalPolicies()
                     .getLocalPolicies(namespaceName)
-                    .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
+                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles())
+                            , null, null)).namespaceAntiAffinityGroup;
         } catch (Exception e) {
             log.error("[{}] Failed to get the antiAffinityGroup of namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(Status.NOT_FOUND, "Couldn't find namespace policies");
@@ -1760,7 +1761,9 @@ public abstract class NamespacesBase extends AdminResource {
                     throw new RuntimeException(e);
                 }
 
-                String storedAntiAffinityGroup = policies.orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
+                String storedAntiAffinityGroup = policies.orElseGet(() ->
+                        new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
+                                null, null)).namespaceAntiAffinityGroup;
                 return antiAffinityGroup.equalsIgnoreCase(storedAntiAffinityGroup);
             }).collect(Collectors.toList());
 

@@ -24,9 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -103,10 +101,7 @@ public class PerformanceProducer {
     private static IMessageFormatter messageFormatter = null;
 
     @Parameters(commandDescription = "Test pulsar producer performance.")
-    static class Arguments extends PerformanceBaseArguments {
-
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topics;
+    static class Arguments extends PerformanceTopicListArguments {
 
         @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads",
                 validateWith = PositiveNumberParameterValidator.class)
@@ -117,10 +112,6 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
-
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
 
         @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)",
                 validateWith = PositiveNumberParameterValidator.class)
@@ -138,9 +129,6 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
         public String adminURL;
-
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
-        public String deprecatedAuthPluginClassName;
 
         @Parameter(names = { "-ch",
                 "--chunking" }, description = "Should split the message and publish in chunks if message size is "
@@ -272,52 +260,7 @@ public class PerformanceProducer {
     public static void main(String[] args) throws Exception {
 
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf produce");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
-            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
-        }
-
-        for (String arg : arguments.topics) {
-            if (arg.startsWith("-")) {
-                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
-                        + "please use a fully qualified topic name\n", arg, arg);
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
-            // keep compatibility with the previous version
-            if (arguments.topics.size() == 1) {
-                String prefixTopicName = arguments.topics.get(0);
-                List<String> defaultTopics = new ArrayList<>();
-                for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s%s%d", prefixTopicName, arguments.separator, i));
-                }
-                arguments.topics = defaultTopics;
-            } else {
-                System.out.println("The size of topics list should be equal to --num-topic");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        arguments.fillArgumentsFromProperties();
+        arguments.parseCLI("pulsar-perf produce", args);
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);

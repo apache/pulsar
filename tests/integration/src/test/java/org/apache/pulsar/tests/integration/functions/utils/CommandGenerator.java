@@ -46,7 +46,7 @@ public class CommandGenerator {
     private String functionClassName;
     private String sourceTopic;
     private String sourceTopicPattern;
-    private Map<String, String> customSereSourceTopics;
+    private Map<String, String> customSerDeSourceTopics;
     private String sinkTopic;
     private String logTopic;
     private String outputSerDe;
@@ -182,8 +182,8 @@ public class CommandGenerator {
         if (batchBuilder != null) {
             commandBuilder.append("--batch-builder" + batchBuilder);
         }
-        if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
-            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
@@ -280,8 +280,8 @@ public class CommandGenerator {
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
-        if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
-            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");
         }
         if (batchBuilder != null) {
             commandBuilder.append("--batch-builder" + batchBuilder);

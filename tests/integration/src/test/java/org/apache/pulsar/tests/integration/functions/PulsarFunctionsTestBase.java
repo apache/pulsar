@@ -54,7 +54,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
 
-    public static final String SERDE_OUTPUT_CLASS =
+    public static final String SERDE_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
 
     public static final String EXCLAMATION_PYTHON_CLASS =
@@ -151,6 +151,8 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
             } else {
                 return EXCLAMATION_PYTHON_CLASS;
             }
+        } else if (Runtime.GO == runtime) {
+            return null;
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }

@@ -819,7 +819,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             try {
-                if (!topic.endsWith(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
+                if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
                         && !checkSubscriptionTypesEnable(subType)) {
                     return FutureUtil.failedFuture(
                             new NotAllowedException("Topic[{" + topic + "}] doesn't support "
