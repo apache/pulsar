@@ -250,6 +250,31 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
+    public CompletableFuture<Void> revokePermissionAsync(TopicName topicName, String role) {
+        return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
+            if (readonly) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Policies are read-only. Broker cannot do read-write operations");
+                }
+                throw new IllegalStateException("policies are in readonly mode");
+            }
+            return pulsarResources.getNamespaceResources()
+                    .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                        policies.auth_policies.getTopicAuthentication()
+                                .computeIfAbsent(topicName.toString(), __ -> new HashMap<>())
+                                .remove(role);
+                        return policies;
+                    }).whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to revoke permissions for role {} on topic {}", role, topicName, ex);
+                        } else {
+                            log.info("Successfully revoke permissions for role {} on topic {}", role, topicName);
+                        }
+                    });
+        });
+    }
+
+    @Override
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespaceName, Set<AuthAction> actions,
                                                         String role, String authDataJson) {
         return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
@@ -269,6 +294,29 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         } else {
                             log.info("Successfully granted access for role {}: {} - namespace {}", role, actions,
                                     namespaceName);
+                        }
+                    });
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionAsync(NamespaceName namespaceName, String role) {
+        return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
+            if (readonly) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Policies are read-only. Broker cannot do read-write operations");
+                }
+                throw new IllegalStateException("policies are in readonly mode");
+            }
+            return pulsarResources.getNamespaceResources()
+                    .setPoliciesAsync(namespaceName, policies -> {
+                        policies.auth_policies.getNamespaceAuthentication().remove(role);
+                        return policies;
+                    }).whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to revoke permissions for role {} namespace {}", role, namespaceName, ex);
+                        } else {
+                            log.info("Successfully revoke permissions for role {} namespace {}", role, namespaceName);
                         }
                     });
         });
