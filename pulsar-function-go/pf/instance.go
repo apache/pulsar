@@ -21,8 +21,10 @@ package pf
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -193,9 +195,21 @@ CLOSE:
 }
 
 func (gi *goInstance) setupClient() error {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
+	ic := gi.context.instanceConf
 
+	var authProvider pulsar.Authentication
+	switch ic.authPlugin {
+	case "org.apache.pulsar.client.impl.auth.AuthenticationToken":
+		tokenFile := strings.TrimPrefix(ic.authParams, "file://")
+		authProvider = pulsar.NewAuthenticationTokenFromFile(tokenFile)
+	case "":
+		authProvider, _ = pulsar.NewAuthentication("", "")
+	default:
+		panic(fmt.Sprintf("invalid auth provider: %s", ic.authPlugin))
+	}
+	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL: gi.context.instanceConf.pulsarServiceURL,
+		Authentication: authProvider,
 	})
 	if err != nil {
 		log.Errorf("create client error:%v", err)

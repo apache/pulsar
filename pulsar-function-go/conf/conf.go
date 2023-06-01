@@ -49,7 +49,9 @@ type Conf struct {
 	ProcessingGuarantees int32  `json:"processingGuarantees" yaml:"processingGuarantees"`
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
-	//Deprecated
+	AuthPlugin           string `json:"authPlugin" yaml:"authPlugin"`
+	AuthParams           string `json:"authParams" yaml:"authParams"`
+	// Deprecated
 	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
 	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
 	//source config

@@ -73,6 +73,9 @@ public class RuntimeUtilsTest {
         instanceConfig.setPort(1337);
         instanceConfig.setMetricsPort(60000);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder().build();
+
+
 
         JSONObject userConfig = new JSONObject();
         userConfig.put("word-of-the-day", "der Weltschmerz");
@@ -116,7 +119,7 @@ public class RuntimeUtilsTest {
 
         instanceConfig.setFunctionDetails(functionDetails);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig,"config", "pulsar://localhost:6650", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {

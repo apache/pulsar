@@ -44,6 +44,8 @@ public class GoInstanceConfig {
     private int processingGuarantees;
     private String secretsMap = "";
     private String userConfig = "";
+    private String authPlugin = "";
+    private String authParams = "";
     private int runtime;
     private boolean autoAck;
     private int parallelism;
