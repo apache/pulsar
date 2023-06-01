@@ -37,7 +37,7 @@
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
     <maven.version>3.0.5</maven.version>
-    <guava.version>31.0.1-jre</guava.version>
+    <guava.version>32.0.0-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <errorprone.version>2.5.1</errorprone.version>
     <javax.servlet-api>4.0.1</javax.servlet-api>
