@@ -189,7 +189,7 @@ public interface AuthorizationProvider extends Closeable {
      * Revoke authorization-action permission on a namespace to the given client.
      * @param namespace
      * @param role
-     * @return
+     * @return CompletableFuture<Void>
      */
     default CompletableFuture<Void> revokePermissionAsync(NamespaceName namespace, String role) {
         return FutureUtil.failedFuture(new IllegalStateException(
@@ -205,7 +205,7 @@ public interface AuthorizationProvider extends Closeable {
      * @param roles
      * @param authDataJson
      *            additional authdata in json format
-     * @return
+     * @return CompletableFuture<Void>
      */
     CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
                                                              Set<String> roles, String authDataJson);
@@ -215,7 +215,7 @@ public interface AuthorizationProvider extends Closeable {
      * @param namespace
      * @param subscriptionName
      * @param role
-     * @return
+     * @return CompletableFuture<Void>
      */
     CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
             String role, String authDataJson);
@@ -243,7 +243,7 @@ public interface AuthorizationProvider extends Closeable {
      * Revoke authorization-action permission on a topic to the given client.
      * @param topicName
      * @param role
-     * @return
+     * @return CompletableFuture<Void>
      */
     default CompletableFuture<Void> revokePermissionAsync(TopicName topicName, String role) {
         return FutureUtil.failedFuture(new IllegalStateException(
