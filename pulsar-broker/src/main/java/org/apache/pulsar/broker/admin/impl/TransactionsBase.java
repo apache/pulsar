@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
@@ -449,54 +450,65 @@ public abstract class TransactionsBase extends AdminResource {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
                         this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-                        return getExistingPersistentTopicAsync(authoritative)
-                                .thenCompose(segmentTopic ->
-                                        segmentTopic.getManagedLedger().getManagedLedgerInternalStats(metadata)
-                                                .thenApply(segmentInternalStats -> {
-                                                    SnapshotInternalStats segmentStats = new SnapshotInternalStats();
-                                                    segmentStats.managedLedgerName = segmentTopic
-                                                            .getManagedLedger().getName();
-                                                    segmentStats.managedLedgerInternalStats = segmentInternalStats;
-                                                    transactionBufferInternalStats.segmentInternalStats = segmentStats;
-                                                    return null;
-                                        }))
-                                .thenCompose(ignore -> {
+                        return getTxnSnapshotInternalStats(topicName, authoritative, metadata)
+                                .thenApply(snapshotInternalStats -> {
+                                    transactionBufferInternalStats.segmentInternalStats = snapshotInternalStats;
+                                    return transactionBufferInternalStats;
+                                }).thenCompose(ignore -> {
                                     this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                             SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-                                    return getExistingPersistentTopicAsync(authoritative)
-                                            .thenCompose(indexTopic ->  indexTopic.getManagedLedger()
-                                                    .getManagedLedgerInternalStats(metadata)
-                                                    .thenApply(indexInternalStats -> {
-                                                        SnapshotInternalStats indexStats = new SnapshotInternalStats();
-                                                        indexStats.managedLedgerName = indexTopic
-                                                                .getManagedLedger().getName();
-                                                        indexStats.managedLedgerInternalStats = indexInternalStats;
-                                                        transactionBufferInternalStats
-                                                                .segmentIndexInternalStats = indexStats;
-                                                        return null;
-                                                    }));
-                                }).thenApply(ignore -> transactionBufferInternalStats);
+                                    return getTxnSnapshotInternalStats(topicName, authoritative, metadata)
+                                            .thenApply(indexStats -> {
+                                                transactionBufferInternalStats.segmentIndexInternalStats = indexStats;
+                                                return transactionBufferInternalStats;
+                                            });
+                                });
                     } else if (snapshotType == TransactionBuffer.SnapshotType.Single) {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
                         this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-                        return getExistingPersistentTopicAsync(authoritative)
-                                .thenCompose(singleTopic ->
-                                        singleTopic.getManagedLedger().getManagedLedgerInternalStats(metadata)
-                                                .thenApply(singleInternalStats -> {
-                                                    // Construct the internal stats of the single snapshot
-                                                    SnapshotInternalStats singleStats = new SnapshotInternalStats();
-                                                    singleStats.managedLedgerName = singleTopic
-                                                            .getManagedLedger().getName();
-                                                    singleStats.managedLedgerInternalStats = singleInternalStats;
-                                                    transactionBufferInternalStats
-                                                            .singleSnapshotInternalStats = singleStats;
-                                                    return transactionBufferInternalStats;
-                                                }));
+                        return getTxnSnapshotInternalStats(topicName, authoritative, metadata)
+                                .thenApply(snapshotInternalStats -> {
+                                   transactionBufferInternalStats.singleSnapshotInternalStats = snapshotInternalStats;
+                                   return transactionBufferInternalStats;
+                                });
                     }
                     return FutureUtil.failedFuture(new RestException(INTERNAL_SERVER_ERROR, "Unknown SnapshotType "
                             + snapshotType));
                 });
+    }
+
+    private CompletableFuture<SnapshotInternalStats> getTxnSnapshotInternalStats(TopicName topicName,
+                                                                                 boolean authoritative,
+                                                                                 boolean metadata) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return FutureUtil.failedFuture(new RestException(e));
+        }
+        NamespaceService ns = pulsar().getNamespaceService();
+        return ns.isServiceUnitOwnedAsync(topicName).thenCompose(isOwner -> {
+            if (isOwner) {
+                return getExistingPersistentTopicAsync(authoritative).thenCompose(persistentTopic -> {
+                    return persistentTopic.getManagedLedger().getManagedLedgerInternalStats(metadata)
+                            .thenApply(managedLedgerInternalStats -> {
+                                SnapshotInternalStats snapshotInternalStats = new SnapshotInternalStats();
+                                snapshotInternalStats.managedLedgerName = persistentTopic.getManagedLedger().getName();
+                                snapshotInternalStats.managedLedgerInternalStats = managedLedgerInternalStats;
+                                return snapshotInternalStats;
+                            });
+                });
+            } else {
+                return admin.topics().getInternalStatsAsync(topicName.toString())
+                        .thenApply(persistentTopicInternalStats -> {
+                            SnapshotInternalStats snapshotInternalStats = new SnapshotInternalStats();
+                            snapshotInternalStats.managedLedgerInternalStats = persistentTopicInternalStats;
+                            snapshotInternalStats.managedLedgerName = topicName.getEncodedLocalName();
+                            return snapshotInternalStats;
+                        });
+            }
+        });
     }
 
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
