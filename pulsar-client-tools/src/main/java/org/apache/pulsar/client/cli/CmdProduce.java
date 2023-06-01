@@ -122,7 +122,8 @@ public class CmdProduce {
     private String key;
     @Parameter(names = { "-kvk", "--key-value-key"}, description = "Value to add as message key in KeyValue schema")
     private String keyValueKey;
-    @Parameter(names = { "-kvkf", "--key-value-key-file"}, description = "Path to file containing the value to add as message key in KeyValue schema. JSON and AVRO files are supported.")
+    @Parameter(names = { "-kvkf", "--key-value-key-file"},
+            description = "Path to file containing the value to add as message key in KeyValue schema. JSON and AVRO files are supported.")
     private String keyValueKeyFile;
 
     @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
