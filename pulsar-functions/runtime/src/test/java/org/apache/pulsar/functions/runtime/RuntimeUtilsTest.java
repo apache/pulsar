@@ -75,8 +75,6 @@ public class RuntimeUtilsTest {
 
         AuthenticationConfig authConfig = AuthenticationConfig.builder().build();
 
-
-
         JSONObject userConfig = new JSONObject();
         userConfig.put("word-of-the-day", "der Weltschmerz");
 
