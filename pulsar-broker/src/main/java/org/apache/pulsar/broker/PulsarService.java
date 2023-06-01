@@ -1650,6 +1650,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 // zk-operation timeout
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
+                // reuse eventLoop
+                builder.setEventLoopGroup(this.getIoEventLoopGroup());
+                // reuse nettyTimer
+                builder.setNettyTimer(this.getBrokerClientSharedTimer());
+
                 this.adminClient = builder.build();
                 LOG.info("created admin with url {} ", adminApiUrl);
             } catch (Exception e) {

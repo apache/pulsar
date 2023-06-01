@@ -115,6 +115,16 @@ public class AsyncHttpConnector implements Connector {
             }
         });
 
+        // reuse eventLoopGroup if provided.
+        if (conf.getEventLoopGroup() != null) {
+            confBuilder.setEventLoopGroup(conf.getEventLoopGroup());
+        }
+
+        // reuse nettyTimer if provided.
+        if (conf.getNettyTimer() != null) {
+            confBuilder.setNettyTimer(conf.getNettyTimer());
+        }
+
         serviceNameResolver = new PulsarServiceNameResolver();
         if (conf != null && StringUtils.isNotBlank(conf.getServiceUrl())) {
             serviceNameResolver.updateServiceUrl(conf.getServiceUrl());

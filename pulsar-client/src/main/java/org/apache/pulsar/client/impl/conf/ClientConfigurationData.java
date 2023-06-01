@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timer;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
@@ -384,6 +386,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The extra description of the client version. The length cannot exceed 64."
     )
     private String description;
+
+    @JsonIgnore
+    private EventLoopGroup eventLoopGroup;
+
+    @JsonIgnore
+    private Timer nettyTimer;
 
     /**
      * Gets the authentication settings for the client.

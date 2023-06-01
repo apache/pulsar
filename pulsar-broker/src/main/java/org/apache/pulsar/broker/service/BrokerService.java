@@ -1485,6 +1485,11 @@ public class BrokerService implements Closeable {
                 // zk-operation timeout
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
+                // reuse eventLoop
+                builder.setEventLoopGroup(pulsar.getIoEventLoopGroup());
+                // reuse nettyTimer
+                builder.setNettyTimer(pulsar.getBrokerClientSharedTimer());
+
                 PulsarAdmin adminClient = builder.build();
                 log.info("created admin with url {} ", adminApiUrl);
                 return adminClient;

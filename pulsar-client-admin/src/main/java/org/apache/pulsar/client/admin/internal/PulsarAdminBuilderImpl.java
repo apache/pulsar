@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timer;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -225,6 +227,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder setEventLoopGroup(EventLoopGroup eventLoopGroup) {
+        this.conf.setEventLoopGroup(eventLoopGroup);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder setNettyTimer(Timer nettyTimer) {
+        this.conf.setNettyTimer(nettyTimer);
         return this;
     }
 }
