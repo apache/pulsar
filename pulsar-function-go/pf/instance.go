@@ -149,7 +149,6 @@ func (gi *goInstance) startFunction(function function) error {
 	defer metricsServicer.close()
 CLOSE:
 	for {
-		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
@@ -182,6 +181,11 @@ CLOSE:
 			close(channel)
 			break CLOSE
 		}
+		// reset the idle timer and drain if appropriate before the next loop
+		if !idleTimer.Stop() {
+			<-idleTimer.C
+		}
+		idleTimer.Reset(idleDuration)
 	}
 
 	gi.closeLogTopic()
