@@ -265,7 +265,7 @@ The Apache Software License, Version 2.0
     - com.google.code.gson-gson-2.8.9.jar
     - io.gsonfire-gson-fire-1.8.5.jar
  * Guava
-    - com.google.guava-guava-31.0.1-jre.jar
+    - com.google.guava-guava-32.0.0-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
@@ -383,25 +383,25 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-http-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-io-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-security-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-util-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-client-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-http-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-io-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-security-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-util-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-alpn-server-9.4.51.v20230217.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
@@ -518,7 +518,7 @@ MIT License
     - org.slf4j-slf4j-api-1.7.32.jar
     - org.slf4j-jcl-over-slf4j-1.7.32.jar
  * The Checker Framework
-    - org.checkerframework-checker-qual-3.12.0.jar
+    - org.checkerframework-checker-qual-3.33.0.jar
  * oshi
     - com.github.oshi-oshi-core-java11-6.4.0.jar
  * Auth0, Inc.
