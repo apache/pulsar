@@ -458,8 +458,8 @@ public class ClusterMigrationTest {
         retryStrategically((test) -> !topic1.isReplicationBacklogExist(), 10, 1000);
         assertFalse(topic1.isReplicationBacklogExist());
 
-        // verify that the producer1 is now is now connected to migrated cluster "r2" since backlog is cleared.
-        retryStrategically((test) -> topic2.getProducers().size()==2, 10, 500);
+        producer1.send("test".getBytes());
+        // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
         assertEquals(topic2.getProducers().size(), 2);
     }
 

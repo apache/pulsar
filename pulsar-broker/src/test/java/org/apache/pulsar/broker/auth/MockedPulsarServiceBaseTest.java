@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.*;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
@@ -55,11 +55,11 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.zookeeper.MockZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 
 /**
@@ -615,12 +615,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      */
     public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
                                                 Collection<PulsarService> pulsars) throws Exception {
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await()
+                .pollDelay(500, TimeUnit.MILLISECONDS)
+                .until(() -> {
             try {
                 // Maybe fail by race-condition with create topics, just retry.
                 admin.namespaces().deleteNamespace(ns, force);
                 return true;
-            } catch (Exception ex) {
+            } catch (PulsarAdminException.NotFoundException ex) {
+                // namespace was already deleted, ignore exception
+                return true;
+            } catch (Exception e) {
+                log.warn("Failed to delete namespace {} (force={})", ns, force, e);
                 return false;
             }
         });

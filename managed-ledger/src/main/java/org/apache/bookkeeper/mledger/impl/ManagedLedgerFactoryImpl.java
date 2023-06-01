@@ -193,8 +193,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.metadataStore = metadataStore;
-        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor, config.getManagedLedgerInfoCompressionType(),
-                config.getManagedCursorInfoCompressionType());
+        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor,
+                config.getCompressionConfigForManagedLedgerInfo(),
+                config.getCompressionConfigForManagedCursorInfo());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this);

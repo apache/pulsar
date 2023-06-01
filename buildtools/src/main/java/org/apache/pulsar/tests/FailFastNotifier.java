@@ -124,8 +124,7 @@ public class FailFastNotifier
                         || iTestNGMethod.isAfterTestConfiguration())) {
                     throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
                 }
-            }
-            if (FAIL_FAST_KILLSWITCH_FILE != null && FAIL_FAST_KILLSWITCH_FILE.exists()) {
+            } else if (FAIL_FAST_KILLSWITCH_FILE != null && FAIL_FAST_KILLSWITCH_FILE.exists()) {
                 throw new FailFastSkipException("Skipped after failure since kill switch file exists.");
             }
         }

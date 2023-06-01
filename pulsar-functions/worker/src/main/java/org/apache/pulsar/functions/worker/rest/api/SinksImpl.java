@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -378,8 +379,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(sinkPkgUrl) || uploadedInputStream != null) {
+                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
+                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
                             sinkPkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
                     log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
