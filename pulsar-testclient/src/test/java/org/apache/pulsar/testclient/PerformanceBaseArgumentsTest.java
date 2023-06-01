@@ -54,7 +54,7 @@ public class PerformanceBaseArgumentsTest {
         Assert.assertEquals(args.authParams, "myparams");
         Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
         Assert.assertTrue(args.tlsAllowInsecureConnection);
-        Assert.assertTrue(args.tlsHostnameVerificationEnable);
+        Assert.assertTrue(args.tlsHostnameVerificationEnabled);
         Assert.assertEquals(args.proxyServiceURL, "https://my-proxy-pulsar:4443/");
         Assert.assertEquals(args.proxyProtocol, SNI);
     }
@@ -99,7 +99,7 @@ public class PerformanceBaseArgumentsTest {
             Assert.assertEquals(args.authParams, "myparams");
             Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
             Assert.assertTrue(args.tlsAllowInsecureConnection);
-            Assert.assertTrue(args.tlsHostnameVerificationEnable);
+            Assert.assertTrue(args.tlsHostnameVerificationEnabled);
             
         } catch (IOException e) {
             e.printStackTrace();

@@ -57,7 +57,7 @@ public class PerfClientUtilsTest {
 
         final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
 
-        args.tlsHostnameVerificationEnable = true;
+        args.tlsHostnameVerificationEnabled = true;
         args.authPluginClassName = MyAuth.class.getName();
         args.authParams = "params";
         args.enableBusyWait = true;
