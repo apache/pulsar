@@ -1699,7 +1699,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 } finally {
                     if (r.lowerEndpoint() instanceof PositionImplRecyclable) {
                         ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
-                        ((PositionImplRecyclable) r.upperEndpoint()).recycle();
                     }
                 }
             }, recyclePositionRangeConverter);
