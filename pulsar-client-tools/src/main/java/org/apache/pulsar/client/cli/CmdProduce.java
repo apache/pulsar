@@ -118,11 +118,11 @@ public class CmdProduce {
             + "key=value string, like k1=v1,k2=v2.")
     private List<String> properties = new ArrayList<>();
 
-    @Parameter(names = { "-k", "--key"}, description = "message key to add ")
+    @Parameter(names = { "-k", "--key"}, description = "Partitioning key to add to each message")
     private String key;
-    @Parameter(names = { "-kvk", "--key-value-key"}, description = "message key to add ")
+    @Parameter(names = { "-kvk", "--key-value-key"}, description = "Value to add as message key in KeyValue schema")
     private String keyValueKey;
-    @Parameter(names = { "-kvkf", "--key-value-key-file"}, description = "message key to add ")
+    @Parameter(names = { "-kvkf", "--key-value-key-file"}, description = "Path to file containing the value to add as message key in KeyValue schema. JSON and AVRO files are supported.")
     private String keyValueKeyFile;
 
     @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
@@ -273,12 +273,12 @@ public class CmdProduce {
                 }
 
                 final byte[] keyValueKeyBytes;
-                if (this.key != null) {
-                    keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
-                } else if (this.keyValueKey != null) {
+                if (this.keyValueKey != null) {
                     keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
                 } else if (this.keyValueKeyFile != null) {
                     keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
+                } else if (this.key != null) {
+                    keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
                 } else {
                     keyValueKeyBytes = null;
                 }
