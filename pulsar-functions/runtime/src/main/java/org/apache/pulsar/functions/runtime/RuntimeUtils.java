@@ -191,9 +191,19 @@ public class RuntimeUtils {
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                goInstanceConfig.setAuthPlugin(authConfig.getClientAuthenticationPlugin());
-                goInstanceConfig.setAuthParams(authConfig.getClientAuthenticationParameters());
+                goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
+                goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
             }
+            goInstanceConfig.setUseTls(authConfig.isUseTls());
+            goInstanceConfig.setTlsAllowInsecureConnection(
+                    authConfig.isTlsAllowInsecureConnection());
+            goInstanceConfig.setTlsHostnameVerificationEnable(
+                    authConfig.isTlsHostnameVerificationEnable());
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())){
+                goInstanceConfig.setTlsTrustCertsFilePath(
+                        authConfig.getTlsTrustCertsFilePath());
+            }
+
         }
 
         if (instanceConfig.getMaxBufferedTuples() != 0) {

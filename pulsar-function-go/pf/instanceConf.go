@@ -44,6 +44,10 @@ type instanceConf struct {
 	metricsPort                 int
 	authPlugin                  string
 	authParams                  string
+	useTLS                      bool
+	tlsCertsPath                string
+	tlsAllowInsecure            bool
+	tlsHostnameVerification     bool
 }
 
 func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
@@ -109,8 +113,12 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 			},
 			UserConfig: cfg.UserConfig,
 		},
-		authPlugin: cfg.AuthPlugin,
-		authParams: cfg.AuthParams,
+		authPlugin:              cfg.ClientAuthenticationPlugin,
+		authParams:              cfg.ClientAuthenticationParameters,
+		useTLS:                  cfg.UseTLS,
+		tlsCertsPath:            cfg.TLSTrustCertsFilePath,
+		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
+		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
 	}
 
 	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {
