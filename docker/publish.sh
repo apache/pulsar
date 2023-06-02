@@ -23,4 +23,4 @@ set -ex
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/docker
 
-./build.sh -Pdocker-push "$@"
+./build.sh "$@" -Pdocker-push -Ddocker.platforms=linux/arm64,linux/amd64
