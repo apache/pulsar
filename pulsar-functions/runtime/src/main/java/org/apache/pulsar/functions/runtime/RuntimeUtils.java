@@ -194,7 +194,6 @@ public class RuntimeUtils {
                 goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
                 goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
             }
-            goInstanceConfig.setUseTls(authConfig.isUseTls());
             goInstanceConfig.setTlsAllowInsecureConnection(
                     authConfig.isTlsAllowInsecureConnection());
             goInstanceConfig.setTlsHostnameVerificationEnable(

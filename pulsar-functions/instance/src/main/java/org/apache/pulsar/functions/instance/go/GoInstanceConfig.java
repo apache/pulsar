@@ -47,7 +47,6 @@ public class GoInstanceConfig {
 
     private String clientAuthenticationPlugin = "";
     private String clientAuthenticationParameters = "";
-    private boolean useTls = false;
     private String tlsTrustCertsFilePath = "";
     private boolean tlsHostnameVerificationEnable = false;
     private boolean tlsAllowInsecureConnection = false;

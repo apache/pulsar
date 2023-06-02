@@ -53,7 +53,6 @@ type Conf struct {
 	ClientAuthenticationPlugin     string `json:"clientAuthenticationPlugin" yaml:"clientAuthenticationPlugin"`
 	ClientAuthenticationParameters string `json:"clientAuthenticationParameters" yaml:"clientAuthenticationParameters"`
 	TLSTrustCertsFilePath          string `json:"tlsTrustCertsFilePath" yaml:"tlsTrustCertsFilePath"`
-	UseTLS                         bool   `json:"useTls" yaml:"useTls"`
 	TLSAllowInsecureConnection     bool   `json:"tlsAllowInsecureConnection" yaml:"tlsAllowInsecureConnection"`
 	TLSHostnameVerificationEnable  bool   `json:"tlsHostnameVerificationEnable" yaml:"tlsHostnameVerificationEnable"`
 	// Deprecated
