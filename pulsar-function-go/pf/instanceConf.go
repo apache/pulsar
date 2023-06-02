@@ -44,7 +44,7 @@ type instanceConf struct {
 	metricsPort                 int
 	authPlugin                  string
 	authParams                  string
-	tlsCertsPath                string
+	tlsTrustCertsPath           string
 	tlsAllowInsecure            bool
 	tlsHostnameVerification     bool
 }
@@ -114,7 +114,7 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 		},
 		authPlugin:              cfg.ClientAuthenticationPlugin,
 		authParams:              cfg.ClientAuthenticationParameters,
-		tlsCertsPath:            cfg.TLSTrustCertsFilePath,
+		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
 		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
 		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
 	}

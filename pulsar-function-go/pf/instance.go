@@ -204,7 +204,7 @@ func (gi *goInstance) setupClient() error {
 
 	clientOpts := pulsar.ClientOptions{
 		URL:                        ic.pulsarServiceURL,
-		TLSTrustCertsFilePath:      ic.tlsCertsPath,
+		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
 		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
 		TLSValidateHostname:        ic.tlsHostnameVerification,
 	}
