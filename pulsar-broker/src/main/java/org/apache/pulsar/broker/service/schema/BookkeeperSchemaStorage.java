@@ -294,111 +294,102 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @Override
     public CompletableFuture<Long> tryCompleteTheLostSchemaLedger(String schemaId, SchemaVersion version,
                                                                   SchemaData schema) {
-        // TODO: clean up the code.
-        LocatorEntry entry = getLocator(schemaId).join().orElse(null);
+        return getLocator(schemaId).thenCompose(optEntry -> {
+            if (optEntry.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
 
-        if (entry == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+            LocatorEntry entry = optEntry.get();
+            LongSchemaVersion longVersion = (LongSchemaVersion) version;
+            Optional<SchemaStorageFormat.IndexEntry> optOldIndexEntry = entry.locator.getIndexList()
+                    .stream()
+                    .filter(indexEntry -> indexEntry.getVersion() == longVersion.getVersion())
+                    .findFirst();
 
-        LongSchemaVersion longVersion = (LongSchemaVersion) version;
-        log.warn("locator Version:" + entry.version);
-        SchemaStorageFormat.IndexEntry oldIndexEntry = entry.locator.getIndexList()
-                .stream()
-                .filter(indexEntry -> indexEntry.getVersion() == longVersion.getVersion())
-                .findFirst()
-                .orElse(null);
+            if (optOldIndexEntry.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
 
-        if (oldIndexEntry == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+            SchemaStorageFormat.IndexEntry oldIndexEntry = optOldIndexEntry.get();
+            byte[] hash = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                    .setType(SchemaRegistryServiceImpl.Functions.convertFromDomainType(schema.getType()))
+                    .setSchema(ByteString.copyFrom(schema.getData()))
+                    .setSchemaId(schemaId)
+                    .setUser(schema.getUser())
+                    .setDeleted(false)
+                    .setTimestamp(Clock.systemUTC().millis())
+                    .addAllProps(toPairs(schema.getProps()))
+                    .build()
+                    .toByteArray();
 
-        // log.warn("old:" + oldIndexEntry.getPosition().getLedgerId() + oldIndexEntry.getPosition().getEntryId());
-        // entry.locator.getIndexList().forEach(indexEntry -> {
-        //     log.warn("LedgerId:" + indexEntry.getPosition().getLedgerId());
-        //     log.warn("EntryId:" + indexEntry.getPosition().getEntryId());
-        //     log.warn("Schema Version:" + indexEntry.getVersion());
-        // });
-        log.warn(entry.locator.getInfo().getVersion() + " " + entry.locator.getInfo().getPosition().getLedgerId()
-                + " " + entry.locator.getInfo().getPosition().getEntryId());
+            return createLedger(schemaId).thenCompose(ledgerHandle -> {
+                final long newLedgerId = ledgerHandle.getId();
 
-        SchemaStorageFormat.PositionInfo.Builder positionInfoBuilder = SchemaStorageFormat.PositionInfo.newBuilder();
-        byte[] hash = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                .setType(SchemaRegistryServiceImpl.Functions.convertFromDomainType(schema.getType()))
-                .setSchema(ByteString.copyFrom(schema.getData()))
-                .setSchemaId(schemaId)
-                .setUser(schema.getUser())
-                .setDeleted(false)
-                .setTimestamp(Clock.systemUTC().millis())
-                .addAllProps(toPairs(schema.getProps()))
-                .build()
-                .toByteArray();
+                SchemaStorageFormat.IndexEntry index = SchemaStorageFormat.IndexEntry.newBuilder()
+                        .setVersion(oldIndexEntry.getVersion())
+                        .setHash(copyFrom(oldIndexEntry.getHash().toByteArray()))
+                        .setPosition(SchemaStorageFormat.PositionInfo.newBuilder()
+                                .setEntryId(oldIndexEntry.getPosition().getEntryId())
+                                .setLedgerId(newLedgerId))
+                        .build();
 
-        return createLedger(schemaId).thenCompose(ledgerHandle -> {
-            final long newLedgerId = ledgerHandle.getId();
-            log.warn("ledgerHandle: " + newLedgerId);
-            SchemaStorageFormat.IndexEntry index = SchemaStorageFormat.IndexEntry.newBuilder()
-                    .setVersion(oldIndexEntry.getVersion())
-                    .setHash(copyFrom(oldIndexEntry.getHash().toByteArray()))
-                    .setPosition(positionInfoBuilder.setEntryId(oldIndexEntry.getPosition().getEntryId())
-                            .setLedgerId(newLedgerId))
-                    .build();
+                SchemaStorageFormat.SchemaEntry schemaEntry = SchemaStorageFormat.SchemaEntry.newBuilder()
+                        .setSchemaData(copyFrom(hash))
+                        .addAllIndex(newArrayList(index))
+                        .build();
 
-            SchemaStorageFormat.SchemaEntry schemaEntry = SchemaStorageFormat.SchemaEntry.newBuilder()
-                    .setSchemaData(copyFrom(hash))
-                    .addAllIndex(newArrayList(index))
-                    .build();
+                return addEntry(ledgerHandle, schemaEntry)
+                        .thenApply(entryId -> {
+                            ledgerHandle.closeAsync();
+                            return Functions.newPositionInfo(newLedgerId, entryId);
+                        })
+                        .thenCompose(position -> updateExistsLocatorWithNewLedgerId(schemaId, position,
+                                entry, longVersion, index));
+            });
+        });
+    }
 
-            return addEntry(ledgerHandle, schemaEntry)
-                    .thenApply(entryId -> {
-                        ledgerHandle.closeAsync();
-                        return Functions.newPositionInfo(newLedgerId, entryId);
-                    })
-                    .thenCompose(position -> {
-                        long infoVersion = entry.locator.getInfo().getVersion();
+    private CompletableFuture<Long> updateExistsLocatorWithNewLedgerId(String schemaId,
+                                                                       SchemaStorageFormat.PositionInfo position,
+                                                                       LocatorEntry entry,
+                                                                       LongSchemaVersion longVersion,
+                                                                       SchemaStorageFormat.IndexEntry newIndexEntry) {
+        long infoVersion = entry.locator.getInfo().getVersion();
 
-                        SchemaStorageFormat.SchemaLocator locator = entry.locator;
-                        SchemaStorageFormat.IndexEntry info =
-                                SchemaStorageFormat.IndexEntry.newBuilder()
-                                        .setVersion(infoVersion)
-                                        .setPosition(position)
-                                        .setHash(copyFrom(entry.locator.getInfo().getHash().toByteArray()))
-                                        .build();
+        SchemaStorageFormat.SchemaLocator locator = entry.locator;
+        SchemaStorageFormat.IndexEntry info =
+                SchemaStorageFormat.IndexEntry.newBuilder()
+                        .setVersion(infoVersion)
+                        .setPosition(position)
+                        .setHash(copyFrom(entry.locator.getInfo().getHash().toByteArray()))
+                        .build();
 
-                        final ArrayList<SchemaStorageFormat.IndexEntry> indexList = new ArrayList<>();
-                        for (SchemaStorageFormat.IndexEntry indexEntry : locator.getIndexList()) {
-                            if (indexEntry.getVersion() == longVersion.getVersion()) {
-                                indexList.add(index);
-                            } else {
-                                indexList.add(indexEntry);
+        final List<SchemaStorageFormat.IndexEntry> indexList = locator.getIndexList().stream()
+                .map(indexEntry -> indexEntry.getVersion() == longVersion.getVersion() ? newIndexEntry : indexEntry)
+                .collect(Collectors.toList());
+
+        return updateSchemaLocator(getSchemaPath(schemaId),
+                SchemaStorageFormat.SchemaLocator.newBuilder()
+                        .setInfo(info)
+                        .addAllIndex(indexList)
+                        .build()
+                , entry.version
+        ).thenApply(ignore -> infoVersion).whenComplete((v, ex) -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn("[{}] Failed to update exists schema locator with new ledgerId {}", schemaId, position, ex);
+            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                bookKeeper.asyncDeleteLedger(position.getLedgerId(),
+                        new AsyncCallback.DeleteCallback() {
+                            @Override
+                            public void deleteComplete(int rc, Object ctx) {
+                                if (rc != BKException.Code.OK) {
+                                    log.warn("[{}] Failed to delete ledger {} after updating"
+                                                    + " exists schema locator with new ledgerId failed, rc: {}",
+                                            schemaId, position.getLedgerId(), rc);
+                                }
                             }
-                        }
-
-                        return updateSchemaLocator(getSchemaPath(schemaId),
-                                SchemaStorageFormat.SchemaLocator.newBuilder()
-                                        .setInfo(info)
-                                        .addAllIndex(indexList)
-                                        .build()
-                                , entry.version
-                        ).thenApply(ignore -> infoVersion).whenComplete((__, ex) -> {
-                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                            log.warn("[{}] Failed to update schema locator with position {}", schemaId,
-                                    position, ex);
-                            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
-                                bookKeeper.asyncDeleteLedger(position.getLedgerId(),
-                                        new AsyncCallback.DeleteCallback() {
-                                            @Override
-                                            public void deleteComplete(int rc, Object ctx) {
-                                                if (rc != BKException.Code.OK) {
-                                                    log.warn("[{}] Failed to delete ledger {} after updating"
-                                                                    + " schema locator failed, rc: {}",
-                                                            schemaId, position.getLedgerId(), rc);
-                                                }
-                                            }
-                                        }, null);
-                            }
-                        });
-                    });
+                        }, null);
+            }
         });
     }
 
