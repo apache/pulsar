@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.Timer;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -27,6 +25,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -40,12 +39,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     protected ClientConfigurationData conf;
 
     private ClassLoader clientBuilderClassLoader = null;
-    private EventLoopGroup eventLoopGroup;
-    private Timer nettyTimer;
+    // used for broker side client resource reuse
+    private SharedExecutorContext sharedExecutorContext;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, eventLoopGroup, nettyTimer, clientBuilderClassLoader);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, sharedExecutorContext, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -232,13 +231,8 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         return this;
     }
 
-    public PulsarAdminBuilder setEventLoopGroup(EventLoopGroup eventLoopGroup) {
-        this.eventLoopGroup = eventLoopGroup;
-        return this;
-    }
-
-    public PulsarAdminBuilder setNettyTimer(Timer nettyTimer) {
-        this.nettyTimer = nettyTimer;
+    public PulsarAdminBuilder setSharedExecutorContext(SharedExecutorContext sharedExecutorContext) {
+        this.sharedExecutorContext = sharedExecutorContext;
         return this;
     }
 }

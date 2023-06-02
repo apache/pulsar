@@ -123,6 +123,7 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarSe
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -245,6 +246,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
     private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
+    private final ScheduledExecutorService brokerAdminClientSharedScheduledExecutor;
 
     private MetricsGenerator metricsGenerator;
 
@@ -351,6 +353,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new ScheduledExecutorProvider(1, "broker-client-shared-scheduled-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
+        this.brokerAdminClientSharedScheduledExecutor = Executors.newScheduledThreadPool(1,
+                new DefaultThreadFactory("broker-admin-client-shared-delayer"));
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
@@ -590,6 +594,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
+            brokerAdminClientSharedScheduledExecutor.shutdownNow();
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
@@ -1652,10 +1657,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 if (builder instanceof PulsarAdminBuilderImpl impl) {
-                    // reuse eventLoop
-                    impl.setEventLoopGroup(this.getIoEventLoopGroup());
-                    // reuse nettyTimer
-                    impl.setNettyTimer(this.getBrokerClientSharedTimer());
+                    impl.setSharedExecutorContext(getAdminClientSharedExecutorContext());
                 }
 
                 this.adminClient = builder.build();
@@ -1666,6 +1668,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
 
         return this.adminClient;
+    }
+
+    public SharedExecutorContext getAdminClientSharedExecutorContext() {
+        return SharedExecutorContext.builder()
+                .eventLoopGroup(getIoEventLoopGroup())
+                .nettyTimer(getBrokerClientSharedTimer())
+                .delayer(getBrokerAdminClientSharedScheduledExecutor())
+                .build();
     }
 
     public MetricsGenerator getMetricsGenerator() {

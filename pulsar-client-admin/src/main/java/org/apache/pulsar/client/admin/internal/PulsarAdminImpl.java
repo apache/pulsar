@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.Timer;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
@@ -45,6 +43,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.admin.Source;
@@ -109,8 +108,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
     public PulsarAdminImpl(String serviceUrl,
                            ClientConfigurationData clientConfigData,
-                           @Nullable EventLoopGroup eventLoopGroup,
-                           @Nullable Timer nettyTimer,
+                           @Nullable SharedExecutorContext sharedExecutorContext,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
 
@@ -125,8 +123,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
-                eventLoopGroup, nettyTimer,
-                clientConfigData.getAutoCertRefreshSeconds());
+                sharedExecutorContext, clientConfigData.getAutoCertRefreshSeconds());
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
@@ -202,7 +199,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     @Deprecated
     public PulsarAdminImpl(URL serviceUrl, Authentication auth) throws PulsarClientException {
-        this(serviceUrl.toString(), getConfigData(auth), null, null, null);
+        this(serviceUrl.toString(), getConfigData(auth), null, null);
     }
 
     private static ClientConfigurationData getConfigData(Authentication auth) {

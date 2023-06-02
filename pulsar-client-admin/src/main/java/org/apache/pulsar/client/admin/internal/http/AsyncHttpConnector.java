@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
-import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslProvider;
-import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,6 +37,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
@@ -48,6 +47,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
@@ -83,20 +83,18 @@ public class AsyncHttpConnector implements Connector {
     private final Duration readTimeout;
     private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
-    // this executor should be reused between instances.
-    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
-            new DefaultThreadFactory("delayer"));
+    private ScheduledExecutorService delayer;
+    private boolean isDelayerOwner;
 
     public AsyncHttpConnector(Client client,
                               ClientConfigurationData conf,
                               int autoCertRefreshTimeSeconds,
-                              EventLoopGroup eventLoopGroup,
-                              Timer nettyTimer) {
+                              @Nullable SharedExecutorContext sharedExecutorContext) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf, eventLoopGroup, nettyTimer);
+                conf, sharedExecutorContext);
     }
 
     @SneakyThrows
@@ -105,8 +103,7 @@ public class AsyncHttpConnector implements Connector {
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds,
                               ClientConfigurationData conf,
-                              EventLoopGroup eventLoopGroup,
-                              Timer nettyTimer) {
+                              SharedExecutorContext sharedExecutorContext) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
@@ -126,14 +123,25 @@ public class AsyncHttpConnector implements Connector {
             }
         });
 
-        // reuse eventLoopGroup if provided.
-        if (eventLoopGroup != null) {
-            confBuilder.setEventLoopGroup(eventLoopGroup);
-        }
+        if (sharedExecutorContext != null) {
+            // reuse eventLoopGroup if provided.
+            if (sharedExecutorContext.getEventLoopGroup() != null) {
+                confBuilder.setEventLoopGroup(sharedExecutorContext.getEventLoopGroup());
+            }
 
-        // reuse nettyTimer if provided.
-        if (nettyTimer != null) {
-            confBuilder.setNettyTimer(nettyTimer);
+            // reuse nettyTimer if provided.
+            if (sharedExecutorContext.getNettyTimer() != null) {
+                confBuilder.setNettyTimer(sharedExecutorContext.getNettyTimer());
+            }
+
+            // reuse or create delayer.
+            if (sharedExecutorContext.getDelayer() != null) {
+                this.delayer = sharedExecutorContext.getDelayer();
+            } else {
+                this.delayer = Executors.newScheduledThreadPool(1,
+                        new DefaultThreadFactory("delayer"));
+                this.isDelayerOwner = true;
+            }
         }
 
         serviceNameResolver = new PulsarServiceNameResolver();
@@ -372,7 +380,9 @@ public class AsyncHttpConnector implements Connector {
     public void close() {
         try {
             httpClient.close();
-            delayer.shutdownNow();
+            if (isDelayerOwner) {
+                delayer.shutdownNow();
+            }
         } catch (IOException e) {
             log.warn("Failed to close http client", e);
         }

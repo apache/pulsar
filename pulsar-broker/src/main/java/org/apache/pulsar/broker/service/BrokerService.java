@@ -1487,10 +1487,7 @@ public class BrokerService implements Closeable {
                 builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 if (builder instanceof PulsarAdminBuilderImpl impl) {
-                    // reuse eventLoop
-                    impl.setEventLoopGroup(pulsar.getIoEventLoopGroup());
-                    // reuse nettyTimer
-                    impl.setNettyTimer(pulsar.getBrokerClientSharedTimer());
+                    impl.setSharedExecutorContext(pulsar.getAdminClientSharedExecutorContext());
                 }
 
                 PulsarAdmin adminClient = builder.build();
