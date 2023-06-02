@@ -85,7 +85,7 @@ public class AsyncHttpConnector implements Connector {
     private final PulsarServiceNameResolver serviceNameResolver;
     
     // this executor should be reused between instances.
-    private static final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
+    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
             new DefaultThreadFactory("delayer"));
 
     public AsyncHttpConnector(Client client,
