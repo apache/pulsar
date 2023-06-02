@@ -220,7 +220,7 @@ public class BrokerService implements Closeable {
 
     private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
 
-    private AuthorizationService authorizationService = null;
+    private AuthorizationService authorizationService;
     private final ScheduledExecutorService statsUpdater;
     @Getter
     private final ScheduledExecutorService backlogQuotaChecker;

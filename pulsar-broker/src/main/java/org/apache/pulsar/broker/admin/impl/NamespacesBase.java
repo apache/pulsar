@@ -650,29 +650,18 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<Void> internalRevokePermissionsOnNamespaceAsync(String role) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
                 .thenAccept(__ -> checkNotNull(role, "Role should not be null"))
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.auth_policies.getNamespaceAuthentication().remove(role);
-                    return policies;
-                }));
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(namespaceName, role));
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnSubscriptionAsync(String subscriptionName,
                                                                                   String role) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscriptionName, "SubscriptionName should not be null");
-                        checkNotNull(role, "Role should not be null");
-                    })
-                    .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                    .thenCompose(__ -> authService.revokeSubscriptionPermissionAsync(namespaceName,
-                            subscriptionName, role, null/* additional auth-data json */));
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscriptionName, "SubscriptionName should not be null");
+                    checkNotNull(role, "Role should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService().revokeSubscriptionPermissionAsync(namespaceName,
+                        subscriptionName, role, null/* additional auth-data json */));
     }
 
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {

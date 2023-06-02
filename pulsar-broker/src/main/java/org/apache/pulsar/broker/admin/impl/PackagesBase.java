@@ -40,8 +40,6 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 @Slf4j
 public class PackagesBase extends AdminResource {
 
-    private AuthorizationService authorizationService;
-
     private PackagesManagement getPackagesManagement() {
         return pulsar().getPackagesManagement();
     }
@@ -196,13 +194,5 @@ public class PackagesBase extends AdminResource {
             future.complete(null);
         }
         return future;
-    }
-
-    private AuthorizationService getAuthorizationService() {
-        if (authorizationService == null) {
-            authorizationService = pulsar().getBrokerService().getAuthorizationService();
-            return authorizationService;
-        }
-        return authorizationService;
     }
 }

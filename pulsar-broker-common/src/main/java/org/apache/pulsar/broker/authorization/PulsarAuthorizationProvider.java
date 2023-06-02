@@ -263,7 +263,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         policies.auth_policies.getTopicAuthentication()
                                 .computeIfPresent(topicName.toString(), (k, v) -> {
                                         v.remove(role);
-                                        return null;
+                                        if (v.isEmpty()) {
+                                            return  null;
+                                        }
+                                        return v;
                                 });
                         return policies;
                     }).whenComplete((__, ex) -> {
