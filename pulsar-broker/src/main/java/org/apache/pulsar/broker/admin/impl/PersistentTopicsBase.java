@@ -333,8 +333,9 @@ public class PersistentTopicsBase extends AdminResource {
                                     getAuthorizationService().revokePermissionAsync(topicNamePartition, role));
                         }
                     }
-                    return future.thenComposeAsync(unused -> getAuthorizationService().revokePermissionAsync(topicName, role))
-                            .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
+                    return future.thenComposeAsync(unused ->
+                                    getAuthorizationService().revokePermissionAsync(topicName, role))
+                                 .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                 })
                 ).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
