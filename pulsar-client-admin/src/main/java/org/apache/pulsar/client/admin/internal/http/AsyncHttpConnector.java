@@ -134,14 +134,16 @@ public class AsyncHttpConnector implements Connector {
                 confBuilder.setNettyTimer(sharedExecutorContext.getNettyTimer());
             }
 
-            // reuse or create delayer.
+            // reuse delayer if provided.
             if (sharedExecutorContext.getDelayer() != null) {
                 this.delayer = sharedExecutorContext.getDelayer();
-            } else {
-                this.delayer = Executors.newScheduledThreadPool(1,
-                        new DefaultThreadFactory("delayer"));
-                this.isDelayerOwner = true;
             }
+        }
+
+        if (this.delayer == null) {
+            this.delayer = Executors.newScheduledThreadPool(1,
+                    new DefaultThreadFactory("delayer"));
+            this.isDelayerOwner = true;
         }
 
         serviceNameResolver = new PulsarServiceNameResolver();
