@@ -19,7 +19,10 @@
 
 # build go lang examples first in a separate layer
 
-FROM apachepulsar/pulsar:latest as pulsar-function-go
+ARG PULSAR_IMAGE
+ARG PULSAR_ALL_IMAGE
+
+FROM ${PULSAR_IMAGE} as pulsar-function-go
 
 # Use root for builder
 USER root
@@ -45,12 +48,12 @@ RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
 
 # Reference pulsar-all to copy connectors from there
-FROM apachepulsar/pulsar-all:latest as pulsar-all
+FROM ${PULSAR_ALL_IMAGE} as pulsar-all
 
 ########################################
 ###### Main image build
 ########################################
-FROM apachepulsar/pulsar:latest
+FROM ${PULSAR_IMAGE}
 
 # Switch to run as the root user to simplify building container and then running
 # supervisord. Each of the pulsar components are spawned by supervisord and their

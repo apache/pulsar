@@ -71,7 +71,7 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/pulsar</name>
+                      <name>${docker.organization}/pulsar:${project.version}</name>
                       <build>
                         <args>
                           <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
@@ -81,8 +81,7 @@
                         </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${pulsar.latest.image.tag}</tag>
                         </tags>
                         <buildx>
                           <platforms>

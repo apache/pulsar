@@ -99,6 +99,8 @@ flexible messaging model and an intuitive client API.</description>
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
     -->
     <docker.platforms></docker.platforms>
+    <docker.organization>apachepulsar</docker.organization>
+    <pulsar.latest.image.tag>${project.version}</pulsar.latest.image.tag>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -124,7 +126,6 @@ flexible messaging model and an intuitive client API.</description>
     <jacoco.report.skip>true</jacoco.report.skip>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
-    <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
     <shadePluginPhase>package</shadePluginPhase>

@@ -152,12 +152,11 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/java-test-image</name>
+                      <name>${docker.organization}/java-test-image:${project.version}</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${pulsar.latest.image.tag}</tag>
                         </tags>
                         <noCache>true</noCache>
                       </build>
