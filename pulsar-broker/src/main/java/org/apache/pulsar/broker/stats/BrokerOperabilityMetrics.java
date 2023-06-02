@@ -86,7 +86,7 @@ public class BrokerOperabilityMetrics {
     }
 
     Metrics getTopicLoadMetrics() {
-        Metrics metrics = getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
+        Metrics metrics = getDimensionMetrics("pulsar_topic_load_times", "topic_load", topicLoadStats);
         metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED.get());
         return metrics;
     }
