@@ -129,6 +129,7 @@ public class RuntimeUtils {
      */
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
+                                                AuthenticationConfig authConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
                                                 boolean k8sRuntime) throws IOException {
@@ -185,6 +186,23 @@ public class RuntimeUtils {
         }
         if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
             goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
+        }
+
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
+                goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
+            }
+            goInstanceConfig.setTlsAllowInsecureConnection(
+                    authConfig.isTlsAllowInsecureConnection());
+            goInstanceConfig.setTlsHostnameVerificationEnable(
+                    authConfig.isTlsHostnameVerificationEnable());
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())){
+                goInstanceConfig.setTlsTrustCertsFilePath(
+                        authConfig.getTlsTrustCertsFilePath());
+            }
+
         }
 
         if (instanceConfig.getMaxBufferedTuples() != 0) {
@@ -292,7 +310,8 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, authConfig,
+                    originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
