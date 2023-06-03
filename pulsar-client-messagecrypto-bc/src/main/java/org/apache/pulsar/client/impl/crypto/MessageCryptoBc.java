@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.client.impl.crypto;
 
+import static javax.crypto.Cipher.SECRET_KEY;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -35,20 +33,16 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -58,7 +52,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -84,8 +77,6 @@ import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-
-import static javax.crypto.Cipher.SECRET_KEY;
 
 @Slf4j
 public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMetadata> {
@@ -123,7 +114,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
     static {
 
-        providerName=SecurityUtility.getProvider().getName();
+        providerName = SecurityUtility.getProvider().getName();
 
         switch (providerName) {
             case SecurityUtility.BC: {
@@ -374,7 +365,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             encryptedKey = dataKeyCipher.wrap(dataKey);
 
         } catch (IllegalBlockSizeException | NoSuchAlgorithmException | NoSuchProviderException
-                 | NoSuchPaddingException | InvalidKeyException e) {
+                | NoSuchPaddingException | InvalidKeyException e) {
             log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
@@ -475,7 +466,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             outBuffer.flip();
             outBuffer.limit(bytesStored);
         } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException
-                 | InvalidAlgorithmParameterException | ShortBufferException e) {
+                | InvalidAlgorithmParameterException | ShortBufferException e) {
             log.error("{} Failed to encrypt message. {}", logCtx, e);
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
@@ -555,7 +546,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             return true;
 
         } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException
-                 | BadPaddingException | ShortBufferException e) {
+                | BadPaddingException | ShortBufferException e) {
             log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
             return false;
         }
