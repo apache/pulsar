@@ -258,6 +258,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
                 interceptors);
         this.consumerId = client.newConsumerId();
+
+        TopicName topicName = TopicName.get(topic);
+        if (!topicName.isPersistent() && conf.getSubscriptionMode().equals(SubscriptionMode.Durable)) {
+            conf.setSubscriptionMode(SubscriptionMode.NonDurable);
+            log.warn("[{}] Cannot create a [Durable] subscription for a NonPersistentTopic, "
+                    + "will use [NonDurable] to subscribe. Subscription name: {}", topic, conf.getSubscriptionName());
+        }
         this.subscriptionMode = conf.getSubscriptionMode();
         if (startMessageId != null) {
             MessageIdAdv firstChunkMessageId = ((MessageIdAdv) startMessageId).getFirstChunkMessageId();
@@ -2151,9 +2158,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
 
+        if (!duringSeek.compareAndSet(false, true)) {
+            final String message = String.format(
+                    "[%s][%s] attempting to seek operation that is already in progress (seek by %s)",
+                    topic, subscription, seekBy);
+            log.warn("[{}][{}] Attempting to seek operation that is already in progress, cancelling {}",
+                    topic, subscription, seekBy);
+            seekFuture.completeExceptionally(new IllegalStateException(message));
+            return seekFuture;
+        }
+
         MessageIdAdv originSeekMessageId = seekMessageId;
         seekMessageId = (MessageIdAdv) seekId;
-        duringSeek.set(true);
         log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {

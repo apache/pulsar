@@ -265,7 +265,7 @@ The Apache Software License, Version 2.0
     - com.google.code.gson-gson-2.8.9.jar
     - io.gsonfire-gson-fire-1.8.5.jar
  * Guava
-    - com.google.guava-guava-31.0.1-jre.jar
+    - com.google.guava-guava-32.0.0-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
@@ -289,37 +289,37 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.11.jar
     - org.apache.commons-commons-text-1.10.0.jar
  * Netty
-    - io.netty-netty-buffer-4.1.89.Final.jar
-    - io.netty-netty-codec-4.1.89.Final.jar
-    - io.netty-netty-codec-dns-4.1.89.Final.jar
-    - io.netty-netty-codec-http-4.1.89.Final.jar
-    - io.netty-netty-codec-http2-4.1.89.Final.jar
-    - io.netty-netty-codec-socks-4.1.89.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.89.Final.jar
-    - io.netty-netty-common-4.1.89.Final.jar
-    - io.netty-netty-handler-4.1.89.Final.jar
-    - io.netty-netty-handler-proxy-4.1.89.Final.jar
-    - io.netty-netty-resolver-4.1.89.Final.jar
-    - io.netty-netty-resolver-dns-4.1.89.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.89.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.89.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.89.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.89.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.89.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.89.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.89.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.89.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.89.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.56.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.56.Final.jar
-    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.18.Final.jar
-    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.18.Final-linux-x86_64.jar
-    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.18.Final-linux-aarch_64.jar
+    - io.netty-netty-buffer-4.1.93.Final.jar
+    - io.netty-netty-codec-4.1.93.Final.jar
+    - io.netty-netty-codec-dns-4.1.93.Final.jar
+    - io.netty-netty-codec-http-4.1.93.Final.jar
+    - io.netty-netty-codec-http2-4.1.93.Final.jar
+    - io.netty-netty-codec-socks-4.1.93.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.93.Final.jar
+    - io.netty-netty-common-4.1.93.Final.jar
+    - io.netty-netty-handler-4.1.93.Final.jar
+    - io.netty-netty-handler-proxy-4.1.93.Final.jar
+    - io.netty-netty-resolver-4.1.93.Final.jar
+    - io.netty-netty-resolver-dns-4.1.93.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.93.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.93.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.93.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.93.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.93.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.93.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.93.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.93.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.93.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.61.Final.jar
+    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.21.Final.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.21.Final-linux-x86_64.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.21.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
     - io.prometheus-simpleclient-0.16.0.jar
@@ -383,25 +383,25 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-http-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-io-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-security-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-util-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-client-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-http-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-io-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-security-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-util-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-alpn-server-9.4.51.v20230217.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
@@ -433,7 +433,6 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-services-1.45.1.jar
     - io.grpc-grpc-xds-1.45.1.jar
     - io.grpc-grpc-rls-1.45.1.jar
-    - com.google.auto.service-auto-service-annotations-1.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.19.0.jar
   * OpenCensus
@@ -475,6 +474,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-4.3.8.jar
     - io.vertx-vertx-web-4.3.8.jar
     - io.vertx-vertx-web-common-4.3.8.jar
+    - io.vertx-vertx-grpc-4.3.5.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.8.1.jar
     - org.apache.zookeeper-zookeeper-jute-3.8.1.jar
@@ -487,8 +487,10 @@ The Apache Software License, Version 2.0
     - com.google.auto.value-auto-value-annotations-1.9.jar
     - com.google.re2j-re2j-1.5.jar
   * Jetcd
-    - io.etcd-jetcd-common-0.5.11.jar
-    - io.etcd-jetcd-core-0.5.11.jar
+    - io.etcd-jetcd-api-0.7.5.jar
+    - io.etcd-jetcd-common-0.7.5.jar
+    - io.etcd-jetcd-core-0.7.5.jar
+    - io.etcd-jetcd-grpc-0.7.5.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
@@ -516,7 +518,7 @@ MIT License
     - org.slf4j-slf4j-api-1.7.32.jar
     - org.slf4j-jcl-over-slf4j-1.7.32.jar
  * The Checker Framework
-    - org.checkerframework-checker-qual-3.12.0.jar
+    - org.checkerframework-checker-qual-3.33.0.jar
  * oshi
     - com.github.oshi-oshi-core-java11-6.4.0.jar
  * Auth0, Inc.

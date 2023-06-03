@@ -70,8 +70,12 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
         managedLedgerFactoryConfig.setCursorPositionFlushSeconds(conf.getManagedLedgerCursorPositionFlushSeconds());
         managedLedgerFactoryConfig.setManagedLedgerInfoCompressionType(conf.getManagedLedgerInfoCompressionType());
+        managedLedgerFactoryConfig.setManagedLedgerInfoCompressionThresholdInBytes(
+                conf.getManagedLedgerInfoCompressionThresholdInBytes());
         managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
+        managedLedgerFactoryConfig.setManagedCursorInfoCompressionThresholdInBytes(
+                conf.getManagedCursorInfoCompressionThresholdInBytes());
 
         Configuration configuration = new ClientConfiguration();
         if (conf.isBookkeeperClientExposeStatsToPrometheus()) {

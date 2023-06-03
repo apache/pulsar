@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.instance.go;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.functions.proto.Function;
@@ -43,6 +44,13 @@ public class GoInstanceConfig {
     private int processingGuarantees;
     private String secretsMap = "";
     private String userConfig = "";
+
+    private String clientAuthenticationPlugin = "";
+    private String clientAuthenticationParameters = "";
+    private String tlsTrustCertsFilePath = "";
+    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsAllowInsecureConnection = false;
+
     private int runtime;
     private boolean autoAck;
     private int parallelism;
@@ -53,6 +61,10 @@ public class GoInstanceConfig {
     private boolean cleanupSubscription;
     private int subscriptionPosition = Function.SubscriptionPosition.LATEST.getNumber();
 
+    // value is the json string of ConsumerSpec
+    private Map<String, String> sourceInputSpecs;
+
+    // for backward compatibility
     private String sourceSpecsTopic = "";
     private String sourceSchemaType = "";
     private boolean isRegexPatternSubscription;

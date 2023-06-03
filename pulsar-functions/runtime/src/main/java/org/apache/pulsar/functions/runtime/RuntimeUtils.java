@@ -38,6 +38,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -128,6 +129,7 @@ public class RuntimeUtils {
      */
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
+                                                AuthenticationConfig authConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
                                                 boolean k8sRuntime) throws IOException {
@@ -186,6 +188,23 @@ public class RuntimeUtils {
             goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
         }
 
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
+                goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
+            }
+            goInstanceConfig.setTlsAllowInsecureConnection(
+                    authConfig.isTlsAllowInsecureConnection());
+            goInstanceConfig.setTlsHostnameVerificationEnable(
+                    authConfig.isTlsHostnameVerificationEnable());
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())){
+                goInstanceConfig.setTlsTrustCertsFilePath(
+                        authConfig.getTlsTrustCertsFilePath());
+            }
+
+        }
+
         if (instanceConfig.getMaxBufferedTuples() != 0) {
             goInstanceConfig.setMaxBufTuples(instanceConfig.getMaxBufferedTuples());
         }
@@ -204,9 +223,15 @@ public class RuntimeUtils {
                 instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
-            for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
-                goInstanceConfig.setSourceSpecsTopic(inputTopic);
+            Map<String, String> sourceInputSpecs = new HashMap<>();
+            for (Map.Entry<String, Function.ConsumerSpec> entry :
+                    instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
+                String topic = entry.getKey();
+                Function.ConsumerSpec spec = entry.getValue();
+                sourceInputSpecs.put(topic, JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
+                goInstanceConfig.setSourceSpecsTopic(topic);
             }
+            goInstanceConfig.setSourceInputSpecs(sourceInputSpecs);
         }
 
         if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {
@@ -285,7 +310,8 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, authConfig,
+                    originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -304,7 +330,7 @@ public class RuntimeUtils {
             }
 
             if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
-               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
             } else {
                 // add complete classpath for broker/worker so that the function instance can load
                 // the functions instance dependencies separately from user code dependencies

@@ -73,6 +73,13 @@ public class RuntimeUtilsTest {
         instanceConfig.setPort(1337);
         instanceConfig.setMetricsPort(60000);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationToken")
+                .clientAuthenticationParameters("file:///secret/token.jwt")
+                .tlsTrustCertsFilePath("/secret/ca.cert.pem")
+                .tlsHostnameVerificationEnable(true)
+                .tlsAllowInsecureConnection(false)
+                .build();
 
         JSONObject userConfig = new JSONObject();
         userConfig.put("word-of-the-day", "der Weltschmerz");
@@ -116,7 +123,7 @@ public class RuntimeUtilsTest {
 
         instanceConfig.setFunctionDetails(functionDetails);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig,"config", "pulsar://localhost:6650", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -160,6 +167,11 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
         Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "file:///secret/token.jwt");
+        Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
+        Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);
+        Assert.assertEquals(goInstanceConfig.get("tlsAllowInsecureConnection"), false);
     }
 
     @DataProvider(name = "k8sRuntime")

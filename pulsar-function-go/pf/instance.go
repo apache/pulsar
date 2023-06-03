@@ -21,8 +21,10 @@ package pf
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -149,7 +151,6 @@ func (gi *goInstance) startFunction(function function) error {
 	defer metricsServicer.close()
 CLOSE:
 	for {
-		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
@@ -181,6 +182,11 @@ CLOSE:
 			close(channel)
 			break CLOSE
 		}
+		// reset the idle timer and drain if appropriate before the next loop
+		if !idleTimer.Stop() {
+			<-idleTimer.C
+		}
+		idleTimer.Reset(idleDuration)
 	}
 
 	gi.closeLogTopic()
@@ -188,11 +194,40 @@ CLOSE:
 	return nil
 }
 
-func (gi *goInstance) setupClient() error {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
+const (
+	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+	authPluginNone  = ""
+)
 
-		URL: gi.context.instanceConf.pulsarServiceURL,
-	})
+func (gi *goInstance) setupClient() error {
+	ic := gi.context.instanceConf
+
+	clientOpts := pulsar.ClientOptions{
+		URL:                        ic.pulsarServiceURL,
+		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
+		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
+		TLSValidateHostname:        ic.tlsHostnameVerification,
+	}
+
+	switch ic.authPlugin {
+	case authPluginToken:
+		switch {
+		case strings.HasPrefix(ic.authParams, "file://"):
+			clientOpts.Authentication = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
+		case strings.HasPrefix(ic.authParams, "token:"):
+			clientOpts.Authentication = pulsar.NewAuthenticationToken(ic.authParams[6:])
+		case ic.authParams == "":
+			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+		default:
+			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
+		}
+	case authPluginNone:
+		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
+	default:
+		return fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+	}
+
+	client, err := pulsar.NewClient(clientOpts)
 	if err != nil {
 		log.Errorf("create client error:%v", err)
 		gi.stats.incrTotalSysExceptions(err)
@@ -404,11 +439,25 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 	log.Debugf("ack input message topic name is: %s", inputMessage.Topic())
-	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
+	gi.respondMessage(inputMessage, true)
 }
 
 func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
-	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
+	gi.respondMessage(inputMessage, false)
+}
+
+func (gi *goInstance) respondMessage(inputMessage pulsar.Message, ack bool) {
+	topicName, err := ParseTopicName(inputMessage.Topic())
+	if err != nil {
+		log.Errorf("unable respond to message ID %s - invalid topic: %v", messageIDStr(inputMessage), err)
+		return
+	}
+	// consumers are indexed by topic name only (no partition)
+	if ack {
+		gi.consumers[topicName.NameWithoutPartition()].Ack(inputMessage)
+		return
+	}
+	gi.consumers[topicName.NameWithoutPartition()].Nack(inputMessage)
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
@@ -439,7 +488,6 @@ func (gi *goInstance) addLogTopicHandler() {
 	}()
 
 	if gi.context.logAppender == nil {
-		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return
 	}
 
@@ -571,6 +619,9 @@ func (gi *goInstance) getMatchingMetricFunc() func(lbl *prometheus_client.LabelP
 
 func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheus_client.Metric {
 	filteredMetricFamilies := gi.getFilteredMetricFamilies(metricName)
+	if len(filteredMetricFamilies) == 0 {
+		return prometheus_client.Metric{}
+	}
 	metricFunc := gi.getMatchingMetricFunc()
 	matchingMetric := getFirstMatch(filteredMetricFamilies[0].Metric, metricFunc)
 	return *matchingMetric

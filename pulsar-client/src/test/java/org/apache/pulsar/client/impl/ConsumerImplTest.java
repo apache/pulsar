@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -26,7 +27,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -258,5 +261,27 @@ public class ConsumerImplTest {
         createConsumer(consumerConf);
 
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testSeekAsyncInternal() {
+        // given
+        ClientCnx cnx = mock(ClientCnx.class);
+        CompletableFuture<ProducerResponse> clientReq = new CompletableFuture<>();
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenReturn(clientReq);
+
+        consumer.setClientCnx(cnx);
+        consumer.setState(HandlerState.State.Ready);
+
+        // when
+        CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
+        CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
+
+        clientReq.complete(null);
+
+        // then
+        assertTrue(firstResult.isDone());
+        assertTrue(secondResult.isCompletedExceptionally());
+        verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
     }
 }

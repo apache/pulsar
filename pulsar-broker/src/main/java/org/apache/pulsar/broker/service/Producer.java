@@ -127,11 +127,7 @@ public class Producer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStatsImpl() : new PublisherStatsImpl();
-        if (cnx.hasHAProxyMessage()) {
-            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
-        } else {
-            stats.setAddress(cnx.clientAddress().toString());
-        }
+        stats.setAddress(cnx.clientSourceAddressAndPort());
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
