@@ -122,8 +122,9 @@ public class RuntimeUtilsTest {
                 .build();
 
         instanceConfig.setFunctionDetails(functionDetails);
+        instanceConfig.setExposePulsarAdminClientEnabled(true);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig,"config", "pulsar://localhost:6650", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",  "http://localhost:8080", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -151,6 +152,8 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("autoAck"), true);
         Assert.assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
         Assert.assertEquals(goInstanceConfig.get("pulsarServiceURL"), "pulsar://localhost:6650");
+        Assert.assertEquals(goInstanceConfig.get("stateStorageServiceUrl"), "bk://localhost:4181");
+        Assert.assertEquals(goInstanceConfig.get("pulsarWebServiceUrl"), "http://localhost:8080");
         Assert.assertEquals(goInstanceConfig.get("runtime"), 3);
         Assert.assertEquals(goInstanceConfig.get("cpu"), 2.0);
         Assert.assertEquals(goInstanceConfig.get("funcID"), "func-7734");

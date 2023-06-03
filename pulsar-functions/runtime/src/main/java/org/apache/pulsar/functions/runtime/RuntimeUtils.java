@@ -132,12 +132,22 @@ public class RuntimeUtils {
                                                 AuthenticationConfig authConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
+                                                String stateStorageServiceUrl,
+                                                String pulsarWebServiceUrl,
                                                 boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
         if (instanceConfig.getClusterName() != null) {
             goInstanceConfig.setClusterName(instanceConfig.getClusterName());
+        }
+
+        if (null != stateStorageServiceUrl) {
+            goInstanceConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
+        }
+
+        if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
+            goInstanceConfig.setPulsarWebServiceUrl(pulsarWebServiceUrl);
         }
 
         if (instanceConfig.getInstanceId() != 0) {
@@ -310,8 +320,9 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, authConfig,
-                    originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, authConfig, originalCodeFileName,
+                    pulsarServiceUrl, stateStorageServiceUrl, pulsarWebServiceUrl,
+                    k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
