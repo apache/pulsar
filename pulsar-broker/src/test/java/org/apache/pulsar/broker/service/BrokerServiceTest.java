@@ -33,6 +33,7 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -107,6 +108,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -1511,6 +1513,84 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteTenantAllowed());
+        });
+    }
+
+
+    @Test
+    public void testBrokerStatsTopicLoadFailed() throws Exception {
+        admin.namespaces().createNamespace("prop/ns-test");
+
+        String persistentTopic = "persistent://prop/ns-test/topic1_" + UUID.randomUUID();
+        String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + UUID.randomUUID();
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        brokerService = Mockito.spy(brokerService);
+        // mock create persistent topic failed
+        Mockito
+                .doAnswer(invocation -> {
+                    CompletableFuture<ManagedLedgerConfig> f = new CompletableFuture<>();
+                    f.completeExceptionally(new RuntimeException("This is an exception"));
+                    return f;
+                })
+                .when(brokerService).getManagedLedgerConfig(Mockito.eq(TopicName.get(persistentTopic)));
+
+        // mock create non-persistent topic failed
+        Mockito
+                .doAnswer(inv -> {
+                    CompletableFuture<Void> f = new CompletableFuture<>();
+                    f.completeExceptionally(new RuntimeException("This is an exception"));
+                    return f;
+                })
+                .when(brokerService).checkTopicNsOwnership(Mockito.eq(nonPersistentTopic));
+
+
+        PulsarService pulsarService = pulsar;
+        Field field = PulsarService.class.getDeclaredField("brokerService");
+        field.setAccessible(true);
+        field.set(pulsarService, brokerService);
+
+        CompletableFuture<Producer<String>> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(persistentTopic)
+                .createAsync();
+        CompletableFuture<Producer<String>> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(nonPersistentTopic)
+                .createAsync();
+
+        producer.whenComplete((v, t) -> {
+            if (t == null) {
+                try {
+                    v.close();
+                } catch (PulsarClientException e) {
+                    // ignore
+                }
+            }
+        });
+        producer1.whenComplete((v, t) -> {
+            if (t == null) {
+                try {
+                    v.close();
+                } catch (PulsarClientException e) {
+                    // ignore
+                }
+            }
+        });
+
+        Awaitility.waitAtMost(2, TimeUnit.MINUTES).until(() -> {
+            String json = admin.brokerStats().getMetrics();
+            JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
+            AtomicBoolean flag = new AtomicBoolean(false);
+
+            metrics.forEach(ele -> {
+                JsonObject obj = ((JsonObject) ele);
+                JsonObject metrics0 = (JsonObject) obj.get("metrics");
+                JsonPrimitive v = (JsonPrimitive) metrics0.get("brk_topic_load_failed_count");
+                if (null != v && v.getAsDouble() >= 2D) {
+                    flag.set(true);
+                }
+            });
+
+            return flag.get();
         });
     }
 }
