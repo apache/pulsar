@@ -349,7 +349,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         final String topic = namespace + "/testSchemaLedgerLost";
         final Schema<V1Data> schemaV1 = Schema.AVRO(V1Data.class);
         final Schema<V2Data> schemaV2 = Schema.AVRO(V2Data.class);
-        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.BACKWARD);
+        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().setSchemaValidationEnforced(topic, true);
 
@@ -374,6 +374,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         //         .subscriptionName("sub0")
         //         .consumerName("consumerAfterLostLedger2")
         //         .subscribe();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
 
         SchemaAndMetadata schemaAndMetadata0 = schemaRegistryService.getSchema(TopicName.get(topic)
                 .getSchemaName(), new LongSchemaVersion(0)).get();
@@ -404,22 +405,18 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         // try to fix the lost schema ledger
         if (lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.contains(1)) {
             schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(0)
-                    , schemaAndMetadata0.schema);
-            // TODO: BadVersion for /schemas/public/default/testSchemaLedgerLost. Need to fix.
-            //  When lostSchemaLedgerIndexes contains 0 and 1.
+                            .getSchemaName(), new LongSchemaVersion(0), schemaAndMetadata0.schema);
             schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(1)
-                    , schemaAndMetadata1.schema);
+                    .getSchemaName(), new LongSchemaVersion(1), schemaAndMetadata1.schema).join();
         } else if (lostSchemaLedgerIndexes.contains(0) && !lostSchemaLedgerIndexes.contains(1)) {
             schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(0)
-                    , schemaAndMetadata0.schema);
+                            .getSchemaName(), new LongSchemaVersion(0), schemaAndMetadata0.schema).join();
         } else if (!lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.contains(1)) {
             schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(1)
-                    , schemaAndMetadata1.schema);
+                            .getSchemaName(), new LongSchemaVersion(1), schemaAndMetadata1.schema).join();
         }
+
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
 
         @Cleanup
         Producer<V1Data> producerAfterLostLedger1 = pulsarClient.newProducer(schemaV1)
@@ -462,7 +459,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "lostSchemaLedgerIndexes")
     public Object[][] lostSchemaLedgerIndexes(){
         return new Object[][]{
-                // {Arrays.asList(0,1)},
+                {Arrays.asList(0,1)},
                 {Arrays.asList(0)},
                 {Arrays.asList(1)}
         };

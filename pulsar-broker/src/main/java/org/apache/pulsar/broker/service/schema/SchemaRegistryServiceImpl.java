@@ -456,12 +456,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     // TODO: add completeLostSchemaLedger stats?
                     if (t != null) {
                         // this.stats.recordDelFailed(schemaId);
-                        log.error("[{}] Complete lost schema failed", schemaId);
+                        log.error("[{}] Complete lost schema({}) failed", schemaId,
+                                ((LongSchemaVersion) schemaVersion).getVersion());
                         longCompletableFuture.completeExceptionally(t);
                     } else {
                         // this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Complete lost schema finished", schemaId);
+                            log.debug("[{}] Complete lost schema({}) finished", schemaId,
+                                    ((LongSchemaVersion) schemaVersion).getVersion());
                         }
                         longCompletableFuture.complete(null);
                     }

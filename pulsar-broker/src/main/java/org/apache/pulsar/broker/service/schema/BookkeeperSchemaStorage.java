@@ -294,7 +294,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @Override
     public CompletableFuture<Long> tryCompleteTheLostSchemaLedger(String schemaId, SchemaVersion version,
                                                                   SchemaData schema) {
-        return getLocator(schemaId).thenCompose(optEntry -> {
+        CompletableFuture<Long> promise = new CompletableFuture<>();
+        tryCompleteTheLostSchemaLedger(schemaId, version, schema, promise);
+        return promise;
+    }
+
+    private void tryCompleteTheLostSchemaLedger(String schemaId, SchemaVersion version, SchemaData schema,
+                                                CompletableFuture<Long> promise) {
+        CompletableFuture<Optional<LocatorEntry>> schemasWithLocator = getLocator(schemaId);
+        schemasWithLocator.thenCompose(optEntry -> {
             if (optEntry.isEmpty()) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -344,7 +352,30 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             return Functions.newPositionInfo(newLedgerId, entryId);
                         })
                         .thenCompose(position -> updateExistsLocatorWithNewLedgerId(schemaId, position,
-                                entry, longVersion, index));
+                                entry, longVersion, index))
+                        .whenComplete((infoVersion, ex) -> {
+                            if (ex == null) {
+                                promise.complete(infoVersion);
+                            } else {
+                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                                    bookKeeper.asyncDeleteLedger(newLedgerId,
+                                            new AsyncCallback.DeleteCallback() {
+                                                @Override
+                                                public void deleteComplete(int rc, Object ctx) {
+                                                    if (rc != BKException.Code.OK) {
+                                                        log.warn("[{}] Failed to delete ledger {} after updating"
+                                                                        + " exists schema locator with new ledgerId"
+                                                                        + " failed, rc: {}", schemaId, newLedgerId, rc);
+                                                    }
+                                                }
+                                            }, null);
+                                    tryCompleteTheLostSchemaLedger(schemaId, version, schema, promise);
+                                } else {
+                                    promise.completeExceptionally(ex);
+                                }
+                            }
+                        });
             });
         });
     }
@@ -374,23 +405,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         .addAllIndex(indexList)
                         .build()
                 , entry.version
-        ).thenApply(ignore -> infoVersion).whenComplete((v, ex) -> {
-            Throwable cause = FutureUtil.unwrapCompletionException(ex);
-            log.warn("[{}] Failed to update exists schema locator with new ledgerId {}", schemaId, position, ex);
-            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
-                bookKeeper.asyncDeleteLedger(position.getLedgerId(),
-                        new AsyncCallback.DeleteCallback() {
-                            @Override
-                            public void deleteComplete(int rc, Object ctx) {
-                                if (rc != BKException.Code.OK) {
-                                    log.warn("[{}] Failed to delete ledger {} after updating"
-                                                    + " exists schema locator with new ledgerId failed, rc: {}",
-                                            schemaId, position.getLedgerId(), rc);
-                                }
-                            }
-                        }, null);
-            }
-        });
+        ).thenApply(ignore -> infoVersion);
     }
 
     @Override
