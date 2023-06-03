@@ -39,7 +39,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     private final List<String> namespaces;
     private final List<String> primary;
-    private final List<Pattern> primaryPattens;
+    private final List<Pattern> primaryPatterns;
     private final List<String> secondary;
     private final List<Pattern> secondaryPatterns;
     private final AutoFailoverPolicy autoFailoverPolicy;
@@ -66,7 +66,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     public NamespaceIsolationPolicyImpl(NamespaceIsolationData policyData) {
         this.namespaces = policyData.getNamespaces();
         this.primary = policyData.getPrimary();
-        this.primaryPattens = primary.stream().map(Pattern::compile).collect(Collectors.toList());
+        this.primaryPatterns = primary.stream().map(Pattern::compile).collect(Collectors.toList());
         this.secondary = policyData.getSecondary();
         this.secondaryPatterns = secondary.stream().map(Pattern::compile).collect(Collectors.toList());
         this.autoFailoverPolicy = AutoFailoverPolicyFactory.create(policyData.getAutoFailoverPolicy());
@@ -88,7 +88,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
             throw new IllegalArgumentException("Namespace " + namespace + " does not match policy");
         }
         // find the available brokers that matches primary brokers regex list
-        return this.getMatchedBrokers(this.primaryPattens, availableBrokers);
+        return this.getMatchedBrokers(this.primaryPatterns, availableBrokers);
     }
 
     @Override
@@ -117,7 +117,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     @Override
     public boolean isPrimaryBroker(String broker) {
-        return this.matchesBrokerRegex(this.primaryPattens, broker);
+        return this.matchesBrokerRegex(this.primaryPatterns, broker);
     }
 
     @Override
