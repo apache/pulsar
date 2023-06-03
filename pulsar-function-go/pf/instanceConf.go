@@ -42,6 +42,11 @@ type instanceConf struct {
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
 	metricsPort                 int
+	authPlugin                  string
+	authParams                  string
+	tlsTrustCertsPath           string
+	tlsAllowInsecure            bool
+	tlsHostnameVerification     bool
 }
 
 func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
@@ -107,6 +112,11 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 			},
 			UserConfig: cfg.UserConfig,
 		},
+		authPlugin:              cfg.ClientAuthenticationPlugin,
+		authParams:              cfg.ClientAuthenticationParameters,
+		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
+		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
+		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
 	}
 
 	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {

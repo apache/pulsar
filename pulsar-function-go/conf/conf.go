@@ -49,7 +49,13 @@ type Conf struct {
 	ProcessingGuarantees int32  `json:"processingGuarantees" yaml:"processingGuarantees"`
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
-	//Deprecated
+	// Authentication
+	ClientAuthenticationPlugin     string `json:"clientAuthenticationPlugin" yaml:"clientAuthenticationPlugin"`
+	ClientAuthenticationParameters string `json:"clientAuthenticationParameters" yaml:"clientAuthenticationParameters"`
+	TLSTrustCertsFilePath          string `json:"tlsTrustCertsFilePath" yaml:"tlsTrustCertsFilePath"`
+	TLSAllowInsecureConnection     bool   `json:"tlsAllowInsecureConnection" yaml:"tlsAllowInsecureConnection"`
+	TLSHostnameVerificationEnable  bool   `json:"tlsHostnameVerificationEnable" yaml:"tlsHostnameVerificationEnable"`
+	// Deprecated
 	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
 	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
 	//source config

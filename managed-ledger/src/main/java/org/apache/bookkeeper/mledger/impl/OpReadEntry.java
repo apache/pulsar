@@ -116,9 +116,11 @@ class OpReadEntry implements ReadEntriesCallback {
                     readPosition, exception.getMessage());
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             Position nexReadPosition;
+            Long lostLedger = null;
             if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
                 // try to find and move to next valid ledger
                 nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+                lostLedger = readPosition.ledgerId;
             } else {
                 // Skip this read operation
                 nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
@@ -131,6 +133,9 @@ class OpReadEntry implements ReadEntriesCallback {
                 return;
             }
             updateReadPosition(nexReadPosition);
+            if (lostLedger != null) {
+                cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
+            }
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {

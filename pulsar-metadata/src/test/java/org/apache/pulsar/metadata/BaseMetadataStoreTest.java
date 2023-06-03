@@ -82,6 +82,14 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         };
     }
 
+    @DataProvider(name = "distributedImpl")
+    public Object[][] distributedImplementations() {
+        return new Object[][]{
+                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
+                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
+        };
+    }
+
     private synchronized String getEtcdClusterConnectString() {
         if (etcdCluster == null) {
             etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()

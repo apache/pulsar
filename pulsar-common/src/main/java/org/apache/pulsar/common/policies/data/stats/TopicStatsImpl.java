@@ -136,10 +136,11 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
-    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    /** The size of DelayedDeliveryTracer memory usage. */
     public long delayedMessageIndexSizeInBytes;
 
     /** Map of bucket delayed index statistics. */
+    @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** The compaction stats. */

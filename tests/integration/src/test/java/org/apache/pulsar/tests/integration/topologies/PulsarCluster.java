@@ -157,18 +157,26 @@ public class PulsarCluster {
 
         // create bookies
         bookieContainers.putAll(
-                runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
-                        .withNetwork(network)
-                        .withNetworkAliases(appendClusterName(name))
-                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
-                        .withEnv("useHostNameAsBookieID", "true")
-                        // Disable fsyncs for tests since they're slow within the containers
-                        .withEnv("journalSyncData", "false")
-                        .withEnv("journalMaxGroupWaitMSec", "0")
-                        .withEnv("clusterName", clusterName)
-                        .withEnv("diskUsageThreshold", "0.99")
-                        .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize)
-                )
+                runNumContainers("bookie", spec.numBookies(), (name) -> {
+                    BKContainer bookieContainer = new BKContainer(clusterName, name)
+                            .withNetwork(network)
+                            .withNetworkAliases(appendClusterName(name))
+                            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                            .withEnv("useHostNameAsBookieID", "true")
+                            // Disable fsyncs for tests since they're slow within the containers
+                            .withEnv("journalSyncData", "false")
+                            .withEnv("journalMaxGroupWaitMSec", "0")
+                            .withEnv("clusterName", clusterName)
+                            .withEnv("diskUsageThreshold", "0.99")
+                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize));
+                    if (spec.bookkeeperEnvs != null) {
+                        bookieContainer.withEnv(spec.bookkeeperEnvs);
+                    }
+                    if (spec.bookieAdditionalPorts != null) {
+                        spec.bookieAdditionalPorts.forEach(bookieContainer::addExposedPort);
+                    }
+                    return bookieContainer;
+                })
         );
 
         // create brokers
@@ -739,5 +747,9 @@ public class PulsarCluster {
 
     private String appendClusterName(String name) {
         return sharedCsContainer ? clusterName + "-" + name : name;
+    }
+
+    public BKContainer getAnyBookie() {
+        return getAnyContainer(bookieContainers, "bookie");
     }
 }
