@@ -25,6 +25,7 @@ import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.util.URIPreconditions;
 
@@ -427,5 +428,19 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                         || Objects.equals(uri.getScheme(), "pulsar+ssl"),
                 "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
                         + "or pulsar://ats-proxy.example.com:4080");
+    }
+
+    public void checkNeededUrlExist() throws IllegalArgumentException {
+        if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
+            throw new IllegalArgumentException("Service url not found, "
+                    + "please provide either service url, for example: http://pulsar.example.com:8080 "
+                    + "or service tls url, for example: https://pulsar.example.com:8443");
+        }
+
+        if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
+            throw new IllegalArgumentException("Broker service url not found, "
+                    + "please provide either broker service url, for example: pulsar://pulsar.example.com:6650 "
+                    + "or broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
+        }
     }
 }

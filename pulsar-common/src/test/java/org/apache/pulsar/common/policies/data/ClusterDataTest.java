@@ -22,9 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ClusterDataTest {
+
+    final String httpProtocolUrl = "http://broker.messaging.c2.example.com:8080";
+    final String httpsProtocolUrl = "https://broker.messaging.c2.example.com:8080";
+    final String pulsarProtocolUrl = "pulsar://broker.messaging.c2.example.com:8080";
+    final String pulsarOverSslProtocolUrl = "pulsar+ssl://broker.messaging.c2.example.com:8080";
 
     @Test
     public void simple() {
@@ -32,6 +38,21 @@ public class ClusterDataTest {
         String s2 = "http://broker.messaging.c2.example.com:8080";
         String s3 = "https://broker.messaging.c1.example.com:4443";
         String s4 = "https://broker.messaging.c2.example.com:4443";
+
+        ClusterDataImpl.builder()
+                .serviceUrl(httpProtocolUrl)
+                .brokerServiceUrl(pulsarProtocolUrl)
+                .proxyServiceUrl(pulsarProtocolUrl)
+                .build()
+                .checkPropertiesIfPresent();
+
+        ClusterDataImpl.builder()
+                .serviceUrlTls(httpsProtocolUrl)
+                .brokerServiceUrlTls(pulsarOverSslProtocolUrl)
+                .proxyServiceUrl(pulsarOverSslProtocolUrl)
+                .build()
+                .checkPropertiesIfPresent();
+
         ClusterData c = ClusterData.builder()
                 .serviceUrl(null)
                 .serviceUrlTls(null)
@@ -185,5 +206,146 @@ public class ClusterDataTest {
                 ClusterDataImpl.builder().brokerServiceUrlTls(url7).build().checkPropertiesIfPresent());
         Assert.assertThrows(IllegalArgumentException.class, () ->
                 ClusterDataImpl.builder().proxyServiceUrl(url7).build().checkPropertiesIfPresent());
+    }
+
+
+    @DataProvider(name = "test-service-url")
+    public Object[][] dataProviderForServiceUrlTest() {
+        /*
+         *      1. testArgumentDetails      String
+         *      2. testSubject              ClusterDataImpl
+         *      3. isExceptionExpected      Boolean
+         *      4. expectedExceptionClass   Class
+         * */
+        return new Object[][]{
+                {
+                        "valid ServiceUrl and ServiceUrlTls as null",
+                        ClusterDataImpl.builder()
+                                .serviceUrl(httpProtocolUrl)
+                                .serviceUrlTls(null)
+                                .brokerServiceUrl(pulsarProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        false,
+                        null
+                },
+                {
+                        "ServiceUrl as null and valid ServiceUrlTls",
+                        ClusterDataImpl.builder()
+                                .serviceUrl(null)
+                                .serviceUrlTls(httpsProtocolUrl)
+                                .brokerServiceUrl(pulsarProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        false,
+                        null
+                },
+                {
+                        "Both ServiceURL and ServiceUrlTls as null.",
+                        ClusterDataImpl.builder()
+                                .serviceUrl(null)
+                                .serviceUrlTls(null)
+                                .brokerServiceUrl(pulsarProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        true,
+                        IllegalArgumentException.class
+                },
+                {
+                        "Both ServiceURL and ServiceUrlTls as empty string.",
+                        ClusterDataImpl.builder()
+                                .serviceUrl("")
+                                .serviceUrlTls("")
+                                .brokerServiceUrl(pulsarProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        true,
+                        IllegalArgumentException.class
+                }
+        };
+    }
+
+    @Test(dataProvider = "test-service-url")
+    public void testServiceUrl(Object[] args) {
+        String testDetail = (String) args[0];
+        ClusterDataImpl clusterDataImpl = (ClusterDataImpl) args[1];
+        Boolean isExceptionExpected = (Boolean) args[2];
+        Class expectedException = (Class) args[3];
+
+        if (isExceptionExpected) {
+            Assert.assertThrows(expectedException, () -> clusterDataImpl.checkNeededUrlExist());
+        } else {
+            clusterDataImpl.checkNeededUrlExist();
+        }
+    }
+
+    @DataProvider(name = "test-broker-service-url")
+    public Object[][] dataProviderForBrokerServiceUrlTest() {
+        /*
+         *      1. testArgumentDetails      String
+         *      2. testSubject              ClusterDataImpl
+         *      3. isExceptionExpected      Boolean
+         *      4. expectedExceptionClass   Class
+         * */
+        return new Object[][]{
+                {
+                        "valid BrokerServiceUrl and BrokerServiceUrlTls as null",
+                        ClusterDataImpl.builder()
+                                .brokerServiceUrl(pulsarProtocolUrl)
+                                .brokerServiceUrlTls(null)
+                                .serviceUrl(httpProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        false,
+                        null
+                },
+                {
+                        "BrokerServiceUrl as null and valid BrokerServiceUrlTls",
+                        ClusterDataImpl.builder()
+                                .brokerServiceUrl(null)
+                                .brokerServiceUrlTls(pulsarOverSslProtocolUrl)
+                                .serviceUrlTls(httpsProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        false,
+                        null
+                },
+                {
+                        "Both BrokerServiceURL and BrokerServiceUrlTls as null.",
+                        ClusterDataImpl.builder()
+                                .brokerServiceUrl(null)
+                                .brokerServiceUrlTls(null)
+                                .serviceUrlTls(pulsarProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        true,
+                        IllegalArgumentException.class
+                },
+                {
+                        "Both BrokerServiceURL and BrokerServiceUrlTls as empty string.",
+                        ClusterDataImpl.builder()
+                                .brokerServiceUrl("")
+                                .brokerServiceUrlTls("")
+                                .serviceUrl(httpProtocolUrl)
+                                .proxyServiceUrl(pulsarProtocolUrl)
+                                .build(),
+                        true,
+                        IllegalArgumentException.class
+                }
+        };
+    }
+
+    @Test(dataProvider = "test-broker-service-url")
+    public void testBrokerServiceUrl(Object[] args) {
+        String testDetail = (String) args[0];
+        ClusterDataImpl clusterDataImpl = (ClusterDataImpl) args[1];
+        Boolean isExceptionExpected = (Boolean) args[2];
+        Class expectedException = (Class) args[3];
+
+        if (isExceptionExpected) {
+            Assert.assertThrows(expectedException, () -> clusterDataImpl.checkNeededUrlExist());
+        } else {
+            clusterDataImpl.checkNeededUrlExist();
+        }
     }
 }
