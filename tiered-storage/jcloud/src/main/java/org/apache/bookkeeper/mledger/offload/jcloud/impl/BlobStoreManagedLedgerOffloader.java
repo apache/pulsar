@@ -63,6 +63,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
@@ -176,7 +177,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<Void> offload(ReadHandle readHandle,
                                            UUID uuid,
                                            Map<String, String> extraMetadata) {
-        final String topicName = extraMetadata.get(MANAGED_LEDGER_NAME);
+        final String managedLedgerName = extraMetadata.get(MANAGED_LEDGER_NAME);
+        final String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
         log.info("offload {} uuid {} extraMetadata {} to {} {}", readHandle.getId(), uuid, extraMetadata,
                 config.getBlobStoreLocation(), writeBlobStore);
@@ -226,7 +228,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
 
                     try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
-                            readHandle, startEntry, blockSize, this.offloaderStats, topicName)) {
+                            readHandle, startEntry, blockSize, this.offloaderStats, managedLedgerName)) {
 
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long) blockSize);
@@ -611,7 +613,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         return promise.whenComplete((__, t) -> {
             if (null != this.ml) {
-                this.offloaderStats.recordDeleteOffloadOps(this.ml.getName(), t == null);
+                this.offloaderStats.recordDeleteOffloadOps(
+                  TopicName.fromPersistenceNamingEncoding(this.ml.getName()), t == null);
             }
         });
     }
@@ -636,7 +639,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         });
 
         return promise.whenComplete((__, t) ->
-                this.offloaderStats.recordDeleteOffloadOps(this.ml.getName(), t == null));
+                this.offloaderStats.recordDeleteOffloadOps(
+                  TopicName.fromPersistenceNamingEncoding(this.ml.getName()), t == null));
     }
 
     @Override

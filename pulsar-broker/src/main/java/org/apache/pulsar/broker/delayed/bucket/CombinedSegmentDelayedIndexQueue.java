@@ -24,8 +24,8 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.AllArgsConstructor;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 
 @NotThreadSafe
 class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
@@ -40,8 +40,8 @@ class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
     }
 
     private static final Comparator<Node> COMPARATOR_NODE = (node1, node2) -> DelayedIndexQueue.COMPARATOR.compare(
-            node1.segmentList.get(node1.segmentListCursor).getIndexes(node1.segmentCursor),
-            node2.segmentList.get(node2.segmentListCursor).getIndexes(node2.segmentCursor));
+            node1.segmentList.get(node1.segmentListCursor).getIndexeAt(node1.segmentCursor),
+            node2.segmentList.get(node2.segmentListCursor).getIndexeAt(node2.segmentCursor));
 
     private final PriorityQueue<Node> kpq;
 
@@ -77,7 +77,7 @@ class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
         Objects.requireNonNull(node);
 
         SnapshotSegment snapshotSegment = node.segmentList.get(node.segmentListCursor);
-        DelayedIndex delayedIndex = snapshotSegment.getIndexes(node.segmentCursor);
+        DelayedIndex delayedIndex = snapshotSegment.getIndexeAt(node.segmentCursor);
         if (!needAdvanceCursor) {
             return delayedIndex;
         }
@@ -103,5 +103,17 @@ class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
         }
 
         return delayedIndex;
+    }
+
+    @Override
+    public void popToObject(DelayedIndex delayedIndex) {
+        DelayedIndex value = getValue(true);
+        delayedIndex.copyFrom(value);
+    }
+
+    @Override
+    public long peekTimestamp() {
+        DelayedIndex value = getValue(false);
+        return value.getTimestamp();
     }
 }

@@ -129,6 +129,7 @@ import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
+import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -141,6 +142,8 @@ import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -161,6 +164,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
@@ -211,6 +215,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final String replicatorPrefix;
     private String clientVersion = null;
     private String proxyVersion = null;
+    private String clientSourceAddressAndPort;
     private int nonPersistentPendingMessages = 0;
     private final int maxNonPersistentPendingMessages;
     private String originalPrincipal = null;
@@ -714,7 +719,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
         if (isNotBlank(clientVersion)) {
-            this.clientVersion = clientVersion.intern();
+            this.clientVersion = StringInterner.intern(clientVersion);
         }
         if (!service.isAuthenticationEnabled()) {
             log.info("[{}] connected with clientVersion={}, clientProtocolVersion={}, proxyVersion={}", remoteAddress,
@@ -2167,6 +2172,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (batchSize <= 1){
             return -1;
         }
+        if (metadata.hasCompression()) {
+            var tmp = payload;
+            CompressionType compressionType = metadata.getCompression();
+            CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+            int uncompressedSize = metadata.getUncompressedSize();
+            payload = codec.decode(payload, uncompressedSize);
+            tmp.release();
+        }
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         int lastBatchIndexInBatch = -1;
         for (int i = 0; i < batchSize; i++){
@@ -3361,6 +3374,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public String clientSourceAddressAndPort() {
+        if (clientSourceAddressAndPort == null) {
+            if (hasHAProxyMessage()) {
+                clientSourceAddressAndPort =
+                        getHAProxyMessage().sourceAddress() + ":" + getHAProxyMessage().sourcePort();
+            } else {
+                clientSourceAddressAndPort = clientAddress().toString();
+            }
+        }
+        return clientSourceAddressAndPort;
     }
 
     CompletableFuture<Boolean> connectionCheckInProgress;

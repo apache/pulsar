@@ -85,6 +85,10 @@ public class ServiceUnitStateCompactionStrategyTest {
                 new ServiceUnitStateData(Owned, dst, src, 10),
                 new ServiceUnitStateData(Releasing, "broker2", dst, 5)));
 
+        assertFalse(strategy.shouldKeepLeft(
+                new ServiceUnitStateData(Owned, dst, src, 10),
+                new ServiceUnitStateData(Owned, "broker2", dst, 12)));
+
     }
 
     @Test

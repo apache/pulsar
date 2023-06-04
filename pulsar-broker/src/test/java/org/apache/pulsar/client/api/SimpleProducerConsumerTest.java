@@ -3136,7 +3136,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
                             .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
                             .create();
-            Assert.fail("Producer creation should not suceed if failing to read key");
+            Assert.fail("Producer creation should not succeed if failing to read key");
         } catch (Exception e) {
             // ok
         }

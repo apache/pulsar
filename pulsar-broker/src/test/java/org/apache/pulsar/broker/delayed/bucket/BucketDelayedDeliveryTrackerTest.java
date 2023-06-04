@@ -39,20 +39,21 @@ import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
-import org.testcontainers.shaded.org.apache.commons.lang3.mutable.MutableLong;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -197,9 +198,11 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         });
 
         assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduledMessages = tracker.getScheduledMessages(100);
-
-        assertEquals(scheduledMessages.size(), 1);
+        Set<PositionImpl> scheduledMessages = new TreeSet<>();
+        Awaitility.await().untilAsserted(() -> {
+            scheduledMessages.addAll(tracker.getScheduledMessages(100));
+            assertEquals(scheduledMessages.size(), 1);
+        });
 
         tracker.addMessage(101, 101, 101 * 10);
 
@@ -216,12 +219,15 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(100 * 10);
 
         assertTrue(tracker2.hasMessageAvailable());
-        scheduledMessages = tracker2.getScheduledMessages(70);
+        Set<PositionImpl> scheduledMessages2 = new TreeSet<>();
 
-        assertEquals(scheduledMessages.size(), 70);
+        Awaitility.await().untilAsserted(() -> {
+            scheduledMessages2.addAll(tracker2.getScheduledMessages(70));
+            assertEquals(scheduledMessages2.size(), 70);
+        });
 
         int i = 31;
-        for (PositionImpl scheduledMessage : scheduledMessages) {
+        for (PositionImpl scheduledMessage : scheduledMessages2) {
             assertEquals(scheduledMessage, PositionImpl.get(i, i));
             i++;
         }
@@ -298,7 +304,11 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(110 * 10);
 
-        NavigableSet<PositionImpl> scheduledMessages = tracker2.getScheduledMessages(110);
+        NavigableSet<PositionImpl> scheduledMessages = new TreeSet<>();
+        Awaitility.await().untilAsserted(() -> {
+            scheduledMessages.addAll(tracker2.getScheduledMessages(110));
+            assertEquals(scheduledMessages.size(), 110);
+        });
         for (int i = 1; i <= 110; i++) {
             PositionImpl position = scheduledMessages.pollFirst();
             assertEquals(position, PositionImpl.get(i, i));
@@ -370,7 +380,11 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
-        assertEquals(tracker2.getScheduledMessages(100).size(), delayedMessagesInSnapshotValue);
+        Set<PositionImpl> scheduledMessages = new TreeSet<>();
+        Awaitility.await().untilAsserted(() -> {
+            scheduledMessages.addAll(tracker2.getScheduledMessages(100));
+            assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
+        });
 
         assertTrue(mockBucketSnapshotStorage.createExceptionQueue.isEmpty());
         assertTrue(mockBucketSnapshotStorage.getMetaDataExceptionQueue.isEmpty());
@@ -425,7 +439,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         tracker.close();
     }
-    
+
     @Test(dataProvider = "delayedTracker")
     public void testClear(BucketDelayedDeliveryTracker tracker)
             throws ExecutionException, InterruptedException, TimeoutException {

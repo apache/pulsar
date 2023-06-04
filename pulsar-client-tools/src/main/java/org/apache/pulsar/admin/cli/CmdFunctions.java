@@ -201,6 +201,9 @@ public class CmdFunctions extends CmdBase {
         protected String className;
         @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
         protected String functionType;
+        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
+                + "when function is deleted")
+        protected Boolean cleanupSubscription;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
                 + "(file protocol assumes that file already exists on worker host)/function "
@@ -469,6 +472,10 @@ public class CmdFunctions extends CmdBase {
                 if (null != functionName) {
                     functionConfig.setName(functionName);
                 }
+            }
+
+            if (null != cleanupSubscription) {
+                functionConfig.setCleanupSubscription(cleanupSubscription);
             }
 
             if (null != inputs) {
@@ -1030,6 +1037,10 @@ public class CmdFunctions extends CmdBase {
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getPy())) {
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getPy(), updateOptions);
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getGo())) {
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getGo(), updateOptions);
             } else {
                 getAdmin().functions().updateFunction(functionConfig, userCodeFile, updateOptions);
             }

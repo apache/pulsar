@@ -245,7 +245,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bindAddresses;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = "Enable or disable the proxy protocol.")
+            doc = "Enable or disable the proxy protocol."
+                    + " If true, the real IP addresses of consumers and producers can be obtained"
+                    + " when getting topic statistics data.")
     private boolean haProxyProtocolEnabled;
 
     @FieldContext(
@@ -341,17 +343,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
             + "affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second. "
-            + "Note that this time is used to configure the HashedWheelTimer's tick time for the "
-            + "InMemoryDelayedDeliveryTrackerFactory.")
+            + "Note that this time is used to configure the HashedWheelTimer's tick time.")
     private long delayedDeliveryTickTimeMillis = 1000;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "When using the InMemoryDelayedDeliveryTrackerFactory (the default "
-            + "DelayedDeliverTrackerFactory), whether the deliverAt time is strictly followed. When false (default), "
-            + "messages may be sent to consumers before the deliverAt time by as much as the tickTimeMillis. This can "
-            + "reduce the overhead on the broker of maintaining the delayed index for a potentially very short time "
-            + "period. When true, messages will not be sent to consumer until the deliverAt time has passed, and they "
-            + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
-            + "delayedDeliveryTickTimeMillis.")
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether the deliverAt time is strictly followed. "
+            + "When false (default), messages may be sent to consumers before the deliverAt time by as much "
+            + "as the tickTimeMillis. This can reduce the overhead on the broker of maintaining the delayed index "
+            + "for a potentially very short time period. When true, messages will not be sent to consumer until the "
+            + "deliverAt time has passed, and they may be as late as the deliverAt time plus the tickTimeMillis for "
+            + "the topic plus the delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
@@ -372,11 +372,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max number of delayed message index bucket, \
-            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
-    private int delayedDeliveryMaxNumBuckets = 50;
+            after reaching the max buckets limitation, the adjacent buckets will be merged.\
+            (disable with value -1)""")
+    private int delayedDeliveryMaxNumBuckets = -1;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
-            + "when detecting if all the messages in the topic have a fixed delay. "
+            + "when detecting if all the messages in the topic have a fixed delay for "
+            + "InMemoryDelayedDeliveryTracker (the default DelayedDeliverTracker). "
             + "Default is 50,000. Setting the lookahead window to 0 will disable the "
             + "logic to handle fixed delays in messages in a different way.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
@@ -1172,13 +1174,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean allowOverrideEntryFilters = false;
 
     @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed "
-                + "in subsequent release."
-    )
-    private boolean streamingDispatch = false;
-
-    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic")
@@ -1352,7 +1347,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
+        doc = "Enable or disable the broker interceptor"
     )
     private boolean disableBrokerInterceptors = true;
 
@@ -1825,7 +1820,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_BK,
             doc = "whether limit per_channel_bookie_client metrics of bookkeeper client stats"
     )
-    private boolean bookkeeperClientLimitStatsLogging = false;
+    private boolean bookkeeperClientLimitStatsLogging = true;
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
@@ -2140,11 +2135,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedLedgerInfo compression size threshold (bytes), "
+                    + "only compress metadata when origin size more then this value.\n"
+                    + "0 means compression will always apply.\n")
+    private long managedLedgerInfoCompressionThresholdInBytes = 16 * 1024;
+
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
     private String managedCursorInfoCompressionType = "NONE";
+
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedCursorInfo compression size threshold (bytes), "
+                    + "only compress metadata when origin size more then this value.\n"
+                    + "0 means compression will always apply.\n")
+    private long managedCursorInfoCompressionThresholdInBytes = 16 * 1024;
 
     @FieldContext(
             dynamic = true,

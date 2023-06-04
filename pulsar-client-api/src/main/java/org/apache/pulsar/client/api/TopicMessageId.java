@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.BitSet;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
  * The MessageId used for a consumer that subscribes multiple topics or partitioned topics.
@@ -45,84 +45,6 @@ public interface TopicMessageId extends MessageId {
         if (messageId instanceof TopicMessageId) {
             return (TopicMessageId) messageId;
         }
-        return new Impl(topic, messageId);
-    }
-
-    /**
-     * The simplest implementation of a TopicMessageId interface.
-     */
-    class Impl implements MessageIdAdv, TopicMessageId {
-        private final String topic;
-        private final MessageIdAdv messageId;
-
-        public Impl(String topic, MessageId messageId) {
-            this.topic = topic;
-            this.messageId = (MessageIdAdv) messageId;
-        }
-
-        @Override
-        public byte[] toByteArray() {
-            return messageId.toByteArray();
-        }
-
-        @Override
-        public String getOwnerTopic() {
-            return topic;
-        }
-
-        @Override
-        public long getLedgerId() {
-            return messageId.getLedgerId();
-        }
-
-        @Override
-        public long getEntryId() {
-            return messageId.getEntryId();
-        }
-
-        @Override
-        public int getPartitionIndex() {
-            return messageId.getPartitionIndex();
-        }
-
-        @Override
-        public int getBatchIndex() {
-            return messageId.getBatchIndex();
-        }
-
-        @Override
-        public int getBatchSize() {
-            return messageId.getBatchSize();
-        }
-
-        @Override
-        public BitSet getAckSet() {
-            return messageId.getAckSet();
-        }
-
-        @Override
-        public MessageIdAdv getFirstChunkMessageId() {
-            return messageId.getFirstChunkMessageId();
-        }
-
-        @Override
-        public int compareTo(MessageId o) {
-            return messageId.compareTo(o);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return messageId.equals(obj);
-        }
-
-        @Override
-        public int hashCode() {
-            return messageId.hashCode();
-        }
-
-        @Override
-        public String toString() {
-            return messageId.toString();
-        }
+        return DefaultImplementation.getDefaultImplementation().newTopicMessageId(topic, messageId);
     }
 }

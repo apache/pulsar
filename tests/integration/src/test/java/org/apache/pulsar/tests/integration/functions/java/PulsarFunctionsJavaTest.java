@@ -19,9 +19,9 @@
 package org.apache.pulsar.tests.integration.functions.java;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.Collections;
-
+import java.util.Map;
+import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
@@ -70,10 +70,13 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
 
+        Map<String, String> inputTopicsSerde = new HashedMap<>();
+        inputTopicsSerde.put(inputTopicName, SERDE_CLASS);
+
         String functionName = "test-serde-fn-" + randomName(8);
         submitFunction(
-                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS,
-                SERDE_OUTPUT_CLASS, Collections.singletonMap("serde-topic", outputTopicName)
+                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS, inputTopicsSerde,
+                SERDE_CLASS, Collections.singletonMap("serde-topic", outputTopicName)
         );
 
         // get function info
@@ -98,12 +101,12 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, false, false, false);
+        testExclamationFunction(Runtime.JAVA, false, false, false, false);
     }
 
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, true, false, false);
+        testExclamationFunction(Runtime.JAVA, true, false, false, false);
     }
 
     @Test(groups = {"java_function", "function"})

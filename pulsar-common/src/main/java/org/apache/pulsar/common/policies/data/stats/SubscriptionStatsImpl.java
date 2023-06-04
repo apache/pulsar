@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -131,9 +132,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
-    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    /** The size of DelayedDeliveryTracer memory usage. */
     public long delayedMessageIndexSizeInBytes;
 
+    @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
@@ -160,10 +162,13 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         bytesOutCounter = 0;
         msgOutCounter = 0;
         msgRateRedeliver = 0;
+        messageAckRate = 0;
+        chunkedMessageRate = 0;
         msgBacklog = 0;
         backlogSize = 0;
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
+        type = null;
         msgRateExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
@@ -190,11 +195,14 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
+        this.messageAckRate += stats.messageAckRate;
+        this.chunkedMessageRate += stats.chunkedMessageRate;
         this.msgBacklog += stats.msgBacklog;
         this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;
+        this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;

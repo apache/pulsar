@@ -214,7 +214,7 @@ public class BrokerService implements Closeable {
     private final OrderedExecutor topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
-    private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap =
+    private final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap =
             prepareDynamicConfigurationMap();
     private final ConcurrentOpenHashMap<String, Consumer<?>> configRegisteredListeners;
 
@@ -253,10 +253,10 @@ public class BrokerService implements Closeable {
 
     public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
-    private static final LongAdder totalUnackedMessages = new LongAdder();
+    private final LongAdder totalUnackedMessages = new LongAdder();
     private final int maxUnackedMessages;
     public final int maxUnackedMsgsPerDispatcher;
-    private static final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
+    private final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -1226,6 +1226,10 @@ public class BrokerService implements Closeable {
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
+        topicFuture.exceptionally(t -> {
+            pulsarStats.recordTopicLoadFailed();
+            return null;
+        });
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
@@ -1617,6 +1621,11 @@ public class BrokerService implements Closeable {
                                        Map<String, String> properties) {
         TopicName topicName = TopicName.get(topic);
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
+        topicFuture.exceptionally(t -> {
+            pulsarStats.recordTopicLoadFailed();
+            return null;
+        });
 
         if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
@@ -2144,9 +2153,9 @@ public class BrokerService implements Closeable {
                     if (ownedByThisInstance) {
                         return CompletableFuture.completedFuture(null);
                     } else {
-                        String msg = String.format("Namespace bundle for topic (%s) not served by this instance. "
-                                        + "Please redo the lookup. Request is denied: namespace=%s", topic,
-                                topicName.getNamespace());
+                        String msg = String.format("Namespace bundle for topic (%s) not served by this instance:%s. "
+                                        + "Please redo the lookup. Request is denied: namespace=%s",
+                                topic, pulsar.getLookupServiceAddress(), topicName.getNamespace());
                         log.warn(msg);
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
@@ -2938,7 +2947,7 @@ public class BrokerService implements Closeable {
         return delayedDeliveryTrackerFactory;
     }
 
-    public static List<String> getDynamicConfiguration() {
+    public List<String> getDynamicConfiguration() {
         return dynamicConfigurationMap.keys();
     }
 
@@ -2951,11 +2960,11 @@ public class BrokerService implements Closeable {
         return configMap;
     }
 
-    public static boolean isDynamicConfiguration(String key) {
+    public boolean isDynamicConfiguration(String key) {
         return dynamicConfigurationMap.containsKey(key);
     }
 
-    public static boolean validateDynamicConfiguration(String key, String value) {
+    public boolean validateDynamicConfiguration(String key, String value) {
         if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
             return dynamicConfigurationMap.get(key).validator.test(value);
         }
