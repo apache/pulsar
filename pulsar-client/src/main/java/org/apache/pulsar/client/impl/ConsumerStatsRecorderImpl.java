@@ -240,7 +240,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         if (consumer instanceof ConsumerBase) {
             ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
             if (consumerBase.listener != null){
-                return consumerBase.messageListenerQueueSize.get();
+                return ConsumerBase.MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.get(consumerBase);
             }
             return consumerBase.incomingMessages.size();
         }
