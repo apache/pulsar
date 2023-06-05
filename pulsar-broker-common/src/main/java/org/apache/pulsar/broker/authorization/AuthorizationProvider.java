@@ -444,7 +444,7 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Get authorization-action permissions on a topic to the given client.
      * @param topicName
-     * @return CompletableFuture<Void>
+     * @return CompletableFuture<Map<String, Set<AuthAction>>>
      */
     default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
         return FutureUtil.failedFuture(new IllegalStateException(
@@ -452,6 +452,11 @@ public interface AuthorizationProvider extends Closeable {
                         topicName)));
     }
 
+    /**
+     * Get authorization-action permissions on a topic to the given client.
+     * @param namespaceName
+     * @return CompletableFuture<Map<String, Set<String>>>
+     */
     default CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getSubscriptionPermissionsAsync on namespace %s is not supported by the Authorization",
@@ -461,7 +466,7 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Get authorization-action permissions on a namespace to the given client.
      * @param namespaceName
-     * @return CompletableFuture<Void>
+     * @return CompletableFuture<Map<String, Set<AuthAction>>>
      */
     default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName) {
         return FutureUtil.failedFuture(new IllegalStateException(
