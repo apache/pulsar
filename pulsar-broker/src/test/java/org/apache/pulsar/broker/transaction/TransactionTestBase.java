@@ -58,6 +58,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     public static final String CLUSTER_NAME = "test";
 
     @Setter
+    @Getter
     private int brokerCount = 3;
     @Getter
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
