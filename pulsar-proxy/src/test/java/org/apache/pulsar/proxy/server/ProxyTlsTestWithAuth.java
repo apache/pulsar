@@ -48,7 +48,6 @@ public class ProxyTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         String clientSecret = "super-secret-client-secret";
         server = new MockOIDCIdentityProvider(clientSecret, "an-audience", 3000);
 
-
         File tempFile = File.createTempFile("oauth2", ".tmp");
         tempFile.deleteOnExit();
         FileWriter writer = new FileWriter(tempFile);
@@ -87,8 +86,8 @@ public class ProxyTlsTestWithAuth extends MockedPulsarServiceBaseTest {
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-
         proxyService.close();
+        server.stop();
     }
 
     @Test

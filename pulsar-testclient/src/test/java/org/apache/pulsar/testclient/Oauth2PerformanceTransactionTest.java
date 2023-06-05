@@ -120,6 +120,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        server.stop();
     }
 
     // setup both admin and pulsar client
