@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
@@ -183,7 +185,9 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
     }
 
     private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             testIndexExists(client);
         }
     }

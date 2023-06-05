@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
 import org.apache.pulsar.io.elasticsearch.client.RestClient;
 import org.apache.pulsar.io.elasticsearch.client.RestClientFactory;
@@ -47,7 +48,9 @@ public class ElasticSearchClient implements AutoCloseable {
     };
 
     private ElasticSearchConfig config;
+    private ElasticSearchMetrics metrics;
     private RestClient client;
+    private SinkContext sinkContext;
     private final RandomExponentialRetry backoffRetry;
 
     final Set<String> indexCache = new HashSet<>();
@@ -56,8 +59,9 @@ public class ElasticSearchClient implements AutoCloseable {
     final AtomicReference<Exception> irrecoverableError = new AtomicReference<>();
     private final IndexNameFormatter indexNameFormatter;
 
-    public ElasticSearchClient(ElasticSearchConfig elasticSearchConfig) {
+    public ElasticSearchClient(ElasticSearchConfig elasticSearchConfig, ElasticSearchMetrics metrics) {
         this.config = elasticSearchConfig;
+        this.metrics = metrics;
         if (this.config.getIndexName() != null) {
             this.indexNameFormatter = new IndexNameFormatter(this.config.getIndexName());
         } else {
@@ -79,6 +83,7 @@ public class ElasticSearchClient implements AutoCloseable {
                         checkForIrrecoverableError(record, result);
                     } else {
                         record.ack();
+                        metrics.incrementCounter(ElasticSearchMetrics.SUCCESS, 1);
                     }
                 }
             }
@@ -89,6 +94,7 @@ public class ElasticSearchClient implements AutoCloseable {
                 for (BulkProcessor.BulkOperationRequest operation: bulkOperationList) {
                     final Record record = operation.getPulsarRecord();
                     record.fail();
+                    metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
                 }
             }
         };
@@ -115,10 +121,13 @@ public class ElasticSearchClient implements AutoCloseable {
         for (String error : MALFORMED_ERRORS) {
             if (errorCause.contains(error)) {
                 isMalformed = true;
+                metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
                 switch (config.getMalformedDocAction()) {
                     case IGNORE:
+                        metrics.incrementCounter(ElasticSearchMetrics.MALFORMED_IGNORE, 1);
                         break;
                     case WARN:
+                        metrics.incrementCounter(ElasticSearchMetrics.WARN, 1);
                         log.warn("Ignoring malformed document index={} id={}",
                                 result.getIndex(),
                                 result.getDocumentId(),
@@ -137,7 +146,10 @@ public class ElasticSearchClient implements AutoCloseable {
         if (!isMalformed) {
             log.warn("Bulk request failed, message id=[{}] index={} error={}",
                     record.getMessage()
-                            .map(m -> m.getMessageId().toString())
+                            .map(m -> {
+                                metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
+                                return  m.getMessageId().toString();
+                            })
                             .orElse(""),
                     result.getIndex(), result.getError());
         }
@@ -160,6 +172,7 @@ public class ElasticSearchClient implements AutoCloseable {
             client.getBulkProcessor().appendIndexRequest(bulkIndexRequest);
         } catch (Exception e) {
             log.debug("index failed id=" + idAndDoc.getLeft(), e);
+            metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
             record.fail();
             throw e;
         }
@@ -184,13 +197,16 @@ public class ElasticSearchClient implements AutoCloseable {
             final boolean createdOrUpdated = client.indexDocument(indexName, documentId, documentSource);
             if (createdOrUpdated) {
                 record.ack();
+                metrics.incrementCounter(ElasticSearchMetrics.SUCCESS, 1);
             } else {
                 record.fail();
+                metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
             }
             return createdOrUpdated;
         } catch (final Exception ex) {
             log.error("index failed id=" + idAndDoc.getLeft(), ex);
             record.fail();
+            metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
             throw ex;
         }
     }
@@ -211,6 +227,7 @@ public class ElasticSearchClient implements AutoCloseable {
         } catch (Exception e) {
             log.debug("delete failed id: {}", id, e);
             record.fail();
+            metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
             throw e;
         }
     }
@@ -230,13 +247,16 @@ public class ElasticSearchClient implements AutoCloseable {
             final boolean deleted = client.deleteDocument(indexName, id);
             if (deleted) {
                 record.ack();
+                metrics.incrementCounter(ElasticSearchMetrics.SUCCESS, 1);
             } else {
                 record.fail();
+                metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
             }
             return deleted;
         } catch (final Exception ex) {
             log.debug("index failed id: {}", id, ex);
             record.fail();
+            metrics.incrementCounter(ElasticSearchMetrics.FAILURE, 1);
             throw ex;
         }
     }
