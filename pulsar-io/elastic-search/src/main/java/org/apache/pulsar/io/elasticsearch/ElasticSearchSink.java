@@ -72,12 +72,13 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     private final Pattern nonPrintableCharactersPattern = Pattern.compile("[\\p{C}]");
     private final Base64.Encoder base64Encoder = Base64.getEncoder().withoutPadding();
 
-    //
+    // sink metrics
     public static final String METRICS_TOTAL_INCOMING = "_elasticsearch_total_incoming_";
     public static final String METRICS_TOTAL_SUCCESS = "_elasticsearch_total_success_";
     public static final String METRICS_TOTAL_DELETE = "_elasticsearch_total_delete_";
     public static final String METRICS_TOTAL_FAILURE = "_elasticsearch_total_failure_";
     public static final String METRICS_TOTAL_SKIP = "_elasticsearch_total_skip_";
+    public static final String METRICS_TOTAL_IGNORE = "_elasticsearch_total_ignore_";
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -147,7 +148,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             }
                             break;
                         case IGNORE:
-                            incrementCounter(METRICS_TOTAL_SKIP, 1);
+                            incrementCounter(METRICS_TOTAL_IGNORE, 1);
                             break;
                         case FAIL:
                             incrementCounter(METRICS_TOTAL_FAILURE, 1);
@@ -166,7 +167,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             } catch (JsonProcessingException jsonProcessingException) {
                 switch (elasticSearchConfig.getMalformedDocAction()) {
                     case IGNORE:
-                        incrementCounter(METRICS_TOTAL_SKIP, 1);
+                        incrementCounter(METRICS_TOTAL_IGNORE, 1);
                         break;
                     case WARN:
                         incrementCounter(METRICS_TOTAL_FAILURE, 1);
