@@ -2205,6 +2205,24 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void testSourceCreateMissingSourceConfigFileFaileWithExitCode1() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        assertFalse(tool.run("sources create --source-config-file doesnotexist.yaml".split(" ")));
+    }
+
+    @Test
+    public void testSourceUpdateMissingSourceConfigFileFaileWithExitCode1() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        assertFalse(tool.run("sources update --source-config-file doesnotexist.yaml".split(" ")));
+    }
+
+    @Test
     public void testAuthTlsWithJsonParam() throws Exception {
 
         Properties properties = new Properties();
