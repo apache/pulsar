@@ -182,7 +182,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             }
         });
         runnerThread.setUncaughtExceptionHandler(
-                (t, e) -> LOG.error("[{}] Error while consuming records", t.getName(), e));
+                (t, e) -> {
+                    LOG.error("[{}] Error while consuming records", t.getName(), e);
+                    try {
+                        this.close();
+                    } catch (InterruptedException ex) {
+                        // The interrupted exception is thrown by the runnerThread itself. Ignore it.
+                    }
+                });
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
     }
