@@ -984,7 +984,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("disk"), 10000);
         assertEquals(goInstanceConfig.get("instanceID"), 0);
         assertEquals(goInstanceConfig.get("cleanupSubscription"), false);
-        assertEquals(goInstanceConfig.get("port"), 0);
+        assertEquals(goInstanceConfig.get("port"), 4332);
         assertEquals(goInstanceConfig.get("subscriptionType"), 0);
         assertEquals(goInstanceConfig.get("timeoutMs"), 0);
         assertEquals(goInstanceConfig.get("subscriptionName"), "");
