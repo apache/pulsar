@@ -1572,6 +1572,30 @@ flexible messaging model and an intuitive client API.</description>
       </plugin>
 
       <plugin>
+        <groupId>pl.project13.maven</groupId>
+        <artifactId>git-commit-id-plugin</artifactId>
+        <version>${git-commit-id-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>git-info</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <useNativeGit>true</useNativeGit>
+          <prefix>git</prefix>
+          <failOnNoGitDirectory>true</failOnNoGitDirectory>
+          <skipPoms>false</skipPoms>
+          <gitDescribe>
+            <skip>false</skip>
+            <always>false</always>
+          </gitDescribe>
+        </configuration>
+      </plugin>
+
+      <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <version>${license-maven-plugin.version}</version>
