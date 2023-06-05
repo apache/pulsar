@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authorization;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -441,25 +442,20 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Remove authorization-action permissions on a namespace to the given client.
-     * @param namespaceName
-     * @return CompletableFuture<Void>
-     */
-    default CompletableFuture<Void> removePermissionsAsync(NamespaceName namespaceName) {
-        return FutureUtil.failedFuture(new IllegalStateException(
-                String.format("removePermissionsAsync on namespaceName %s is not supported by the Authorization",
-                        namespaceName)));
-    }
-
-    /**
      * Get authorization-action permissions on a topic to the given client.
      * @param topicName
      * @return CompletableFuture<Void>
      */
-    default CompletableFuture<Void> getPermissionsAsync(TopicName topicName) {
+    default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on topicName %s is not supported by the Authorization",
                         topicName)));
+    }
+
+    default CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("getSubscriptionPermissionsAsync on namespace %s is not supported by the Authorization",
+                        namespaceName)));
     }
 
     /**
@@ -467,7 +463,7 @@ public interface AuthorizationProvider extends Closeable {
      * @param namespaceName
      * @return CompletableFuture<Void>
      */
-    default CompletableFuture<Void> getPermissionsAsync(NamespaceName namespaceName) {
+    default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
                         namespaceName)));
