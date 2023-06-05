@@ -58,6 +58,13 @@
       <build>
         <plugins>
           <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+            </configuration>
+          </plugin>
+          <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
             <executions>
@@ -81,6 +88,7 @@
                         </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
+                          <tag>latest</tag>
                           <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <buildx>

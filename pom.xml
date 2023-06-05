@@ -1584,6 +1584,7 @@ flexible messaging model and an intuitive client API.</description>
           </execution>
         </executions>
         <configuration>
+          <skip>true</skip>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
           <failOnNoGitDirectory>true</failOnNoGitDirectory>
