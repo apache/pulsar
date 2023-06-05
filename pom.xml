@@ -1587,7 +1587,7 @@ flexible messaging model and an intuitive client API.</description>
           <skip>true</skip>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
-          <failOnNoGitDirectory>true</failOnNoGitDirectory>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
           <skipPoms>false</skipPoms>
           <gitDescribe>
             <skip>false</skip>

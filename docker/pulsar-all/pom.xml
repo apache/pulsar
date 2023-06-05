@@ -65,6 +65,10 @@
     </dependency>
   </dependencies>
 
+  <properties>
+    <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
+  </properties>
+
   <profiles>
     <profile>
       <id>docker</id>
