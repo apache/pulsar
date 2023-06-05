@@ -301,6 +301,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 .map((customizer) -> customizer.customizeName(instanceConfig.getFunctionDetails(), jobName))
                 .orElse(jobName);
 
+        // pass grpcPort configured in functionRuntimeFactoryConfigs.grpcPort in functions_worker.yml
+        if (grpcPort != null) {
+            instanceConfig.setPort(grpcPort);
+        }
+
         // pass metricsPort configured in functionRuntimeFactoryConfigs.metricsPort in functions_worker.yml
         if (metricsPort != null) {
             instanceConfig.setMetricsPort(metricsPort);
