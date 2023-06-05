@@ -428,4 +428,48 @@ public interface AuthorizationProvider extends Closeable {
             throw new RestException(e.getCause());
         }
     }
+
+    /**
+     * Remove authorization-action permissions on a topic to the given client.
+     * @param topicName
+     * @return CompletableFuture<Void>
+     */
+    default CompletableFuture<Void> removePermissionsAsync(TopicName topicName) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("removePermissionsAsync on topicName %s is not supported by the Authorization",
+                        topicName)));
+    }
+
+    /**
+     * Remove authorization-action permissions on a namespace to the given client.
+     * @param namespaceName
+     * @return CompletableFuture<Void>
+     */
+    default CompletableFuture<Void> removePermissionsAsync(NamespaceName namespaceName) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("removePermissionsAsync on namespaceName %s is not supported by the Authorization",
+                        namespaceName)));
+    }
+
+    /**
+     * Get authorization-action permissions on a topic to the given client.
+     * @param topicName
+     * @return CompletableFuture<Void>
+     */
+    default CompletableFuture<Void> getPermissionsAsync(TopicName topicName) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("getPermissionsAsync on topicName %s is not supported by the Authorization",
+                        topicName)));
+    }
+
+    /**
+     * Get authorization-action permissions on a namespace to the given client.
+     * @param namespaceName
+     * @return CompletableFuture<Void>
+     */
+    default CompletableFuture<Void> getPermissionsAsync(NamespaceName namespaceName) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
+                        namespaceName)));
+    }
 }

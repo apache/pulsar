@@ -641,4 +641,27 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 });
     }
 
+    @Override
+    public CompletableFuture<Void> removePermissionsAsync(NamespaceName namespaceName) {
+        return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
+            if (readonly) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Policies are read-only. Broker cannot do read-write operations");
+                }
+                throw new IllegalStateException("policies are in readonly mode");
+            }
+            return pulsarResources.getNamespaceResources()
+                    .setPoliciesAsync(namespaceName, policies -> {
+//                        policies.auth_policies.getNamespaceAuthentication().remove(role);
+                        return policies;
+                    }).whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to revoke permissions for role {} namespace {}", role, namespaceName, ex);
+                        } else {
+                            log.info("Successfully revoke permissions for role {} namespace {}", role, namespaceName);
+                        }
+                    });
+        });
+    }
+
 }
