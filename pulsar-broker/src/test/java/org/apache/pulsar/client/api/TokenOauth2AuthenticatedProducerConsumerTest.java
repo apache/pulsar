@@ -42,7 +42,9 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -62,12 +64,15 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
     private final String audience = "my-pulsar-cluster";
 
+    @BeforeClass(alwaysRun = true)
+    protected void setupClass() {
+        String clientSecret = "super-secret-client-secret";
+        server = new MockOIDCIdentityProvider(clientSecret, audience, 3000);
+    }
+
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        String clientSecret = "super-secret-client-secret";
-        server = new MockOIDCIdentityProvider(clientSecret, audience, 3000);
-
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setAuthenticationRefreshCheckSeconds(1);
@@ -123,6 +128,10 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterClass(alwaysRun = true)
+    protected void cleanupAfterClass() {
         server.stop();
     }
 
