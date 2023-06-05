@@ -311,6 +311,8 @@ public interface Topic {
 
     CompletableFuture<Long> findSchemaVersion(SchemaData schema);
 
+    void putSchemaAndVersionInSchemaCache(long schemaVersion, SchemaData schemaData);
+
     CompletableFuture<Void> deleteForcefully();
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {

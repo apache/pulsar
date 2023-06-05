@@ -161,6 +161,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1246,7 +1247,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 topic.subscribe(optionBuilder.schemaVersion(schemaVersion).build()));
                             } else {
                                 topic.findSchemaVersion(schema).thenApply(optionBuilder::schemaVersion);
-                                return topic.subscribe(optionBuilder.build());
+                                return topic.subscribe(optionBuilder.schemaVersion(-1L).build());
                             }
                         })
                         .thenAccept(consumer -> {
@@ -1584,12 +1585,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer, schemaData);
+                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer);
 
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
                 if (producerFuture.complete(producer)) {
                     log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                    topic.putSchemaAndVersionInSchemaCache(((LongSchemaVersion) schemaVersion).getVersion(),
+                            schemaData);
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);

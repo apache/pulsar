@@ -55,7 +55,6 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -99,26 +98,15 @@ public class Producer {
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
-    private final SchemaData schemaData;
     private final String clientAddress; // IP address only, no port number included
     private final AtomicBoolean isDisconnecting = new AtomicBoolean(false);
-
-    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
-                    boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-                    boolean userProvidedProducerName,
-                    ProducerAccessMode accessMode,
-                    Optional<Long> topicEpoch,
-                    boolean supportsPartialProducer) {
-        this(topic, cnx, producerId, producerName, appId, isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, accessMode, topicEpoch, supportsPartialProducer, null);
-    }
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName,
             ProducerAccessMode accessMode,
             Optional<Long> topicEpoch,
-            boolean supportsPartialProducer, SchemaData schemaData) {
+            boolean supportsPartialProducer) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
 
         this.topic = topic;
@@ -167,7 +155,6 @@ public class Producer {
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
-        this.schemaData = schemaData;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
 
@@ -838,10 +825,6 @@ public class Producer {
 
     public SchemaVersion getSchemaVersion() {
         return schemaVersion;
-    }
-
-    public SchemaData getSchemaData() {
-        return schemaData;
     }
 
     public ProducerAccessMode getAccessMode() {

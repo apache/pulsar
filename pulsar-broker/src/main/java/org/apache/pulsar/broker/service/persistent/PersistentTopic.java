@@ -30,7 +30,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -888,7 +887,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaData, schemaVersion);
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaData.getType());
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     if (subscription instanceof PersistentSubscription persistentSubscription) {
                         checkBackloggedCursor(persistentSubscription);
@@ -917,6 +916,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 new BrokerServiceException("Connection was closed while the opening the cursor "));
                     } else {
                         checkReplicatedSubscriptionControllerState();
+                        if (schemaVersion != -1L) {
+                            putSchemaAndVersionInSchemaCache(schemaVersion, schemaData);
+                        }
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                         }
@@ -966,7 +968,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null, 0L);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null, -1L);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -3253,30 +3255,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 log.error("addSchemaIfIdleOrCheckCompatible: " + ex.getMessage());
                 if (ex.getMessage().contains("Failed to open ledger")) {
                     getLatestSchemaVersion().thenApply(schemaVersion -> {
-                        log.warn("++++++++latest" + schemaVersion.toString());
-                        SchemaData schemaData = null;
-                        Collection<Producer> values = producers.values();
-                        // TODO: CompletableFuture.anyOf()
-                        for (Producer value : values) {
-                            log.warn("++++++++producer schemaversion:" + value.getSchemaVersion());
-                            if (((LongSchemaVersion) value.getSchemaVersion()).getVersion()
-                                    == ((LongSchemaVersion) schemaVersion).getVersion()) {
-                                schemaData = value.getSchemaData();
-                                break;
-                            }
+                        long version = ((LongSchemaVersion) schemaVersion).getVersion();
+                        if (schemaCache.containsKey(version)) {
+                            return tryCompleteTheLostSchema(schemaVersion, schemaCache.get(version));
                         }
-                        // TODO: CompletableFuture.anyOf()
-                        for (PersistentSubscription value : subscriptions.values()) {
-                            for (Consumer consumer : value.getConsumers()) {
-                                log.warn("++++++++consumer schemaversion:" + consumer.getSchemaVersion());
-                                if (consumer.getSchemaVersion() == ((LongSchemaVersion) schemaVersion).getVersion()) {
-                                    schemaData = consumer.getSchemaData();
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                        return tryCompleteTheLostSchema(schemaVersion, schemaData);
+                        return CompletableFuture.failedFuture(ex);
                     });
                     return true;
                 }
@@ -3285,7 +3268,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }).thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaData().getType() != SchemaType.AUTO_CONSUME)
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
                             .toList().size())
                     .sum();
             if (hasSchema
