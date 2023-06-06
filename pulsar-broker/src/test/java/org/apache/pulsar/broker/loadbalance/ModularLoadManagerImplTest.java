@@ -839,7 +839,7 @@ public class ModularLoadManagerImplTest {
 
 
         // the bundle data should be deleted
-        ModularLoadManagerImpl.NON_ACTIVE_BUNDLE_DELETE_THRESHOLD = 0;
+        ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 0;
 
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
@@ -855,7 +855,7 @@ public class ModularLoadManagerImplTest {
         assertFalse(bundlesAfterSplit.contains(shouldBeDeletedBundle.getBundleRange()));
 
         // change back to origin threshold.
-        ModularLoadManagerImpl.NON_ACTIVE_BUNDLE_DELETE_THRESHOLD = 15;
+        ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 15;
     }
 
 }

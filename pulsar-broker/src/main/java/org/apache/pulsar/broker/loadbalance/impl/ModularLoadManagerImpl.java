@@ -39,7 +39,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -200,7 +199,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
 
-    public static long NON_ACTIVE_BUNDLE_DELETE_THRESHOLD = 15;
+    public static long nonActiveBundleDeleteThreshold = 15;
     // counter for not active bundles if threshold exceed the bundle-data in metadata store will be deleted.
     private final ConcurrentHashMap<String, AtomicLong> notActiveBundleCounter = new ConcurrentHashMap<>();
 
@@ -610,12 +609,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 long notActiveTimes = notActiveBundleCounter
                         .computeIfAbsent(bundle, k -> new AtomicLong()).incrementAndGet();
 
-                if (notActiveTimes > NON_ACTIVE_BUNDLE_DELETE_THRESHOLD) {
+                if (notActiveTimes > nonActiveBundleDeleteThreshold) {
                     notActiveBundleCounter.remove(bundle);
                     bundleData.remove(bundle);
                     if (isLeader()) {
-                        log.warn("namespace bundle {} not active, maybe delete or already split. " +
-                                "Remove load-balance bundle data from metadata store.", bundle);
+                        log.warn("namespace bundle {} not active, maybe delete or already split. "
+                                + "Remove load-balance bundle data from metadata store.", bundle);
                         deleteBundleDataFromMetadataStore(bundle);
                     }
                 }
