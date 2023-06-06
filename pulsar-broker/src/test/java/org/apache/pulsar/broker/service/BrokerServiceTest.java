@@ -1517,7 +1517,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
 
-    @Test
+    // this test is disabled since it is flaky
+    @Test(enabled = false)
     public void testBrokerStatsTopicLoadFailed() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test");
 

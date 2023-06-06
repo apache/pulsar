@@ -603,12 +603,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             String metricName = userMetricsLabelsEntry.getKey();
             String[] labels = userMetricsLabelsEntry.getValue();
             Summary.Child.Value summary = userMetricsSummary.labels(labels).get();
-            metricsMap.put(String.format("%s%s_sum", USER_METRIC_PREFIX, metricName), summary.sum);
-            metricsMap.put(String.format("%s%s_count", USER_METRIC_PREFIX, metricName), summary.count);
+            String prefix = USER_METRIC_PREFIX + metricName + "_";
+            metricsMap.put(prefix + "sum", summary.sum);
+            metricsMap.put(prefix + "count", summary.count);
             for (Map.Entry<Double, Double> entry : summary.quantiles.entrySet()) {
                 Double quantile = entry.getKey();
                 Double value = entry.getValue();
-                metricsMap.put(String.format("%s%s_%s", USER_METRIC_PREFIX, metricName, quantile), value);
+                metricsMap.put(prefix + quantile, value);
             }
         }
         return metricsMap;

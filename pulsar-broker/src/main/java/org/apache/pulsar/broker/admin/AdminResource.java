@@ -42,6 +42,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -846,5 +847,9 @@ public abstract class AdminResource extends PulsarWebResource {
         return topics.stream()
                 .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
                 .collect(Collectors.toList());
+    }
+
+    protected AuthorizationService getAuthorizationService() {
+        return pulsar().getBrokerService().getAuthorizationService();
     }
 }

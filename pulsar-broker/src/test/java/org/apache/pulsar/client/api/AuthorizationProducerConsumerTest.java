@@ -696,22 +696,29 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         TopicName topicName = TopicName.get("persistent://public/default/t1");
         NamespaceName namespaceName = NamespaceName.get("public/default");
         String role = "test-role";
+        String role2 = "test-role-2";
         Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
         Assert.assertFalse(authorizationService.canProduce(topicName, role, null));
         Assert.assertFalse(authorizationService.canConsume(topicName, role, null, "sub1"));
         authorizationService.grantPermissionAsync(topicName, actions, role, "auth-json").get();
+        authorizationService.grantPermissionAsync(topicName, actions, role2, "auth-json").get();
         Assert.assertTrue(authorizationService.canProduce(topicName, role, null));
         Assert.assertTrue(authorizationService.canConsume(topicName, role, null, "sub1"));
 
         authorizationService.revokePermissionAsync(topicName, role).get();
         Assert.assertFalse(authorizationService.canProduce(topicName, role, null));
         Assert.assertFalse(authorizationService.canConsume(topicName, role, null, "sub1"));
+        Assert.assertTrue(authorizationService.canProduce(topicName, role2, null));
+        Assert.assertTrue(authorizationService.canConsume(topicName, role2, null, "sub1"));
+
+        authorizationService.revokePermissionAsync(topicName, role2).get();
+        Assert.assertFalse(authorizationService.canProduce(topicName, role2, null));
+        Assert.assertFalse(authorizationService.canConsume(topicName, role2, null, "sub1"));
 
         authorizationService.grantPermissionAsync(namespaceName, actions, role, null).get();
         Assert.assertTrue(authorizationService.allowNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPIC, role, null).get());
         authorizationService.revokePermissionAsync(namespaceName, role).get();
         Assert.assertFalse(authorizationService.allowNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPIC, role, null).get());
-
         log.info("-- Exiting {} test --", methodName);
     }
 
