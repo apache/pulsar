@@ -62,15 +62,10 @@ set -x
 # Fail if any of the subsequent commands fail
 set -e
 
-docker tag pulsar:latest ${docker_registry_org}/pulsar:latest
-docker tag pulsar-all:latest ${docker_registry_org}/pulsar-all:latest
-
 docker tag pulsar:latest ${docker_registry_org}/pulsar:$MVN_VERSION
 docker tag pulsar-all:latest ${docker_registry_org}/pulsar-all:$MVN_VERSION
 
 # Push all images and tags
-docker push ${docker_registry_org}/pulsar:latest
-docker push ${docker_registry_org}/pulsar-all:latest
 docker push ${docker_registry_org}/pulsar:$MVN_VERSION
 docker push ${docker_registry_org}/pulsar-all:$MVN_VERSION
 
