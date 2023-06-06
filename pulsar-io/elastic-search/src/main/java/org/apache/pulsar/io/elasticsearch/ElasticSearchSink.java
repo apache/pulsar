@@ -78,7 +78,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     public static final String METRICS_TOTAL_DELETE = "_elasticsearch_total_delete_";
     public static final String METRICS_TOTAL_FAILURE = "_elasticsearch_total_failure_";
     public static final String METRICS_TOTAL_SKIP = "_elasticsearch_total_skip_";
-    public static final String METRICS_TOTAL_IGNORE = "_elasticsearch_total_ignore_";
+    public static final String METRICS_TOTAL_MALFORMED_IGNORE = "_elasticsearch_total_malformed_ignore_";
+    public static final String METRICS_TOTAL_NULLVALUE_IGNORE = "_elasticsearch_total_nullvalue_ignore_";
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -148,7 +149,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             }
                             break;
                         case IGNORE:
-                            incrementCounter(METRICS_TOTAL_IGNORE, 1);
+                            incrementCounter(METRICS_TOTAL_NULLVALUE_IGNORE, 1);
                             break;
                         case FAIL:
                             incrementCounter(METRICS_TOTAL_FAILURE, 1);
@@ -167,7 +168,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             } catch (JsonProcessingException jsonProcessingException) {
                 switch (elasticSearchConfig.getMalformedDocAction()) {
                     case IGNORE:
-                        incrementCounter(METRICS_TOTAL_IGNORE, 1);
+                        incrementCounter(METRICS_TOTAL_MALFORMED_IGNORE, 1);
                         break;
                     case WARN:
                         incrementCounter(METRICS_TOTAL_FAILURE, 1);
