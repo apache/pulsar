@@ -761,8 +761,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void checkNamespaceBundleSplit() {
 
-        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
-                || !pulsar.getLeaderElectionService().isLeader() || knownBrokers.size() <= 1) {
+        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || !isLeader() || knownBrokers.size() <= 1) {
             return;
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
