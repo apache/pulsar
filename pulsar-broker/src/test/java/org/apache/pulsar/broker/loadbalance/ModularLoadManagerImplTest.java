@@ -853,6 +853,9 @@ public class ModularLoadManagerImplTest {
         List<String> bundlesAfterSplit = childrenAfterSplit.join();
 
         assertFalse(bundlesAfterSplit.contains(shouldBeDeletedBundle.getBundleRange()));
+
+        // change back to origin threshold.
+        ModularLoadManagerImpl.NON_ACTIVE_BUNDLE_DELETE_THRESHOLD = 15;
     }
 
 }

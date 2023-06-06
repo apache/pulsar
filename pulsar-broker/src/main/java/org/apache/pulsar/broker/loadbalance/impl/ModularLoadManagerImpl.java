@@ -611,6 +611,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         .computeIfAbsent(bundle, k -> new AtomicLong()).incrementAndGet();
 
                 if (notActiveTimes > NON_ACTIVE_BUNDLE_DELETE_THRESHOLD) {
+                    notActiveBundleCounter.remove(bundle);
                     bundleData.remove(bundle);
                     if (isLeader()) {
                         log.warn("namespace bundle {} not active, maybe delete or already split. " +
