@@ -44,7 +44,8 @@ public class BrokerLoadManagerClassFilterTest extends BrokerFilterTestBase {
                 "broker1", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
                 "broker2", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
                 "broker3", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),
-                "broker4", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName())
+                "broker4", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),
+                "broker5", getLookupData("3.0.0", null)
         );
 
         Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(originalBrokers), null, context);

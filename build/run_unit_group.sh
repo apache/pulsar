@@ -188,6 +188,18 @@ function test_group_pulsar_io() {
     echo "::endgroup::"
 }
 
+function test_group_pulsar_io_elastic() {
+    echo "::group::Running elastic-search tests"
+    mvn_test --install -Ppulsar-io-elastic-tests,-main
+    echo "::endgroup::"
+}
+
+function test_group_pulsar_io_kafka_connect() {
+    echo "::group::Running Pulsar IO Kafka connect adaptor tests"
+    mvn_test --install -Ppulsar-io-kafka-connect-tests,-main
+    echo "::endgroup::"
+}
+
 function list_test_groups() {
   declare -F | awk '{print $NF}' | sort | grep -E '^test_group_' | sed 's/^test_group_//g' | tr '[:lower:]' '[:upper:]'
 }

@@ -100,7 +100,7 @@ public class RawBatchConverter {
             payload.skipBytes(Short.BYTES);
             int brokerEntryMetadataSize = payload.readInt();
             payload.readerIndex(readerIndex);
-            brokerMeta = payload.readRetainedSlice(brokerEntryMetadataSize + Short.BYTES + Integer.BYTES);
+            brokerMeta = payload.readSlice(brokerEntryMetadataSize + Short.BYTES + Integer.BYTES);
         }
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
         ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
@@ -152,7 +152,7 @@ public class RawBatchConverter {
 
                 if (brokerMeta != null) {
                     CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeDirectBuffer();
-                    compositeByteBuf.addComponents(true, brokerMeta, metadataAndPayload);
+                    compositeByteBuf.addComponents(true, brokerMeta.retain(), metadataAndPayload);
                     metadataAndPayload = compositeByteBuf;
                 }
 

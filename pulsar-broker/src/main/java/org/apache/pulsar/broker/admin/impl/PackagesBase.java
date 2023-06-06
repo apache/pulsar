@@ -27,7 +27,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -39,8 +38,6 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 
 @Slf4j
 public class PackagesBase extends AdminResource {
-
-    private AuthorizationService authorizationService;
 
     private PackagesManagement getPackagesManagement() {
         return pulsar().getPackagesManagement();
@@ -196,13 +193,5 @@ public class PackagesBase extends AdminResource {
             future.complete(null);
         }
         return future;
-    }
-
-    private AuthorizationService getAuthorizationService() {
-        if (authorizationService == null) {
-            authorizationService = pulsar().getBrokerService().getAuthorizationService();
-            return authorizationService;
-        }
-        return authorizationService;
     }
 }

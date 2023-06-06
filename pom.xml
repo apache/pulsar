@@ -82,7 +82,7 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>2.10.1</pulsar.client.python.version>
+    <pulsar.client.python.version>3.2.0</pulsar.client.python.version>
 
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
@@ -140,9 +140,9 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.89.Final</netty.version>
-    <netty-iouring.version>0.0.18.Final</netty-iouring.version>
-    <jetty.version>9.4.48.v20220622</jetty.version>
+    <netty.version>4.1.93.Final</netty.version>
+    <netty-iouring.version>0.0.21.Final</netty-iouring.version>
+    <jetty.version>9.4.51.v20230217</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
@@ -181,7 +181,7 @@ flexible messaging model and an intuitive client API.</description>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <hadoop2.version>2.10.2</hadoop2.version>
     <hadoop3.version>3.3.5</hadoop3.version>
     <hbase.version>2.4.16</hbase.version>
-    <guava.version>31.0.1-jre</guava.version>
+    <guava.version>32.0.0-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
@@ -284,7 +284,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-shade-plugin>3.4.1</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
-    <nifi-nar-maven-plugin.version>1.3.4</nifi-nar-maven-plugin.version>
+    <nifi-nar-maven-plugin.version>1.5.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
@@ -297,7 +297,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
+    <dependency-check-maven.version>8.2.1</dependency-check-maven.version>
     <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
@@ -2433,6 +2433,20 @@ flexible messaging model and an intuitive client API.</description>
 
     <profile>
       <id>pulsar-io-tests</id>
+      <modules>
+        <module>pulsar-io</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>pulsar-io-elastic-tests</id>
+      <modules>
+        <module>pulsar-io</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>pulsar-io-kafka-connect-tests</id>
       <modules>
         <module>pulsar-io</module>
       </modules>
