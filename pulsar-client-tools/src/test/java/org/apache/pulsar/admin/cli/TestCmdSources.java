@@ -455,7 +455,7 @@ public class TestCmdSources {
     
     private void verifyNoSuchFileParameterException(org.apache.pulsar.admin.cli.CmdSources.SourceDetailsCommand command) {
         command.sourceConfigFile = UUID.randomUUID().toString();
-        ParameterException e = Assert.expectThrows(ParameterException.class, () -> createSource.processArguments());
+        ParameterException e = Assert.expectThrows(ParameterException.class, command::processArguments);
         assertTrue(e.getMessage().endsWith("(No such file or directory)"));
     }
     
