@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xss1500k -Xmx1024m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
 
 jobs:
 
@@ -72,14 +72,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 11
-
-
-      # license check fails with 3.6.2 so we have to downgrade
-      - name: Set up Maven
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        uses: apache/pulsar-test-infra/setup-maven@master
-        with:
-          maven-version: 3.6.1
 
       - name: build and check license
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
