@@ -89,7 +89,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         providerName = SecurityUtility.getProvider().getName();
 
         switch (providerName) {
-            case SecurityUtility.BC: {
+            case SecurityUtility.BC:
                 SecureRandom rand = null;
                 try {
                     rand = SecureRandom.getInstance("NativePRNGNonBlocking", providerName);
@@ -98,19 +98,14 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 }
                 secureRandom = rand;
                 break;
-            }
-            case SecurityUtility.BC_FIPS: {
-                SecureRandom rand = null;
+            case SecurityUtility.BC_FIPS:
                 try {
-                    //TODO separate random for Data key
-                    rand = SecureRandom.getInstance("NONCEANDIV", providerName);
+                    secureRandom = SecureRandom.getInstance("NONCEANDIV", providerName);
                 } catch (NoSuchAlgorithmException | NoSuchProviderException nsa) {
                     throw new RuntimeException(
                             "In BC FIPS mode, we expect the specific Random generators to be available!");
                 }
-                secureRandom = rand;
                 break;
-            }
             default:
                 throw new IllegalStateException("Provider not handled for encryption: " + providerName);
         }
@@ -146,13 +141,35 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             }
             keyGenerator = KeyGenerator.getInstance(DATAKEY_ALGORITHM, providerName);
             int aesKeyLength = Cipher.getMaxAllowedKeyLength(DATAKEY_ALGORITHM);
+            SecureRandom secureRandomForKeygen = null;
+
+            switch (providerName) {
+                case SecurityUtility.BC: {
+                    //TODO is this prediction resistant for generating keys?
+                    secureRandomForKeygen = secureRandom;
+                    break;
+                }
+                case SecurityUtility.BC_FIPS: {
+                    try {
+                        //prediction resistant
+                        secureRandomForKeygen = SecureRandom.getInstance("DEFAULT", providerName);
+                    } catch (NoSuchAlgorithmException | NoSuchProviderException nsa) {
+                        throw new RuntimeException(
+                                "In BC FIPS mode, we expect the specific Random generators to be available!");
+                    }
+                    break;
+                }
+                default:
+                    throw new IllegalStateException("Provider not handled for encryption: " + providerName);
+            }
+
             if (aesKeyLength <= 128) {
                 log.warn("{} AES Cryptographic strength is limited to {} bits. "
                                 + "Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
                         logCtx, aesKeyLength);
-                keyGenerator.init(aesKeyLength, secureRandom);
+                keyGenerator.init(aesKeyLength, secureRandomForKeygen);
             } else {
-                keyGenerator.init(256, secureRandom);
+                keyGenerator.init(256, secureRandomForKeygen);
             }
 
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {

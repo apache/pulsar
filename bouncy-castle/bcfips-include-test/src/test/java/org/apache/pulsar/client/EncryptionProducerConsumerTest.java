@@ -30,6 +30,8 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,65 +41,63 @@ import org.testng.annotations.Test;
 public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(EncryptionProducerConsumerTest.class);
 
+    class EncKeyReader implements CryptoKeyReader {
+
+        @Override
+        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+            String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                try {
+                    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                }
+            } else {
+                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+            }
+            return null;
+        }
+
+        @Override
+        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+            String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                try {
+                    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                }
+            } else {
+                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+            }
+            return null;
+        }
+    }
+
     @Test(timeOut = 30000)
     public void testRSAEncryption() throws Exception {
-
 
         internalSetUpForNamespace();
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
 
-
         String topicName = "persistent://my-property/my-ns/myrsa-topic1-" + System.currentTimeMillis();
-
-        class EncKeyReader implements CryptoKeyReader {
-
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
-                    try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
-                        return keyInfo;
-                    } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
-                    }
-                } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
-                }
-                return null;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
-                    try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
-                        return keyInfo;
-                    } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
-                    }
-                } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
-                }
-                return null;
-            }
-        }
 
         final int totalMsg = 10;
 
         Set<String> messageSet = new HashSet<>();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
         Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
                 .topic(topicName).subscriptionName("my-subscriber-name-normal")
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName)
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
 
         for (int i = 0; i < totalMsg; i++) {
@@ -130,5 +130,22 @@ public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
         consumer.close();
     }
 
-    //TODO ECDSA key test
+    @Test(timeOut = 30000)
+    public void testECDSAKeysAreNotSupportedInPublisher() throws Exception {
+
+        internalSetUpForNamespace();
+        internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
+
+        String topicName = "persistent://my-property/my-ns/myecdsa-topic1-" + System.currentTimeMillis();
+
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic(topicName)
+                        .addEncryptionKey("client-ecdsa.pem").cryptoKeyReader(new EncKeyReader());
+        try {
+            producerBuilder.create();
+            Assert.fail("We should not be able to create a producer with ECDSA keys using BC FIPS library!");
+        }catch (PulsarClientException.CryptoException ce){
+            //expected
+        }
+    }
 }
