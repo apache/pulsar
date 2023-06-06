@@ -1507,9 +1507,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         lock.readLock().lock();
         try {
             positions.stream()
-                    .filter(position -> individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
-                            ((PositionImpl) position).getEntryId())
-                            || ((PositionImpl) position).compareTo(markDeletePosition) <= 0)
+                    .filter(position -> ((PositionImpl) position).compareTo(markDeletePosition) <= 0
+                            || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId()))
                     .forEach(alreadyAcknowledgedPositions::add);
         } finally {
             lock.readLock().unlock();
@@ -2282,8 +2281,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     return;
                 }
 
-                if (individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())
-                    || position.compareTo(markDeletePosition) <= 0) {
+                if (position.compareTo(markDeletePosition) <= 0
+                        || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())) {
                     if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
@@ -3425,9 +3424,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public boolean isMessageDeleted(Position position) {
         checkArgument(position instanceof PositionImpl);
-        return individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
-                ((PositionImpl) position).getEntryId())
-                || ((PositionImpl) position).compareTo(markDeletePosition) <= 0;
+        return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
+                || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
     }
 
     //this method will return a copy of the position's ack set
@@ -3519,7 +3517,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void trimDeletedEntries(List<Entry> entries) {
         entries.removeIf(entry -> {
-            boolean isDeleted = ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
+            boolean isDeleted = markDeletePosition.compareTo(entry.getLedgerId(), entry.getEntryId()) >= 0
                     || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId());
             if (isDeleted) {
                 entry.release();
