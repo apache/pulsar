@@ -194,7 +194,7 @@
       <scope>provided</scope>
       <optional>true</optional>
     </dependency>
-    
+
     <dependency>
       <groupId>com.google.protobuf</groupId>
 	  <artifactId>protobuf-java</artifactId>
@@ -296,6 +296,7 @@
           </execution>
         </executions>
         <configuration>
+          <skip>false</skip>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
           <verbose>false</verbose>
