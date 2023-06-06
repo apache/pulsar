@@ -652,16 +652,24 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }
                 throw new IllegalStateException("policies are in readonly mode");
             }
-            return pulsarResources.getNamespaceResources()
-                    .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
-                        policies.auth_policies.getTopicAuthentication().remove(topicName.toString());
-                        return policies;
-                    }).whenComplete((__, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to remove permissions on topic {}", topicName, ex);
-                        } else {
-                            log.info("Successfully remove permissions on topic {}", topicName);
+            return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                    .thenCompose(policies -> {
+                        if (!policies.isPresent()
+                                || !policies.get().auth_policies.getTopicAuthentication()
+                                .containsKey(topicName.toString())) {
+                            return CompletableFuture.completedFuture(null);
                         }
+                        return pulsarResources.getNamespaceResources().
+                                setPoliciesAsync(topicName.getNamespaceObject(), policies2 -> {
+                                    policies2.auth_policies.getTopicAuthentication().remove(topicName.toString());
+                                    return policies2;
+                            }).whenComplete((__, ex) -> {
+                                if (ex != null) {
+                                    log.error("Failed to remove permissions on topic {}", topicName, ex);
+                                } else {
+                                    log.info("Successfully remove permissions on topic {}", topicName);
+                                }
+                            });
                     });
         });
     }
