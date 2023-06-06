@@ -67,26 +67,15 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     private ElasticSearchClient elasticsearchClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ObjectMapper sortedObjectMapper;
-    private SinkContext sinkContext;
     private List<String> primaryFields = null;
     private final Pattern nonPrintableCharactersPattern = Pattern.compile("[\\p{C}]");
     private final Base64.Encoder base64Encoder = Base64.getEncoder().withoutPadding();
-
-    // sink metrics
-    public static final String METRICS_TOTAL_INCOMING = "_elasticsearch_total_incoming_";
-    public static final String METRICS_TOTAL_SUCCESS = "_elasticsearch_total_success_";
-    public static final String METRICS_TOTAL_DELETE = "_elasticsearch_total_delete_";
-    public static final String METRICS_TOTAL_FAILURE = "_elasticsearch_total_failure_";
-    public static final String METRICS_TOTAL_SKIP = "_elasticsearch_total_skip_";
-    public static final String METRICS_TOTAL_MALFORMED_IGNORE = "_elasticsearch_total_malformed_ignore_";
-    public static final String METRICS_TOTAL_NULLVALUE_IGNORE = "_elasticsearch_total_nullvalue_ignore_";
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         elasticSearchConfig = ElasticSearchConfig.load(config, sinkContext);
         elasticSearchConfig.validate();
-        elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
-        this.sinkContext = sinkContext;
+        elasticsearchClient = new ElasticSearchClient(elasticSearchConfig, sinkContext);
         if (!Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
             primaryFields = Arrays.asList(elasticSearchConfig.getPrimaryFields().split(","));
         }
@@ -118,15 +107,9 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         this.elasticsearchClient = elasticsearchClient;
     }
 
-    private void incrementCounter(String counter, double value) {
-        if (sinkContext != null && counter != null) {
-            sinkContext.recordMetric(counter, value);
-        }
-    }
-
     @Override
     public void write(Record<GenericObject> record) throws Exception {
-        incrementCounter(METRICS_TOTAL_INCOMING, 1);
+        this.elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_INCOMING, 1);
         if (!elasticsearchClient.isFailed()) {
             Pair<String, String> idAndDoc = extractIdAndDocument(record);
             try {
@@ -141,18 +124,18 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                                     elasticsearchClient.bulkDelete(record, idAndDoc.getLeft());
                                 } else {
                                     elasticsearchClient.deleteDocument(record, idAndDoc.getLeft());
+                                    elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_SUCCESS, 1);
+                                    elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_DELETE, 1);
                                 }
-                                incrementCounter(METRICS_TOTAL_SUCCESS, 1);
-                                incrementCounter(METRICS_TOTAL_DELETE, 1);
                             } else {
-                                incrementCounter(METRICS_TOTAL_SKIP, 1);
+                                elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_SKIP, 1);
                             }
                             break;
                         case IGNORE:
-                            incrementCounter(METRICS_TOTAL_NULLVALUE_IGNORE, 1);
+                            elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_NULLVALUE_IGNORE, 1);
                             break;
                         case FAIL:
-                            incrementCounter(METRICS_TOTAL_FAILURE, 1);
+                            elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_FAILURE, 1);
                             elasticsearchClient.failed(
                                     new PulsarClientException.InvalidMessageException("Unexpected null message value"));
                             throw elasticsearchClient.irrecoverableError.get();
@@ -161,24 +144,24 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     if (elasticSearchConfig.isBulkEnabled()) {
                         elasticsearchClient.bulkIndex(record, idAndDoc);
                     } else {
+                        elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_SUCCESS, 1);
                         elasticsearchClient.indexDocument(record, idAndDoc);
                     }
-                    incrementCounter(METRICS_TOTAL_SUCCESS, 1);
                 }
             } catch (JsonProcessingException jsonProcessingException) {
                 switch (elasticSearchConfig.getMalformedDocAction()) {
                     case IGNORE:
-                        incrementCounter(METRICS_TOTAL_MALFORMED_IGNORE, 1);
+                        elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_MALFORMED_IGNORE, 1);
                         break;
                     case WARN:
-                        incrementCounter(METRICS_TOTAL_FAILURE, 1);
+                        elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_FAILURE, 1);
                         log.warn("Ignoring malformed document messageId={}",
                                 record.getMessage().map(Message::getMessageId).orElse(null),
                                 jsonProcessingException);
                         elasticsearchClient.failed(jsonProcessingException);
                         throw jsonProcessingException;
                     case FAIL:
-                        incrementCounter(METRICS_TOTAL_FAILURE, 1);
+                        elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_FAILURE, 1);
                         log.error("Malformed document messageId={}",
                                 record.getMessage().map(Message::getMessageId).orElse(null),
                                 jsonProcessingException);
@@ -186,12 +169,12 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                         throw jsonProcessingException;
                 }
             } catch (Exception e) {
-                incrementCounter(METRICS_TOTAL_FAILURE, 1);
+                elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_FAILURE, 1);
                 log.error("write error for {} {}:", idAndDoc.getLeft(), idAndDoc.getRight(), e);
                 throw e;
             }
         } else {
-            incrementCounter(METRICS_TOTAL_FAILURE, 1);
+            elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_FAILURE, 1);
             throw new IllegalStateException("Elasticsearch client is in FAILED status");
         }
     }
