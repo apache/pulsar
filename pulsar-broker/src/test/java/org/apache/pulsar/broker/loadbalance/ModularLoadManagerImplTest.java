@@ -798,9 +798,10 @@ public class ModularLoadManagerImplTest {
 
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
-        Thread.sleep(3000);
+        Thread.sleep(1000);
 
         loadManagerWrapper.writeResourceQuotasToZooKeeper();
+        Thread.sleep(1000);
 
         MetadataCache<BundleData> bundlesCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
 
@@ -843,9 +844,12 @@ public class ModularLoadManagerImplTest {
 
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
-        Thread.sleep(3000);
+        Thread.sleep(1000);
 
         loadManagerWrapper.writeResourceQuotasToZooKeeper();
+        Thread.sleep(1000);
+
+        lm1.updateAll();
 
         // check bundle data should be deleted from metadata store.
 
