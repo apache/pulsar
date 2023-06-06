@@ -1188,8 +1188,7 @@ public class BrokerService implements Closeable {
         NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
         // Check whether there are auth policies for the topic
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(optPolicies -> {
-            if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
-                    .containsKey(topic)) {
+            if (!optPolicies.isPresent()) {
                 // if there is no auth policy for the topic, just complete and return
                 if (log.isDebugEnabled()) {
                     log.debug("Authentication policies not found for topic {}", topic);
