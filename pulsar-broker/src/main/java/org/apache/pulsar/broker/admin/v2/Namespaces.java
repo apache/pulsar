@@ -2519,7 +2519,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set maxTopicsPerNamespace config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
-    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+    public void setMaxTopicsPerNamespace(@PathParam("tenant") String tenant,
                                          @PathParam("namespace") String namespace,
                                          @ApiParam(value = "Number of maximum topics for specific namespace",
                                                  required = true) int maxTopicsPerNamespace) {
@@ -2529,10 +2529,10 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/maxTopicsPerNamespace")
-    @ApiOperation(value = "Set maxTopicsPerNamespace config on a namespace.")
+    @ApiOperation(value = "Remove maxTopicsPerNamespace config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
-    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+    public void removeMaxTopicsPerNamespace(@PathParam("tenant") String tenant,
                                          @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalRemoveMaxTopicsPerNamespace();

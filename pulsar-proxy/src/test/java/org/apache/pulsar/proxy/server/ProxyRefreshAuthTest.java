@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -31,13 +30,11 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.crypto.SecretKey;
-import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -81,6 +78,9 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
         Properties properties = new Properties();
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
+        // The skew should be double the proxy's refresh interval to ensure the broker accepts auth data
+        // that the proxy might forward.
+        properties.setProperty("tokenAllowedClockSkewSeconds", "2");
         conf.setProperties(properties);
 
         conf.setClusterName("proxy-authorization");
@@ -108,6 +108,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
         proxyConfig.setForwardAuthorizationCredentials(true);
+        proxyConfig.setAuthenticationRefreshCheckSeconds(1);
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setAdvertisedAddress(null);
 
@@ -162,14 +163,30 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
                 .authentication(authenticationToken));
 
         String topic = "persistent://my-tenant/my-ns/my-topic1";
-        @Cleanup
-        Producer<byte[]> ignored = spy(pulsarClient.newProducer()
-                .topic(topic).create());
 
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        pulsarClient.getPartitionsForTopic(topic).get();
         Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnections();
 
-        Awaitility.await().during(4, SECONDS).untilAsserted(() -> {
+        Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
+            pulsarClient.getPartitionsForTopic(topic).get();
+            assertTrue(connections.stream().allMatch(n -> {
+                try {
+                    ClientCnx clientCnx = n.get();
+                    long timestamp = clientCnx.getLastDisconnectedTimestamp();
+                    return timestamp == 0;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        });
+
+        // Force all connections from proxy to broker to close and therefore require the proxy to re-authenticate with
+        // the broker. (The client doesn't lose this connection.)
+        restartBroker();
+
+        // Rerun assertion to ensure that it still works
+        Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
             pulsarClient.getPartitionsForTopic(topic).get();
             assertTrue(connections.stream().allMatch(n -> {
                 try {

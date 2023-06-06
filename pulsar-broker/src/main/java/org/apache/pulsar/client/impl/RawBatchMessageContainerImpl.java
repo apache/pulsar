@@ -47,13 +47,13 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     MessageCrypto msgCrypto;
     Set<String> encryptionKeys;
     CryptoKeyReader cryptoKeyReader;
-    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch) {
+
+    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch, int maxBytesInBatch) {
         super();
-        compressionType = CompressionType.NONE;
-        compressor = new CompressionCodecNone();
-        if (maxNumMessagesInBatch > 0) {
-            this.maxNumMessagesInBatch = maxNumMessagesInBatch;
-        }
+        this.compressionType = CompressionType.NONE;
+        this.compressor = new CompressionCodecNone();
+        this.maxNumMessagesInBatch = maxNumMessagesInBatch;
+        this.maxBytesInBatch = maxBytesInBatch;
     }
     private ByteBuf encrypt(ByteBuf compressedPayload) {
         if (msgCrypto == null) {

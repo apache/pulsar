@@ -280,9 +280,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
+                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
             } else {
-                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
+                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
             }
             txnMessageCnt++;
         }
@@ -811,7 +811,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     public Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.MINUTES)
                 .build()
                 .get();
     }

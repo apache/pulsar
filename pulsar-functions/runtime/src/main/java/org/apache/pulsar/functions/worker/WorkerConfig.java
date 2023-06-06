@@ -565,6 +565,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WORKER_SECURITY,
+            doc = "Role names that are treated as `proxy roles`. These are the only roles that can supply the "
+                    + "originalPrincipal.")
+    private Set<String> proxyRoles = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
             doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL."
                     + "\n Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to"
                     + " connect."
@@ -731,6 +737,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "Additional arguments to pass to the Java command line for Java functions"
     )
     private List<String> additionalJavaRuntimeArguments = new ArrayList<>();
+
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Whether to ignore unknown properties when deserializing the connector configuration. "
+                    + "After upgrading a connector to a new version with a new configuration, "
+                    + "the new configuration may not be compatible with the old connector. "
+                    + "In case of rollback, it's required to also rollback the connector configuration. "
+                    + "Ignoring unknown fields makes possible to keep the new configuration and "
+                    + "only rollback the connector."
+    )
+    private boolean ignoreUnknownConfigFields = false;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

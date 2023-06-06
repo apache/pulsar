@@ -35,9 +35,11 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -46,8 +48,10 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationDataBasic;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -245,8 +249,15 @@ public class FunctionCommon {
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
-        URL website = new URL(destPkgUrl);
-        try (InputStream in = website.openStream()) {
+        final URL url = new URL(destPkgUrl);
+        final URLConnection connection = url.openConnection();
+        if (StringUtils.isNotEmpty(url.getUserInfo())) {
+            final AuthenticationDataBasic authBasic = new AuthenticationDataBasic(url.getUserInfo());
+            for (Map.Entry<String, String> header : authBasic.getHttpHeaders()) {
+                connection.setRequestProperty(header.getKey(), header.getValue());
+            }
+        }
+        try (InputStream in = connection.getInputStream()) {
             log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
             Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
@@ -315,7 +326,7 @@ public class FunctionCommon {
     }
 
     public static final long getSequenceId(MessageId messageId) {
-        MessageIdImpl msgId = MessageIdImpl.convertToMessageIdImpl(messageId);
+        MessageIdAdv msgId = (MessageIdAdv) messageId;
         long ledgerId = msgId.getLedgerId();
         long entryId = msgId.getEntryId();
 

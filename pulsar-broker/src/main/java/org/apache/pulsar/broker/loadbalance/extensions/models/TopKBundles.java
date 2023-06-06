@@ -86,7 +86,7 @@ public class TopKBundles {
             topk = Math.min(topk, arr.size());
             partitionSort(arr, topk);
 
-            for (int i = 0; i < topk; i++) {
+            for (int i = topk - 1; i >= 0; i--) {
                 var etr = arr.get(i);
                 topKBundlesLoadData.add(
                         new TopBundlesLoadData.BundleLoadData(etr.getKey(), (NamespaceBundleStats) etr.getValue()));

@@ -115,7 +115,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected volatile Boolean isAllowAutoUpdateSchema;
 
-    protected volatile PublishRateLimiter topicPublishRateLimiter;
+    protected volatile PublishRateLimiter topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
     private final Object topicPublishRateLimiterLock = new Object();
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
@@ -1274,7 +1274,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                     // create new rateLimiter if rate-limiter is disabled
                     if (preciseTopicPublishRateLimitingEnable) {
-                        this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
+                        this.topicPublishRateLimiter = new PrecisePublishLimiter(publishRate,
                             () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
                     } else {
                         this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);

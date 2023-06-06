@@ -51,6 +51,7 @@ import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -126,11 +127,7 @@ public class Producer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStatsImpl() : new PublisherStatsImpl();
-        if (cnx.hasHAProxyMessage()) {
-            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
-        } else {
-            stats.setAddress(cnx.clientAddress().toString());
-        }
+        stats.setAddress(cnx.clientSourceAddressAndPort());
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
@@ -781,7 +778,7 @@ public class Producer {
         TopicName topicName = TopicName.get(topic.getName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             return cnx.getBrokerService().getAuthorizationService()
-                    .canProduceAsync(topicName, appId, cnx.getAuthenticationData())
+                    .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, appId, cnx.getAuthenticationData())
                     .handle((ok, ex) -> {
                         if (ex != null) {
                             log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(),

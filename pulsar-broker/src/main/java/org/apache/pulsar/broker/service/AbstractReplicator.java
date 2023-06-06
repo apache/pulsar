@@ -34,6 +34,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.StringInterner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,9 +74,9 @@ public abstract class AbstractReplicator {
         this.brokerService = brokerService;
         this.localTopicName = localTopicName;
         this.replicatorPrefix = replicatorPrefix;
-        this.localCluster = localCluster.intern();
+        this.localCluster = StringInterner.intern(localCluster);
         this.remoteTopicName = remoteTopicName;
-        this.remoteCluster = remoteCluster.intern();
+        this.remoteCluster = StringInterner.intern(remoteCluster);
         this.replicationClient = replicationClient;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
@@ -228,7 +229,7 @@ public abstract class AbstractReplicator {
     }
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {
-        return (replicatorPrefix + "." + cluster).intern();
+        return StringInterner.intern(replicatorPrefix + "." + cluster);
     }
 
     /**

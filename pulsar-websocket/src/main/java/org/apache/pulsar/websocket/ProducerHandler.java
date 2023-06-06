@@ -20,6 +20,7 @@ package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
@@ -33,6 +34,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
@@ -242,7 +245,19 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canProduce(topic, authRole, authenticationData);
+        try {
+            return service.getAuthorizationService()
+                    .allowTopicOperationAsync(topic, TopicOperation.PRODUCE, authRole, authenticationData)
+                    .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     private void sendAckResponse(ProducerAck response) {

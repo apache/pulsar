@@ -65,6 +65,7 @@ public class NoopLoadManager implements LoadManager {
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());
+        localData.setLoadManagerClassName(this.pulsar.getConfig().getLoadManagerClassName());
         String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
 
         try {

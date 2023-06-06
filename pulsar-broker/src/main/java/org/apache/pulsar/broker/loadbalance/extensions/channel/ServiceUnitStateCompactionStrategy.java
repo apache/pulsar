@@ -52,9 +52,13 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
             return false;
         }
 
-        // Skip the compaction case where from = null and to.versionId > 1
-        if (from != null && from.versionId() + 1 != to.versionId()) {
-            return true;
+        if (from != null) {
+            if (from.versionId() == Long.MAX_VALUE && to.versionId() == Long.MIN_VALUE) { // overflow
+            } else if (from.versionId() >= to.versionId()) {
+                return true;
+            } else if (from.versionId() < to.versionId() - 1) { // Compacted
+                return false;
+            } // else from.versionId() == to.versionId() - 1 // continue to check further
         }
 
         if (to.force()) {

@@ -21,12 +21,10 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
 
@@ -37,14 +35,13 @@ public class BrokerIsolationPoliciesFilter implements BrokerFilter {
 
     private IsolationPoliciesHelper isolationPoliciesHelper;
 
-    @Override
-    public String name() {
-        return FILTER_NAME;
+    public BrokerIsolationPoliciesFilter(IsolationPoliciesHelper helper) {
+        this.isolationPoliciesHelper = helper;
     }
 
     @Override
-    public void initialize(PulsarService pulsar) {
-        this.isolationPoliciesHelper = new IsolationPoliciesHelper(new SimpleResourceAllocationPolicies(pulsar));
+    public String name() {
+        return FILTER_NAME;
     }
 
     @Override

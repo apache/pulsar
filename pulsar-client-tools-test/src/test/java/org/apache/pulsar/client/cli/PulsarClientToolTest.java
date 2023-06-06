@@ -328,9 +328,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
         final String url = "pulsar+ssl://localhost:6651";
         final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-        final String authParams = "tlsCertFile:pulsar-broker/src/test/resources/authentication/tls/client-cert.pem," +
-                "tlsKeyFile:pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
-        final String tlsTrustCertsFilePath = "pulsar/pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
+        final String authParams = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                getTlsFileForClient("admin.key-pk8"));
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
@@ -338,11 +337,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
         String[] args = {"--url", url,
                 "--auth-plugin", authPlugin,
                 "--auth-params", authParams,
-                "--tlsTrustCertsFilePath", tlsTrustCertsFilePath,
+                "--tlsTrustCertsFilePath", CA_CERT_FILE_PATH,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
         pulsarClientTool.jcommander.parse(args);
-        assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), tlsTrustCertsFilePath);
+        assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), CA_CERT_FILE_PATH);
         assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
         assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
