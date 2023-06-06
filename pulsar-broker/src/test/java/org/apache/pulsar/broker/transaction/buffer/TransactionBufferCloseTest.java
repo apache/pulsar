@@ -61,7 +61,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         };
     }
 
-    @Test(timeOut = 10_000, dataProvider = "isPartition")
+    @Test(dataProvider = "isPartition")
     public void deleteTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
         int partitionCount = isPartition ? 30 : 1;
         List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
