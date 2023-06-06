@@ -1197,11 +1197,8 @@ public class BrokerService implements Closeable {
                 future.complete(null);
                 return;
             }
-            pulsar.getPulsarResources().getNamespaceResources()
-                    .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
-                        p.auth_policies.getTopicAuthentication().remove(topic);
-                        return p;
-                    }).thenAccept(v -> {
+            authorizationService.removePermissionsAsync(TopicName.get(topic))
+                    .thenAccept(v -> {
                         log.info("Successfully delete authentication policies for topic {}", topic);
                         future.complete(null);
                     }).exceptionally(ex1 -> {
