@@ -950,6 +950,12 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
     }
 
+    public CompletableFuture<ClientCnx> getConnection(final String topic, int currentIndex) {
+        TopicName topicName = TopicName.get(topic);
+        return lookup.getBroker(topicName, currentIndex)
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+    }
+
     public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
         if (!(lookup instanceof BinaryProtoLookupService)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(

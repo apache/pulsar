@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -41,6 +43,7 @@ public class ConnectionHandler {
     // Start with -1L because it gets incremented before sending on the first connection
     private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
+    private AtomicInteger serviceResolverIndex;
 
     interface Connection {
         void connectionFailed(PulsarClientException exception);
@@ -49,11 +52,18 @@ public class ConnectionHandler {
 
     protected Connection connection;
 
-    protected ConnectionHandler(HandlerState state, Backoff backoff, Connection connection) {
+    protected ConnectionHandler(HandlerState state, Backoff backoff, Connection connection, List<InetSocketAddress> addressList) {
         this.state = state;
         this.connection = connection;
         this.backoff = backoff;
         CLIENT_CNX_UPDATER.set(this, null);
+        this.serviceResolverIndex = new AtomicInteger(randomIndex(addressList.size()));
+    }
+
+    private static int randomIndex(int numAddresses) {
+        return numAddresses == 1
+                ?
+                0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
 
     protected void grabCnx() {
@@ -79,7 +89,7 @@ public class ConnectionHandler {
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
-                cnxFuture = state.client.getConnection(state.topic); //
+                cnxFuture = state.client.getConnection(state.topic, serviceResolverIndex.getAndIncrement());
             }
             cnxFuture.thenAccept(cnx -> connection.connectionOpened(cnx)) //
                     .exceptionally(this::handleConnectionError);

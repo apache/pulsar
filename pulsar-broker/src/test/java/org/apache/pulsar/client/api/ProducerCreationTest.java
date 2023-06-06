@@ -191,4 +191,26 @@ public class ProducerCreationTest extends ProducerConsumerBase {
 
         Assert.assertFalse(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
+
+    @Test
+    public void testCreateWhenServiceUrlNotAllAvailable() throws Exception {
+
+        final TopicName topic =
+                TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionOnPartitionedTopic");
+        admin.topics().createPartitionedTopic(topic.toString(), 20);
+
+        // use pulsar serviceUrl with unavailable host to new producer
+        Producer<byte[]> producer = pulsarClientserviceUrlNotAllAvailable.newProducer()
+                .topic(topic.toString())
+                .create();
+
+        producer.close();
+
+        // use pulsar httpServiceUrl with unavailable host to new producer
+        Producer<byte[]> producer2 = pulsarClientHttpUrlNotAllAvailable.newProducer()
+                .topic(topic.toString())
+                .create();
+
+        producer2.close();
+    }
 }

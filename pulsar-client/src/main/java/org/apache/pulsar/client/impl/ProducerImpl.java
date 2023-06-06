@@ -273,7 +273,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                 .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
                 .create(),
-            this);
+            this, client.getLookup().getAddressList());
 
         grabCnx();
     }

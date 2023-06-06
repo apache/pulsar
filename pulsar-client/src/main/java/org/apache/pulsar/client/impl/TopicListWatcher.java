@@ -71,7 +71,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                         .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                         .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                         .create(),
-                this);
+                this, client.getLookup().getAddressList());
         this.topicsPattern = topicsPattern;
         this.watcherId = watcherId;
         this.namespace = namespace;
