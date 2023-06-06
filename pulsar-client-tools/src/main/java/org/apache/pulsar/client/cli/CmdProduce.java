@@ -275,8 +275,15 @@ public class CmdProduce {
 
                 final byte[] keyValueKeyBytes;
                 if (this.keyValueKey != null) {
+                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
+                        throw new ParameterException("Key value encoding type must be set when using --key-value-key");
+                    }
                     keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
                 } else if (this.keyValueKeyFile != null) {
+                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
+                        throw new ParameterException("Key value encoding type must be " +
+                                "set when using --key-value-key-file");
+                    }
                     keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
                 } else if (this.key != null) {
                     keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
