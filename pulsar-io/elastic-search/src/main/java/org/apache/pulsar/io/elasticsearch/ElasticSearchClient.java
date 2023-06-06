@@ -210,8 +210,10 @@ public class ElasticSearchClient implements AutoCloseable {
             final boolean createdOrUpdated = client.indexDocument(indexName, documentId, documentSource);
             if (createdOrUpdated) {
                 record.ack();
+                incrementCounter(ElasticSearchClient.METRICS_TOTAL_SUCCESS, 1);
             } else {
                 record.fail();
+                incrementCounter(ElasticSearchClient.METRICS_TOTAL_FAILURE, 1);
             }
             return createdOrUpdated;
         } catch (final Exception ex) {

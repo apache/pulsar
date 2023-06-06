@@ -144,7 +144,6 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     if (elasticSearchConfig.isBulkEnabled()) {
                         elasticsearchClient.bulkIndex(record, idAndDoc);
                     } else {
-                        elasticsearchClient.incrementCounter(ElasticSearchClient.METRICS_TOTAL_SUCCESS, 1);
                         elasticsearchClient.indexDocument(record, idAndDoc);
                     }
                 }
