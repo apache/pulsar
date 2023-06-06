@@ -32,5 +32,5 @@ public class AuthenticationConfig {
     private String tlsTrustCertsFilePath;
     private boolean useTls;
     private boolean tlsAllowInsecureConnection;
-    private boolean tlsHostnameVerificationEnabled;
+    private boolean tlsHostnameVerificationEnable;
 }
