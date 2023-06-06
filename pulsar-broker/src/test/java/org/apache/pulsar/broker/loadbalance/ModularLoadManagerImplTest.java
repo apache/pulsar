@@ -784,17 +784,16 @@ public class ModularLoadManagerImplTest {
                     .subscriptionName("my-subscriber-name2").subscribe();
         }
 
-        pulsar1.getBrokerService().updateRates();
-        pulsar2.getBrokerService().updateRates();
-
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
         ModularLoadManagerImpl lm1 = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
         ModularLoadManagerWrapper loadManager2 = (ModularLoadManagerWrapper) pulsar2.getLoadManager().get();
         ModularLoadManagerImpl lm2 = (ModularLoadManagerImpl) loadManager2.getLoadManager();
 
         assertEquals(lm1.getAvailableBrokers().size(), 2);
-
         assertTrue(lm1.isLeader());
+
+        pulsar1.getBrokerService().updateRates();
+        pulsar2.getBrokerService().updateRates();
 
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
@@ -819,17 +818,15 @@ public class ModularLoadManagerImplTest {
         assertFalse(bundles.isEmpty());
         assertEquals(bundleNumbers, bundles.size());
 
-
-
         String topicToFindBundle = topicName + 0;
 
         // trigger bundle split
         NamespaceBundle shouldBeDeletedBundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-        pulsar1.getNamespaceService().splitAndOwnBundle(shouldBeDeletedBundle,
-                false,
-                NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get();
+        pulsar1.getAdminClient().namespaces().splitNamespaceBundle(tenant + "/" + namespace,
+                shouldBeDeletedBundle.getBundleRange(),
+                false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
 
         NamespaceBundles allBundlesAfterSplit =
                 pulsar1.getNamespaceService().getNamespaceBundleFactory()
@@ -842,6 +839,9 @@ public class ModularLoadManagerImplTest {
         // the bundle data should be deleted
         ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 0;
 
+        pulsar1.getBrokerService().updateRates();
+        pulsar2.getBrokerService().updateRates();
+
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
         Thread.sleep(1000);
@@ -850,6 +850,8 @@ public class ModularLoadManagerImplTest {
         Thread.sleep(1000);
 
         lm1.updateAll();
+
+        log.info("update all triggered.");
 
         // check bundle data should be deleted from metadata store.
 
