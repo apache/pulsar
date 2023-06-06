@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
@@ -42,7 +42,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     private volatile long maxSize;
     private volatile long evictionTriggerThreshold;
     private volatile double cacheEvictionWatermark;
-    private final AtomicLong currentSize = new AtomicLong(0);
+    private final LongAdder currentSize = new LongAdder();
     private final ConcurrentMap<String, EntryCache> caches = new ConcurrentHashMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
 
@@ -106,12 +106,12 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         entryCache.clear();
 
         if (log.isDebugEnabled()) {
-            log.debug("Removed cache for {} - Size: {} -- Current Size: {}", name, size / MB, currentSize.get() / MB);
+            log.debug("Removed cache for {} - Size: {} -- Current Size: {}", name, size / MB, currentSize.sum() / MB);
         }
     }
 
     boolean hasSpaceInCache() {
-        long currentSize = this.currentSize.get();
+        long currentSize = this.currentSize.sum();
 
         // Trigger a single eviction in background. While the eviction is running we stop inserting entries in the cache
         if (currentSize > evictionTriggerThreshold && evictionInProgress.compareAndSet(false, true)) {
@@ -129,7 +129,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                     long endTime = System.nanoTime();
                     double durationMs = TimeUnit.NANOSECONDS.toMicros(endTime - startTime) / 1000.0;
 
-                    log.info("Eviction completed. Removed {} Mb in {} ms", (currentSize - this.currentSize.get()) / MB,
+                    log.info("Eviction completed. Removed {} Mb in {} ms", (currentSize - this.currentSize.sum()) / MB,
                             durationMs);
                 } finally {
                     mlFactoryMBean.recordCacheEviction();
@@ -143,17 +143,17 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
     void entryAdded(long size) {
         mlFactoryMBean.recordCacheInsertion();
-        currentSize.addAndGet(size);
+        currentSize.add(size);
     }
 
     void entriesRemoved(long size, int count) {
         mlFactoryMBean.recordNumberOfCacheEntriesEvicted(count);
-        currentSize.addAndGet(-size);
+        currentSize.add(-size);
     }
 
     @Override
     public long getSize() {
-        return currentSize.get();
+        return currentSize.sum();
     }
 
     @Override
