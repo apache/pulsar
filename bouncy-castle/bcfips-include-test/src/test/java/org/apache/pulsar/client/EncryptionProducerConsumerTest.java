@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.client;
 
+import static org.testng.Assert.assertNull;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -28,19 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.Security;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static org.testng.Assert.assertNull;
-
-public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase{
+public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(EncryptionProducerConsumerTest.class);
 
     @Test(timeOut = 30000)
@@ -133,4 +129,6 @@ public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase{
         consumer.acknowledgeCumulative(msg);
         consumer.close();
     }
+
+    //TODO ECDSA key test
 }

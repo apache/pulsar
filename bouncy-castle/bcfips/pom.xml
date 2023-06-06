@@ -41,6 +41,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>bouncy-castle-common</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bc-fips</artifactId>
       <version>${bouncycastle.bc-fips.version}</version>
@@ -50,6 +56,12 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-fips</artifactId>
       <version>${bouncycastle.bcpkix-fips.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-common</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 
