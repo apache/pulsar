@@ -27,7 +27,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.10.4</version>
+    <version>2.10.5-SNAPSHOT</version>
   </parent>
   <artifactId>docker-images</artifactId>
   <name>Apache Pulsar :: Tests :: Docker Images</name>
