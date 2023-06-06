@@ -37,7 +37,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -197,6 +199,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Lock lock = new ReentrantLock();
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
+
+    public static long NON_ACTIVE_BUNDLE_DELETE_THRESHOLD = 15;
+    // counter for not active bundles if threshold exceed the bundle-data in metadata store will be deleted.
+    private final ConcurrentHashMap<String, AtomicLong> notActiveBundleCounter = new ConcurrentHashMap<>();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -485,8 +491,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
         this.knownBrokers.clear();
         this.knownBrokers.addAll(activeBrokers);
-        if (pulsar.getLeaderElectionService() != null
-                && pulsar.getLeaderElectionService().isLeader()) {
+        if (isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
             for (LoadSheddingStrategy loadSheddingStrategy : loadSheddingPipeline) {
                 loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
@@ -530,6 +535,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
+    public boolean isLeader() {
+        return pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader();
+    }
+
+
     // As the leader broker, use the local broker data saved on metadata store to update the bundle stats so that better
     // load management decisions may be made.
     private void updateBundleData() {
@@ -558,17 +569,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     bundleData.put(bundle, currentBundleData);
                 }
             }
-
-            //Remove not active bundle from loadData
-            for (String bundle : bundleData.keySet()) {
-                if (!activeBundles.contains(bundle)){
-                    bundleData.remove(bundle);
-                    if (pulsar.getLeaderElectionService().isLeader()){
-                        deleteBundleDataFromMetadataStore(bundle);
-                    }
-                }
-            }
-
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
             Set<String> ownedNsBundles = pulsar.getNamespaceService().getOwnedServiceUnits()
@@ -601,6 +601,25 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 namespaceToBundleRange.clear();
                 LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
                 LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
+            }
+        }
+
+        // Remove not active bundle from loadData
+        for (String bundle : bundleData.keySet()) {
+            if (!activeBundles.contains(bundle)) {
+                long notActiveTimes = notActiveBundleCounter
+                        .computeIfAbsent(bundle, k -> new AtomicLong()).incrementAndGet();
+
+                if (notActiveTimes > NON_ACTIVE_BUNDLE_DELETE_THRESHOLD) {
+                    bundleData.remove(bundle);
+                    if (isLeader()) {
+                        log.warn("namespace bundle {} not active, maybe delete or already split. " +
+                                "Remove load-balance bundle data from metadata store.", bundle);
+                        deleteBundleDataFromMetadataStore(bundle);
+                    }
+                }
+            } else {
+                notActiveBundleCounter.remove(bundle);
             }
         }
     }
