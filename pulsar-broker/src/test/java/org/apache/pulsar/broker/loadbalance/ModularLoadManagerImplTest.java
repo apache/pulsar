@@ -835,7 +835,6 @@ public class ModularLoadManagerImplTest {
         assertEquals(allBundlesAfterSplit.getBundles().size(), bundleNumbers + 1);
         assertFalse(allBundlesAfterSplit.getBundles().contains(shouldBeDeletedBundle));
 
-
         // the bundle data should be deleted
         ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 0;
 
