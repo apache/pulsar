@@ -939,7 +939,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // Force to create a topic
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 0);
         assertEquals(admin.topics().getList("prop-xyz/ns1"),
-                List.of("persistent://prop-xyz/ns1/" + topicName));
+                Collections.singletonList("persistent://prop-xyz/ns1/" + topicName));
 
         // create consumer and subscription
         @Cleanup
@@ -963,7 +963,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Exclusive).subscribe();
 
-        assertEquals(admin.topics().getSubscriptions(persistentTopicName), List.of(subName));
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Collections.singletonList(subName));
 
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 100);
         TimeUnit.SECONDS.sleep(2);
