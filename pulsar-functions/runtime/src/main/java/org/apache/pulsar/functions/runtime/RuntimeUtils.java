@@ -129,14 +129,25 @@ public class RuntimeUtils {
      */
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
+                                                AuthenticationConfig authConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
+                                                String stateStorageServiceUrl,
+                                                String pulsarWebServiceUrl,
                                                 boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
         if (instanceConfig.getClusterName() != null) {
             goInstanceConfig.setClusterName(instanceConfig.getClusterName());
+        }
+
+        if (null != stateStorageServiceUrl) {
+            goInstanceConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
+        }
+
+        if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
+            goInstanceConfig.setPulsarWebServiceUrl(pulsarWebServiceUrl);
         }
 
         if (instanceConfig.getInstanceId() != 0) {
@@ -185,6 +196,23 @@ public class RuntimeUtils {
         }
         if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
             goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
+        }
+
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
+                goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
+            }
+            goInstanceConfig.setTlsAllowInsecureConnection(
+                    authConfig.isTlsAllowInsecureConnection());
+            goInstanceConfig.setTlsHostnameVerificationEnable(
+                    authConfig.isTlsHostnameVerificationEnable());
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())){
+                goInstanceConfig.setTlsTrustCertsFilePath(
+                        authConfig.getTlsTrustCertsFilePath());
+            }
+
         }
 
         if (instanceConfig.getMaxBufferedTuples() != 0) {
@@ -292,7 +320,9 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, authConfig, originalCodeFileName,
+                    pulsarServiceUrl, stateStorageServiceUrl, pulsarWebServiceUrl,
+                    k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
