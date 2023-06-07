@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
@@ -1291,6 +1292,12 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         for (Map.Entry<ResourceUnit, String> bundle : namespaceBundlesToUnload.entrySet()) {
             String brokerName = bundle.getKey().getResourceId();
             String bundleName = bundle.getValue();
+            final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
+            // Shouldn't unload bundle of system namespace, because the recovery of the topic of the system namespace is
+            // slowly.
+            if (namespaceName.equals(SYSTEM_NAMESPACE.getNamespaceObject().toString())) {
+                continue;
+            }
             try {
                 if (unloadedHotNamespaceCache.getIfPresent(bundleName) == null) {
                     if (LoadManagerShared.isLoadSheddingEnabled(pulsar)) {

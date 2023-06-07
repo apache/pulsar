@@ -22,8 +22,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -40,24 +42,33 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -77,6 +88,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -115,8 +127,6 @@ public class LoadBalancerTest {
         final String localhost = "localhost";
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-
-
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerServicePort(Optional.of(brokerNativeBrokerPorts[i]));
             config.setClusterName("use");
@@ -709,6 +719,110 @@ public class LoadBalancerTest {
             log.info("New leader is : {}", newLeader.getServiceUrl());
             Assert.assertNotEquals(newLeader, oldLeader);
         }
+    }
+
+    @DataProvider(name = "loadManagerName")
+    public static Object[][] loadManagerName() {
+        return new Object[][] {
+                {ModularLoadManagerImpl.class.getName()},
+                {SimpleLoadManagerImpl.class.getName()}
+        };
+    }
+
+    // 1. Create 100 common topic, 10 system topic and send same message to these topics to let them have same usage.
+    // 2. Find a common topic and a system topic that localed at the same broker.
+    // 3. Increase the overload of the topics (Find in step 2).
+    // 4. Do load shedding.
+    // 5. Verify the ownership of the common topic has change, but the system doesn't.
+    @Test(dataProvider = "loadManagerName")
+    public void testDoNoTUnloadBundleForSystemNameSpace(String loadManagerName) throws Exception {
+        // 0. Prepare environment
+        for (int i = 0; i < pulsarServices.length; i++) {
+            ServiceConfiguration conf = pulsarServices[i].getConfig();
+            conf.setLoadManagerClassName(loadManagerName);
+            conf.setLoadBalancerSheddingEnabled(true);
+            conf.setSystemTopicEnabled(true);
+            conf.setAllowAutoTopicCreation(true);
+            conf.setLoadBalancerSheddingGracePeriodMinutes(5);
+            conf.setLoadBalancerBundleUnloadMinThroughputThreshold(10);
+        }
+
+        PulsarAdmin admin = pulsarAdmins[0];
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(new URL("http://127.0.0.1" + ":" + brokerNativeBrokerPorts[0]).toString())
+                .build();
+
+        admin.tenants().createTenant("prop",
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("use")));
+        String namespace = "prop/use/ns-abc2";
+        String topic = "persistent://" + namespace + "/testDoNoTUnloadBundleForSystemTopic-";
+        String systemTopic = "persistent://" + NamespaceName.SYSTEM_NAMESPACE.getNamespaceObject().toString()
+                + "/testDoNoTUnloadBundleForSystemTopic-";
+        int totalTopics = 100;
+        int totalSystemTopics = 10;
+        // 1. Create 100 common topic, 10 system topic and send same message to these topics to
+        // let them have same usage.
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+        for (int i = 0; i < totalTopics; i++) {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(topic + i)
+                    .sendTimeout(0, TimeUnit.SECONDS)
+                    .create();
+            for (int j = 0; j < 10; j++) {
+                producer.newMessage().value("message".getBytes()).sendAsync();
+            }
+        }
+        for (int i = 0; i < totalSystemTopics; i++) {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(systemTopic + i)
+                    .sendTimeout(0, TimeUnit.SECONDS)
+                    .create();
+            for (int j = 0; j < 10; j++) {
+                producer.newMessage().value("message".getBytes()).sendAsync();
+            }
+        }
+        // 2. Find a common topic and a system topic that localed at the same broker.
+        PulsarService owner = null;
+        ArrayList<TopicName> topicNames = new ArrayList<>();
+        for (int i = 0; i < pulsarServices.length; i++) {
+            if (pulsarServices[i].getNamespaceService().checkTopicOwnership(TopicName.get(systemTopic + "0")).get()) {
+                for (int j = 0; j < totalTopics; j++) {
+                    if (pulsarServices[i].getNamespaceService().checkTopicOwnership(TopicName.get(topic + j)).get()) {
+                        owner = pulsarServices[i];
+                        topicNames.add(TopicName.get(systemTopic + "0"));
+                        topicNames.add(TopicName.get(topic + j));
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        assertEquals(topicNames.size(), 2);
+        assertNotNull(owner);
+        // 3. Increase the overload of the topics (Find in step 2).
+        topicNames.forEach(topicName -> {
+            try {
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString())
+                        .sendTimeout(0, TimeUnit.SECONDS)
+                        .create();
+                for (int i = 0; i < 100; i++) {
+                    producer.newMessage().value("message".getBytes()).send();
+                }
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        // 4. Do load shedding.
+        Field loadManageField = PulsarService.class.getDeclaredField("loadManager");
+        loadManageField.setAccessible(true);
+        AtomicReference<LoadManager> loadManagerAtomicReference =
+                (AtomicReference<LoadManager>) loadManageField.get(owner);
+        loadManagerAtomicReference.get().doLoadShedding();
+        // 5. Verify the ownership of the common topic has change, but ownership the system topic doesn't change.
+        assertTrue(owner.getNamespaceService().checkTopicOwnership(topicNames.get(0)).get());
+        assertFalse(owner.getNamespaceService().checkTopicOwnership(topicNames.get(1)).get());
     }
 
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
@@ -653,6 +654,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
                     if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+                    // Shouldn't unload bundle of system namespace, because the recovery of the topic of
+                    // the system namespace is slowly.
+                    if (namespaceName.equals(SYSTEM_NAMESPACE.getNamespaceObject().toString())) {
                         return;
                     }
 
