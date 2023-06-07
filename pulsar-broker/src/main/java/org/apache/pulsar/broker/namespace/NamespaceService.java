@@ -282,7 +282,7 @@ public class NamespaceService implements AutoCloseable {
      */
     public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
         return getWebServiceUrlAsync(suName, options)
-                .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
     }
 
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(Optional<ServiceUnitId> topic,
