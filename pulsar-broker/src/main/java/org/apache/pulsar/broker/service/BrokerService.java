@@ -1909,10 +1909,6 @@ public class BrokerService implements Closeable {
         return authorizationService;
     }
 
-    public CompletableFuture<Void> removeTopicFromCache(String topicName) {
-        return removeTopicFutureFromCache(topicName, null);
-    }
-
     public CompletableFuture<Void> removeTopicFromCache(Topic topic) {
         Optional<CompletableFuture<Optional<Topic>>> createTopicFuture = findTopicFutureInCache(topic);
         if (!createTopicFuture.isPresent()){

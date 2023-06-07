@@ -1326,7 +1326,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private void disposeTopic(CompletableFuture<?> closeFuture) {
-        brokerService.removeTopicFromCache(topic)
+        brokerService.removeTopicFromCache(PersistentTopic.this)
                 .thenRun(() -> {
                     replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
 
