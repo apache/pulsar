@@ -32,6 +32,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
@@ -51,7 +52,9 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
-        checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
+        if (numPartitions <= 0) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Number of partitions should be more than 0"));
+        }
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "partitions");
         return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));

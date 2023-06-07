@@ -229,8 +229,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             return completableFuture;
         }
         int partition = routerPolicy.choosePartition(message, topicMetadata);
-        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
-                "Illegal partition index chosen by the message routing policy: " + partition);
+        if (partition < 0 || partition >= topicMetadata.numPartitions()) {
+            completableFuture.completeExceptionally(new IllegalArgumentException(
+                    "Illegal partition index chosen by the message routing policy: " + partition));
+            return completableFuture;
+        }
 
         if (conf.isLazyStartPartitionedProducers() && !producers.containsKey(partition)) {
             final ProducerImpl<T> newProducer = createProducer(partition, Optional.ofNullable(overrideProducerName));

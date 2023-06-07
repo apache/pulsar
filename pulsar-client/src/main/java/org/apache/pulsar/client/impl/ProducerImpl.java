@@ -428,7 +428,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public void sendAsync(Message<?> message, SendCallback callback) {
-        checkArgument(message instanceof MessageImpl);
+        if (!(message instanceof MessageImpl)) {
+            callback.sendComplete(
+                    new IllegalArgumentException("Invalid message type: " + message.getClass().getName()));
+            return;
+        }
 
         if (!isValidProducerState(callback, message.getSequenceId())) {
             return;

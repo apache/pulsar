@@ -59,6 +59,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
 
@@ -182,7 +183,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, Policies policies) {
         NamespaceName ns = NamespaceName.get(namespace);
-        checkArgument(ns.isV2(), "Create namespace with policies is only supported on newer namespaces");
+        if (!ns.isV2()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "Create namespace with policies is only supported on newer namespaces"));
+        }
         WebTarget path = namespacePath(ns);
         // For V2 API we pass full Policy class instance
         return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
