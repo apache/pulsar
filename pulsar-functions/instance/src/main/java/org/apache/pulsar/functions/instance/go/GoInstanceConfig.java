@@ -27,6 +27,8 @@ import org.apache.pulsar.functions.proto.Function;
 @Getter
 public class GoInstanceConfig {
     private String pulsarServiceURL = "";
+    private String stateStorageServiceUrl = "";
+    private String pulsarWebServiceUrl = "";
     private int instanceID;
     private String funcID = "";
     private String funcVersion = "";
@@ -44,6 +46,13 @@ public class GoInstanceConfig {
     private int processingGuarantees;
     private String secretsMap = "";
     private String userConfig = "";
+
+    private String clientAuthenticationPlugin = "";
+    private String clientAuthenticationParameters = "";
+    private String tlsTrustCertsFilePath = "";
+    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsAllowInsecureConnection = false;
+
     private int runtime;
     private boolean autoAck;
     private int parallelism;

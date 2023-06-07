@@ -56,7 +56,6 @@ import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -570,109 +569,86 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalGrantPermissionOnNamespaceAsync(String role, Set<AuthAction> actions) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(role, "Role should not be null");
-                        checkNotNull(actions, "Actions should not be null");
-                    }).thenCompose(__ ->
-                            authService.grantPermissionAsync(namespaceName, actions, role, null))
-                    .thenAccept(unused ->
-                            log.info("[{}] Successfully granted access for role {}: {} - namespaceName {}",
-                                    clientAppId(), role, actions, namespaceName))
-                    .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        //The IllegalArgumentException and the IllegalStateException were historically thrown by the
-                        // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
-                        if (realCause instanceof MetadataStoreException.NotFoundException
-                                || realCause instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                                    namespaceName, ex);
-                            throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
-                        } else if (realCause instanceof MetadataStoreException.BadVersionException
-                                || realCause instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: {}",
-                                    clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
-                            throw new RestException(Status.CONFLICT, "Concurrent modification");
-                        } else {
-                            log.error("[{}] Failed to get permissions for namespace {}",
-                                    clientAppId(), namespaceName, ex);
-                            throw new RestException(realCause);
-                        }
-                    });
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(role, "Role should not be null");
+                    checkNotNull(actions, "Actions should not be null");
+                }).thenCompose(__ ->
+                        getAuthorizationService().grantPermissionAsync(namespaceName, actions, role, null))
+                .thenAccept(unused ->
+                        log.info("[{}] Successfully granted access for role {}: {} - namespaceName {}",
+                                clientAppId(), role, actions, namespaceName))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to get permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
     }
 
 
     protected CompletableFuture<Void> internalGrantPermissionOnSubscriptionAsync(String subscription,
                                                                                 Set<String> roles) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscription, "Subscription should not be null");
-                        checkNotNull(roles, "Roles should not be null");
-                    })
-                    .thenCompose(__ -> authService.grantSubscriptionPermissionAsync(namespaceName, subscription,
-                            roles, null))
-                    .thenAccept(unused -> {
-                        log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
-                                + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
-                    })
-                    .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        //The IllegalArgumentException and the IllegalStateException were historically thrown by the
-                        // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
-                        if (realCause.getCause() instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                        } else if (realCause.getCause() instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
-                                    clientAppId(), namespaceName);
-                            throw new RestException(Status.CONFLICT, "Concurrent modification");
-                        } else {
-                            log.error("[{}] Failed to get permissions for namespace {}",
-                                    clientAppId(), namespaceName, realCause);
-                            throw new RestException(realCause);
-                        }
-                    });
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscription, "Subscription should not be null");
+                    checkNotNull(roles, "Roles should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService()
+                        .grantSubscriptionPermissionAsync(namespaceName, subscription, roles, null))
+                .thenAccept(unused -> {
+                    log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
+                            + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause.getCause() instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName);
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    } else if (realCause.getCause() instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
+                                clientAppId(), namespaceName);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to get permissions for namespace {}",
+                                clientAppId(), namespaceName, realCause);
+                        throw new RestException(realCause);
+                    }
+                });
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnNamespaceAsync(String role) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
                 .thenAccept(__ -> checkNotNull(role, "Role should not be null"))
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.auth_policies.getNamespaceAuthentication().remove(role);
-                    return policies;
-                }));
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(namespaceName, role));
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnSubscriptionAsync(String subscriptionName,
                                                                                   String role) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscriptionName, "SubscriptionName should not be null");
-                        checkNotNull(role, "Role should not be null");
-                    })
-                    .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                    .thenCompose(__ -> authService.revokeSubscriptionPermissionAsync(namespaceName,
-                            subscriptionName, role, null/* additional auth-data json */));
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscriptionName, "SubscriptionName should not be null");
+                    checkNotNull(role, "Role should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService().revokeSubscriptionPermissionAsync(namespaceName,
+                        subscriptionName, role, null/* additional auth-data json */));
     }
 
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {

@@ -887,6 +887,37 @@ public class KubernetesRuntimeTest {
         assertTrue(containerCommand.contains(expectedDownloadCommand), "Found:" + containerCommand);
     }
 
+    @Test
+    public void testCustomKubernetesDownloadCommandsWithAuthAndCustomTLSWithoutAuthSpec() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false));
+
+        factory = createKubernetesRuntimeFactory(null,
+                10, 1.0, 1.0, Optional.empty(), null, wconfig -> {
+                    wconfig.setAuthenticationEnabled(true);
+                }, AuthenticationConfig.builder()
+                        .clientAuthenticationPlugin("com.MyAuth")
+                        .clientAuthenticationParameters("{\"authParam1\": \"authParamValue1\"}")
+                        .useTls(true) // set to verify it is ignored because pulsar admin does not consider this setting
+                        .tlsHostnameVerificationEnable(true)
+                        .tlsTrustCertsFilePath("/my/ca.pem")
+                        .build());
+
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        String expectedDownloadCommand = "pulsar-admin --admin-url " + pulsarAdminUrl
+                + " --auth-plugin com.MyAuth --auth-params {\"authParam1\": \"authParamValue1\"}"
+                + " --tls-enable-hostname-verification"
+                + " --tls-trust-cert-path /my/ca.pem"
+                + " functions download "
+                + "--tenant " + TEST_TENANT
+                + " --namespace " + TEST_NAMESPACE
+                + " --name " + TEST_NAME
+                + " --destination-file " + pulsarRootDir + "/" + userJarFile;
+        String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
+        assertTrue(containerCommand.contains(expectedDownloadCommand), "Found:" + containerCommand);
+    }
+
     InstanceConfig createGolangInstanceConfig() {
         InstanceConfig config = new InstanceConfig();
 
@@ -951,7 +982,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("disk"), 10000);
         assertEquals(goInstanceConfig.get("instanceID"), 0);
         assertEquals(goInstanceConfig.get("cleanupSubscription"), false);
-        assertEquals(goInstanceConfig.get("port"), 0);
+        assertEquals(goInstanceConfig.get("port"), 4332);
         assertEquals(goInstanceConfig.get("subscriptionType"), 0);
         assertEquals(goInstanceConfig.get("timeoutMs"), 0);
         assertEquals(goInstanceConfig.get("subscriptionName"), "");
