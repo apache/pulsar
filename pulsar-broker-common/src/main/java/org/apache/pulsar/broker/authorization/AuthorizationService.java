@@ -124,6 +124,17 @@ public class AuthorizationService {
     }
 
     /**
+     *
+     * Revoke authorization-action permission on a namespace to the given client.
+     *
+     * @param namespace
+     * @param role
+     */
+    public CompletableFuture<Void> revokePermissionAsync(NamespaceName namespace, String role) {
+        return provider.revokePermissionAsync(namespace, role);
+    }
+
+    /**
      * Grant permission to roles that can access subscription-admin api.
      *
      * @param namespace
@@ -157,16 +168,26 @@ public class AuthorizationService {
      * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
      * {@link IllegalStateException} when failed to grant permission.
      *
-     * @param topicname
+     * @param topicName
      * @param role
      * @param authDataJson
      *            additional authdata in json for targeted authorization provider
      * @completesWith null when the permissions are updated successfully.
      * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
-    public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
+    public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
                                                         String authDataJson) {
-        return provider.grantPermissionAsync(topicname, actions, role, authDataJson);
+        return provider.grantPermissionAsync(topicName, actions, role, authDataJson);
+    }
+
+    /**
+     * Revoke authorization-action permission on a topic to the given client.
+     *
+     * @param topicName
+     * @param role
+     */
+    public CompletableFuture<Void> revokePermissionAsync(TopicName topicName, String role) {
+        return provider.revokePermissionAsync(topicName, role);
     }
 
     /**
@@ -418,7 +439,7 @@ public class AuthorizationService {
     /**
      * Whether the authenticatedPrincipal and the originalPrincipal form a valid pair. This method assumes that
      * authenticatedPrincipal and originalPrincipal can be equal, as long as they are not a proxy role. This use
-     * case is relvant for the admin server because of the way the proxy handles authentication. The binary protocol
+     * case is relevant for the admin server because of the way the proxy handles authentication. The binary protocol
      * should not use this method.
      * @return true when roles are a valid combination and false when roles are an invalid combination
      */
