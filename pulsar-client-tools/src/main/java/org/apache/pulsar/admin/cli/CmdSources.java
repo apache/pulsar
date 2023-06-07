@@ -115,8 +115,6 @@ public class CmdSources extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
                 throw e;
