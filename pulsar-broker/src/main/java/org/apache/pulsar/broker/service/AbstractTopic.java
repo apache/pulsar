@@ -1163,6 +1163,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public void updateEntryFilters() {
+        if (isSystemTopic()) {
+            entryFilters = Pair.of(null, Collections.emptyList());
+            return;
+        }
         final EntryFilters entryFiltersPolicy = getEntryFiltersPolicy();
         if (entryFiltersPolicy == null || StringUtils.isBlank(entryFiltersPolicy.getEntryFilterNames())) {
             entryFilters = Pair.of(null, Collections.emptyList());
