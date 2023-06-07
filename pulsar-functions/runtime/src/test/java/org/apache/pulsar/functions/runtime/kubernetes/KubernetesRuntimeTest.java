@@ -1149,6 +1149,25 @@ public class KubernetesRuntimeTest {
         String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
         assertTrue(containerCommand.contains(expectedDownloadCommand));
     }
+    @Test
+    public void testCustomKubernetesDownloadWithTLSConfig() throws Exception {
+        String downloadDirectory = "download/pulsar_functions";
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            return fb.setPackageUrl("function://public/default/test@v1");
+        }));
+
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(), downloadDirectory);
+        factory.setAuthenticationEnabled(true);
+        factory.setAuthConfig(AuthenticationConfig.builder().tlsHostnameVerificationEnable(true).build());
+
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        String expectedDownloadCommand = "pulsar-admin --tls-enable-hostname-verification --admin-url http://localhost:8080 packages download "
+                + "function://public/default/test@v1 --path " + factory.getDownloadDirectory() + "/" + userJarFile;
+        String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
+        assertTrue(containerCommand.contains(expectedDownloadCommand));
+    }
 
     @Test
     public void shouldUseConfiguredMetricsPort() throws Exception {
