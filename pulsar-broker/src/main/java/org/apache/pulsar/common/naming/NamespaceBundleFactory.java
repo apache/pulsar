@@ -377,6 +377,10 @@ public class NamespaceBundleFactory {
         return range.upperEndpoint() - range.lowerEndpoint() > 1;
     }
 
+    public PulsarService getPulsar() {
+        return pulsar;
+    }
+    
     public static void validateFullRange(SortedSet<String> partitions) {
         checkArgument(partitions.first().equals(FIRST_BOUNDARY) && partitions.last().equals(LAST_BOUNDARY));
     }
