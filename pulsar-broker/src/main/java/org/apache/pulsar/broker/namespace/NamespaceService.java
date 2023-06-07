@@ -1202,13 +1202,13 @@ public class NamespaceService implements AutoCloseable {
         return future.thenRun(() -> bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject()));
     }
 
-    protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
+    public void onNamespaceBundleOwned(NamespaceBundle bundle) {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             notifyNamespaceBundleOwnershipListener(bundle, bundleOwnedListener);
         }
     }
 
-    protected void onNamespaceBundleUnload(NamespaceBundle bundle) {
+    public void onNamespaceBundleUnload(NamespaceBundle bundle) {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             try {
                 if (bundleOwnedListener.test(bundle)) {
@@ -1220,7 +1220,7 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    protected void onNamespaceBundleSplit(NamespaceBundle bundle) {
+    public void onNamespaceBundleSplit(NamespaceBundle bundle) {
         for (NamespaceBundleSplitListener bundleSplitListener : bundleSplitListeners) {
             try {
                 if (bundleSplitListener.test(bundle)) {

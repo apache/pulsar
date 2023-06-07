@@ -87,6 +87,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
+import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
@@ -289,16 +291,54 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("test-unload");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
+        AtomicInteger onloadCount = new AtomicInteger(0);
+        AtomicInteger unloadCount = new AtomicInteger(0);
+
+        NamespaceBundleOwnershipListener listener = new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                onloadCount.incrementAndGet();
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                unloadCount.incrementAndGet();
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.equals(bundle);
+            }
+        };
+        pulsar1.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
+        pulsar2.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
         String broker = admin.lookups().lookupTopic(topicName.toString());
         log.info("Assign the bundle {} to {}", bundle, broker);
 
         checkOwnershipState(broker, bundle);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 1);
+            assertEquals(unloadCount.get(), 0);
+        });
+
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
         assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 1);
+            assertEquals(unloadCount.get(), 1);
+        });
 
         broker = admin.lookups().lookupTopic(topicName.toString());
         log.info("Assign the bundle {} to {}", bundle, broker);
+
+        String finalBroker = broker;
+        Awaitility.await().untilAsserted(() -> {
+            checkOwnershipState(finalBroker, bundle);
+            assertEquals(onloadCount.get(), 2);
+            assertEquals(unloadCount.get(), 1);
+        });
+
 
         String dstBrokerUrl = pulsar1.getLookupServiceAddress();
         String dstBrokerServiceUrl;
@@ -311,6 +351,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         checkOwnershipState(broker, bundle);
 
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 3);
+            assertEquals(unloadCount.get(), 2);
+        });
 
         assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
 
@@ -347,6 +391,23 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
         String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
 
+        AtomicInteger splitCount = new AtomicInteger(0);
+        NamespaceBundleSplitListener namespaceBundleSplitListener = new NamespaceBundleSplitListener() {
+            @Override
+            public void onSplit(NamespaceBundle bundle) {
+                splitCount.incrementAndGet();
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle
+                        .toString()
+                        .equals(String.format(namespace + "/0x%08x_0x%08x", bundleRanges.get(0), bundleRanges.get(1)));
+            }
+        };
+        pulsar1.getNamespaceService().addNamespaceBundleSplitListener(namespaceBundleSplitListener);
+        pulsar2.getNamespaceService().addNamespaceBundleSplitListener(namespaceBundleSplitListener);
+
         long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
 
         admin.namespaces().splitNamespaceBundle(namespace, firstBundle, true, null);
@@ -359,6 +420,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertTrue(bundlesData.getBoundaries().contains(lowBundle));
         assertTrue(bundlesData.getBoundaries().contains(midBundle));
         assertTrue(bundlesData.getBoundaries().contains(highBundle));
+        assertEquals(splitCount.get(), 1);
 
         // Test split bundle with invalid bundle range.
         try {
