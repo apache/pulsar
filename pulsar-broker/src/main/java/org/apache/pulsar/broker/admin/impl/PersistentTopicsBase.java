@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -772,47 +773,44 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> internalRemovePartitionsTopicNoAutoCreationDisableAsync(int numPartitions,
                                                                                             boolean force) {
-        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-        for (int i = 0; i < numPartitions; i++) {
-            TopicName topicNamePartition = topicName.getPartition(i);
-            chain = chain.thenComposeAsync(unused -> {
-                try {
-                    CompletableFuture<Void> future = new CompletableFuture<>();
-                    pulsar().getAdminClient().topics()
-                            .deleteAsync(topicNamePartition.toString(), force)
-                            .whenComplete((r, ex) -> {
-                                if (ex != null) {
-                                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                                    if (realCause instanceof NotFoundException){
-                                        // if the sub-topic is not found, the client might not have called
-                                        // create producer or it might have been deleted earlier,
-                                        // so we ignore the 404 error.
-                                        // For all other exception,
-                                        // we fail the delete partition method even if a single
-                                        // partition is failed to be deleted
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}] Partition not found: {}", clientAppId(),
-                                                    topicNamePartition);
+        return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
+                .mapToObj(i -> {
+                    TopicName topicNamePartition = topicName.getPartition(i);
+                    try {
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        pulsar().getAdminClient().topics()
+                                .deleteAsync(topicNamePartition.toString(), force)
+                                .whenComplete((r, ex) -> {
+                                    if (ex != null) {
+                                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                                        if (realCause instanceof NotFoundException){
+                                            // if the sub-topic is not found, the client might not have called
+                                            // create producer or it might have been deleted earlier,
+                                            // so we ignore the 404 error.
+                                            // For all other exception,
+                                            // we fail the delete partition method even if a single
+                                            // partition is failed to be deleted
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("[{}] Partition not found: {}", clientAppId(),
+                                                        topicNamePartition);
+                                            }
+                                            future.complete(null);
+                                        } else {
+                                            log.error("[{}] Failed to delete partition {}", clientAppId(),
+                                                    topicNamePartition, realCause);
+                                            future.completeExceptionally(realCause);
                                         }
-                                        future.complete(null);
                                     } else {
-                                        log.error("[{}] Failed to delete partition {}", clientAppId(),
-                                                topicNamePartition, realCause);
-                                        future.completeExceptionally(realCause);
+                                        future.complete(null);
                                     }
-                                } else {
-                                    future.complete(null);
-                                }
-                            });
-                    return future;
-                } catch (PulsarServerException ex) {
-                    log.error("[{}] Failed to get admin client while delete partition {}",
-                            clientAppId(), topicNamePartition, ex);
-                    return FutureUtil.failedFuture(ex);
-                }
-            });
-        }
-        return chain;
+                                });
+                        return future;
+                    } catch (PulsarServerException ex) {
+                        log.error("[{}] Failed to get admin client while delete partition {}",
+                                clientAppId(), topicNamePartition, ex);
+                        return FutureUtil.failedFuture(ex);
+                    }
+                }).collect(Collectors.toList()));
     }
 
     private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync() {
