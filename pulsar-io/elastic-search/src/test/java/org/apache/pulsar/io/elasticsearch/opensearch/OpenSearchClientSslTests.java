@@ -20,6 +20,7 @@ package org.apache.pulsar.io.elasticsearch.opensearch;
 
 import org.apache.pulsar.io.elasticsearch.ElasticSearchClient;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
+import org.apache.pulsar.io.elasticsearch.ElasticSearchMetrics;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchSslConfig;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchTestBase;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -81,7 +82,8 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
+            ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+            ElasticSearchClient client = new ElasticSearchClient(config, metrics);
             testIndexExists(client);
         }
     }
@@ -107,7 +109,8 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
+            ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+            ElasticSearchClient client = new ElasticSearchClient(config, metrics);
             testIndexExists(client);
         }
     }
@@ -133,7 +136,8 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                             .setTruststorePassword("changeit")
                             .setKeystorePath(sslResourceDir + "/keystore.jks")
                             .setKeystorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
+            ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+            ElasticSearchClient client = new ElasticSearchClient(config, metrics);
             testIndexExists(client);
         }
     }

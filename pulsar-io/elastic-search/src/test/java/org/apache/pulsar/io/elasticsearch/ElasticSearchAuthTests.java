@@ -78,8 +78,9 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setIndexName(indexName);
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
         // ensure auth is needed
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
                 client.createIndexIfNeeded(indexName);
             });
@@ -87,7 +88,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
 
         config.setPassword(ELASTICPWD);
 
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             ensureCalls(client, indexName);
         }
     }
@@ -104,9 +105,10 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setBulkEnabled(true);
 
 
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
         config.setPassword(ELASTICPWD);
         String token;
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             token = createAuthToken(client, "elastic", ELASTICPWD);
         }
 
@@ -114,14 +116,14 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setPassword(null);
 
         // ensure auth is needed
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
                 client.createIndexIfNeeded(indexName);
             });
         }
 
         config.setToken(token);
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             ensureCalls(client, indexName);
         }
     }
@@ -137,9 +139,10 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
 
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);        
         config.setPassword(ELASTICPWD);
         String apiKey;
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             apiKey = createApiKey(client);
         }
 
@@ -147,14 +150,14 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setPassword(null);
 
         // ensure auth is needed
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
                 client.createIndexIfNeeded(indexName);
             });
         }
 
         config.setApiKey(apiKey);
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             ensureCalls(client, indexName);
         }
     }

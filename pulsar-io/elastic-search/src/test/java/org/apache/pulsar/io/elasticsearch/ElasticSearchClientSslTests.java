@@ -183,7 +183,8 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
     }
 
     private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             testIndexExists(client);
         }
     }
