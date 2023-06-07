@@ -885,11 +885,12 @@ public class KubernetesRuntime implements Runtime {
                         "--auth-params",
                         authConfig.getClientAuthenticationParameters()));
             }
-            cmd.addAll(Arrays.asList(
-                    "--tls-allow-insecure",
-                    Boolean.toString(authConfig.isTlsAllowInsecureConnection()),
-                    "--tls-enable-hostname-verification",
-                    Boolean.toString(authConfig.isTlsHostnameVerificationEnable())));
+            if (authConfig.isTlsAllowInsecureConnection()) {
+                cmd.add("--tls-allow-insecure");
+            }
+            if (authConfig.isTlsHostnameVerificationEnable()) {
+                cmd.add("--tls-enable-hostname-verification");
+            }
             if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
                 cmd.addAll(Arrays.asList(
                         "--tls-trust-cert-path",
