@@ -204,7 +204,20 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 deleteNamespaceWithRetry(namespace, true, admin, pulsar,
                         mockPulsarSetup.getPulsar());
             }
-            admin.tenants().deleteTenant(tenant, true);
+            try {
+                admin.tenants().deleteTenant(tenant, true);
+            } catch (Exception e) {
+                log.error("Failed to delete tenant {} after test", tenant, e);
+                String zkDirectory = "/managed-ledgers/" + tenant;
+                try {
+                    log.info("Listing {} to see if existing keys are preventing deletion.", zkDirectory);
+                    pulsar.getPulsarResources().getLocalMetadataStore().get().getChildren(zkDirectory)
+                            .get(5, TimeUnit.SECONDS).forEach(key -> log.info("Child key '{}'", key));
+                } catch (Exception ignore) {
+                    log.error("Failed to list tenant {} ZK directory {} after test", tenant, zkDirectory, e);
+                }
+                throw e;
+            }
         }
 
         for (String cluster : admin.clusters().getClusters()) {
