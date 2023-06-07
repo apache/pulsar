@@ -290,6 +290,10 @@ public class PulsarTestContext implements AutoCloseable {
             if (svcConfig.getManagedLedgerCacheSizeMB() == unconfiguredDefaults.getManagedLedgerCacheSizeMB()) {
                 svcConfig.setManagedLedgerCacheSizeMB(8);
             }
+
+            if (svcConfig.getTopicLoadTimeoutSeconds() == unconfiguredDefaults.getTopicLoadTimeoutSeconds()) {
+                svcConfig.setTopicLoadTimeoutSeconds(10);
+            }
         }
 
         /**
