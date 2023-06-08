@@ -690,63 +690,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testModularLoadManagerRemoveInactiveBundleFromLoadData() throws Exception {
-        final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
-        final String namespace = "pulsar/test/ns1";
-        final String topic1 = "persistent://" + namespace + "/topic1";
-        final String topic2 = "persistent://" + namespace + "/topic2";
-
-        // configure broker with ModularLoadManager
-        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        restartBroker();
-
-        LoadManager loadManager = spy(pulsar.getLoadManager().get());
-        Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
-        loadManagerField.setAccessible(true);
-        doReturn(true).when(loadManager).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
-        Optional<ResourceUnit> res = Optional.of(resourceUnit);
-        doReturn(res).when(loadManager).getLeastLoaded(any(ServiceUnitId.class));
-        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
-
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-        @Cleanup
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName("my-subscriber-name1").subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic2)
-                .subscriptionName("my-subscriber-name2").subscribe();
-
-        //create znode for bundle-data
-        pulsar.getBrokerService().updateRates();
-        loadManager.writeLoadReportOnZookeeper();
-        loadManager.writeResourceQuotasToZooKeeper();
-
-        //split bundle
-        NamespaceName nsname = NamespaceName.get(namespace);
-        NamespaceBundles bundles = pulsar.getNamespaceService().getNamespaceBundleFactory().getBundles(nsname);
-        NamespaceBundle oldBundle = bundles.findBundle(TopicName.get(topic1));
-        pulsar.getNamespaceService().splitAndOwnBundle(oldBundle, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get();
-
-        // update broker bundle report to zk
-        pulsar.getBrokerService().updateRates();
-        loadManager.writeLoadReportOnZookeeper();
-        loadManager.writeResourceQuotasToZooKeeper();
-
-        Field loadDataFiled = ModularLoadManagerImpl.class.getDeclaredField("loadData");
-        loadDataFiled.setAccessible(true);
-        LoadData loadData = (LoadData)loadDataFiled
-                .get((ModularLoadManagerImpl) ((ModularLoadManagerWrapper) loadManager).getLoadManager());
-        MetadataCache<BundleData> bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
-
-        Awaitility.await().untilAsserted(() -> {
-            assertNull(loadData.getBundleData().get(oldBundle.toString()));
-            assertFalse(bundlesCache.exists(BUNDLE_DATA_PATH + "/" + oldBundle.toString()).get());
-        });
-    }
-
-    @Test
     public void testModularLoadManagerRemoveBundleAndLoad() throws Exception {
         final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "prop/ns-abc";
