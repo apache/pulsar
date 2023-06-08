@@ -74,7 +74,7 @@ public abstract class WrappingVersusEncryptionCrossCompatibilityTestBase {
         return SecretKeyFactory.getInstance("AES", SecurityUtility.getProvider().getName())
                 .generateSecret(new SecretKeySpec(hexStringToByteArray(
                         FileUtils.readFileToString(
-                                Paths.get("../src/test/resources/certificate/" + aesKeyName + ".txt").toFile(),
+                                Paths.get("../src/test/resources/certificate/" + aesKeyName + ".key").toFile(),
                                 StandardCharsets.UTF_8)), "AES"));
     }
 
