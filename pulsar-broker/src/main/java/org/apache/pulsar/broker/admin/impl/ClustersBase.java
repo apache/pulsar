@@ -167,6 +167,7 @@ public class ClustersBase extends AdminResource {
                     }
                     try {
                         clusterData.checkPropertiesIfPresent();
+                        clusterData.warnIfUrlIsNotPresent();
                     } catch (IllegalArgumentException ex) {
                         throw new RestException(Status.BAD_REQUEST, ex.getMessage());
                     }
@@ -228,6 +229,7 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> {
                     try {
                         clusterData.checkPropertiesIfPresent();
+                        clusterData.warnIfUrlIsNotPresent();
                     } catch (IllegalArgumentException ex) {
                         throw new RestException(Status.BAD_REQUEST, ex.getMessage());
                     }
