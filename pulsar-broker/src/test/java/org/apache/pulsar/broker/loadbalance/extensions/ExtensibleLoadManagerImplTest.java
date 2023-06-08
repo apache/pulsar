@@ -48,10 +48,11 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,7 +64,6 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -925,6 +925,43 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertTrue(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
             }
         }
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testListTopic() throws Exception {
+        final String namespace = "public/testListTopic";
+        admin.namespaces().createNamespace(namespace, 3);
+
+        final String persistentTopicName = TopicName.get(
+                "persistent", NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID()).toString();
+
+        final String nonPersistentTopicName = TopicName.get(
+                "non-persistent", NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID()).toString();
+        admin.topics().createPartitionedTopic(persistentTopicName, 3);
+        admin.topics().createPartitionedTopic(nonPersistentTopicName, 3);
+        pulsarClient.newProducer().topic(persistentTopicName).create().close();
+        pulsarClient.newProducer().topic(nonPersistentTopicName).create().close();
+
+        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+        List<String> boundaries = bundlesData.getBoundaries();
+        int topicNum = 0;
+        for (int i = 0; i < boundaries.size() - 1; i++) {
+            String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+            List<String> topic = admin.topics().getListInBundle(namespace, bundle);
+            if (topic == null) {
+                continue;
+            }
+            topicNum += topic.size();
+            for (String s : topic) {
+                assertFalse(TopicName.get(s).isPersistent());
+            }
+        }
+        assertEquals(topicNum, 3);
+
+        List<String> list = admin.topics().getList(namespace);
+        assertEquals(list.size(), 6);
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {
