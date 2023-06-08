@@ -82,7 +82,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     private static final SecureRandom secureRandom;
 
     private static final String providerName;
-    private static BcVersionSpecificUtility bcVersionSpecificUtilityDelegate;
+    private static BcVersionSpecificCryptoUtility bcVersionSpecificCryptoUtilityDelegate;
 
     static {
 
@@ -115,8 +115,29 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     }
 
     public MessageCryptoBc(String logCtx, boolean keyGenNeeded) {
+        this(logCtx, keyGenNeeded, BcVersionSpecificCryptoUtility.INSTANCE);
+    }
+
+    /**
+     * Alternative constructor - in case you want to provide a specific crypto utility instance, e.g. using KMS
+     * to sign data keys
+     *
+     * TODO further refinements:
+     *   - cryptoreader should be passed directly to the crypto utility instance as in some cases it is not really
+     *     needed the traditional way (e.g.you cannot read private key from KMS), then the crypto util can decide
+     *     what to do with them
+     *   - data key generation should happen inside the crypto util (so people can do it in KMS not locally)
+     *   - configurable data key regeneration schedule
+     *
+     * @param logCtx
+     * @param keyGenNeeded
+     * @param bcVersionSpecificCryptoUtilityDelegate
+     */
+    public MessageCryptoBc(String logCtx,
+                           boolean keyGenNeeded,
+                           BcVersionSpecificCryptoUtility bcVersionSpecificCryptoUtilityDelegate) {
         this.logCtx = logCtx;
-        bcVersionSpecificUtilityDelegate = BcVersionSpecificUtility.getInstance();
+        this.bcVersionSpecificCryptoUtilityDelegate = bcVersionSpecificCryptoUtilityDelegate;
         encryptedDataKeyMap = new ConcurrentHashMap<String, EncryptionKeyInfo>();
         dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(4, TimeUnit.HOURS)
                 .build(new CacheLoader<ByteBuffer, SecretKey>() {
@@ -219,7 +240,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         PublicKey pubKey;
 
         try {
-            pubKey = bcVersionSpecificUtilityDelegate.loadPublicKey(keyInfo.getKey());
+            pubKey = bcVersionSpecificCryptoUtilityDelegate.loadPublicKey(keyInfo.getKey());
         } catch (Exception e) {
             String msg = logCtx + "Failed to load public key " + keyName + ". " + e.getMessage();
             log.error(msg);
@@ -227,7 +248,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         }
 
         // Encrypt data key using public key
-        byte[] encryptedKey = bcVersionSpecificUtilityDelegate.encryptDataKey(logCtx, keyName, pubKey, dataKey);
+        byte[] encryptedKey = bcVersionSpecificCryptoUtilityDelegate.encryptDataKey(logCtx, keyName, pubKey, dataKey);
 
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
         encryptedDataKeyMap.put(keyName, eki);
@@ -346,7 +367,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         // Convert key from byte to PrivateKey
         PrivateKey privateKey;
         try {
-            privateKey = bcVersionSpecificUtilityDelegate.loadPrivateKey(keyInfo.getKey());
+            privateKey = bcVersionSpecificCryptoUtilityDelegate.loadPrivateKey(keyInfo.getKey());
             if (privateKey == null) {
                 log.error("{} Failed to load private key {}.", logCtx, keyName);
                 return false;
@@ -357,7 +378,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         }
 
         // Decrypt data key to decrypt messages using private key
-        Optional<SecretKey> decryptedKeyOpt = bcVersionSpecificUtilityDelegate
+        Optional<SecretKey> decryptedKeyOpt = bcVersionSpecificCryptoUtilityDelegate
                 .deCryptDataKey(DATAKEY_ALGORITHM, logCtx, keyName, privateKey, encryptedDataKey);
         if (!decryptedKeyOpt.isPresent()) {
             return false;

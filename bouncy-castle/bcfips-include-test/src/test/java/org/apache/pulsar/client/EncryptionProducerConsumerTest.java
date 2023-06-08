@@ -19,67 +19,37 @@
 package org.apache.pulsar.client;
 
 import static org.testng.Assert.assertNull;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.crypto.EncKeyReader;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
+
     private static final Logger log = LoggerFactory.getLogger(EncryptionProducerConsumerTest.class);
 
-    class EncKeyReader implements CryptoKeyReader {
-
-        @Override
-        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-            String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
-                try {
-                    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
-                    return keyInfo;
-                } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
-                }
-            } else {
-                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
-            }
-            return null;
-        }
-
-        @Override
-        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-            String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
-                try {
-                    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
-                    return keyInfo;
-                } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
-                }
-            } else {
-                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
-            }
-            return null;
-        }
+    @BeforeClass
+    public static void setUp() {
+        System.setProperty("org.bouncycastle.fips.approved_only", "true");
     }
+
 
     @Test(timeOut = 30000)
     public void testRSAEncryption() throws Exception {
+
+        assertTrue(CryptoServicesRegistrar.isInApprovedOnlyMode());
 
         internalSetUpForNamespace();
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
@@ -133,6 +103,8 @@ public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testECDSAKeysAreNotSupportedInPublisher() throws Exception {
 
+        assertTrue(CryptoServicesRegistrar.isInApprovedOnlyMode());
+
         internalSetUpForNamespace();
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
 
@@ -144,7 +116,7 @@ public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
         try {
             producerBuilder.create();
             Assert.fail("We should not be able to create a producer with ECDSA keys using BC FIPS library!");
-        }catch (PulsarClientException.CryptoException ce){
+        } catch (PulsarClientException.CryptoException ce) {
             //expected
         }
     }

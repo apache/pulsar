@@ -19,24 +19,21 @@
 package org.apache.pulsar.client.impl.crypto;
 
 import java.lang.reflect.InvocationTargetException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.util.Optional;
-import javax.crypto.SecretKey;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 
-public interface BcVersionSpecificUtility {
-    static BcVersionSpecificUtility getInstance() {
+class BcVersionSpecificCryptoUtilityFactory {
+
+    static BcVersionSpecificCryptoUtility createNewInstance() {
         String providerName = SecurityUtility.getProvider().getName();
         try {
             switch (providerName) {
                 case SecurityUtility.BC:
-                    return (BcVersionSpecificUtility) BcVersionSpecificUtility.class.getClassLoader()
-                            .loadClass("org.apache.pulsar.client.impl.crypto.bc.BCNonFipsSpecificUtility").getConstructor()
+                    return (BcVersionSpecificCryptoUtility) BcVersionSpecificCryptoUtility.class.getClassLoader()
+                            .loadClass("org.apache.pulsar.client.impl.crypto.bc.BCNonFipsSpecificUtility")
+                            .getConstructor()
                             .newInstance();
                 case SecurityUtility.BC_FIPS:
-                    return (BcVersionSpecificUtility) BcVersionSpecificUtility.class.getClassLoader()
+                    return (BcVersionSpecificCryptoUtility) BcVersionSpecificCryptoUtility.class.getClassLoader()
                             .loadClass("org.apache.pulsar.client.impl.bcfips.BCFipsSpecificUtility")
                             .getConstructor().newInstance();
                 default:
@@ -48,17 +45,4 @@ public interface BcVersionSpecificUtility {
             throw new RuntimeException(e);
         }
     }
-
-
-    byte[] encryptDataKey(String logCtx, String keyName, PublicKey publicKey, SecretKey dataKey)
-            throws PulsarClientException.CryptoException;
-
-    Optional<SecretKey> deCryptDataKey(String datakeyAlgorithm, String logCtx, String keyName, PrivateKey privateKey,
-                                       byte[] encryotedDataKey);
-
-    PublicKey loadPublicKey(byte[] keyBytes);
-
-    PrivateKey loadPrivateKey(byte[] keyBytes);
 }
-
-

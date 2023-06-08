@@ -37,7 +37,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.crypto.BcVersionSpecificUtility;
+import org.apache.pulsar.client.impl.crypto.BcVersionSpecificCryptoUtility;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -56,21 +56,16 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 @Slf4j
-public class BCNonFipsSpecificUtility implements BcVersionSpecificUtility {
+public class BCNonFipsSpecificUtility implements BcVersionSpecificCryptoUtility {
 
     private static final String providerName = BouncyCastleProvider.PROVIDER_NAME;
 
     private static final String ECDSA = "ECDSA";
-    private static final String RSA = "RSA";
 
-    //TODO this is not supporting key wrapping, worth considering e.g. ETSIKEMwithSHA256
+    //TODO: ECIES does not support key wrapping, so cannot change the code to use wrap API, worth considering using
+    //      something else e.g. ETSIKEMwithSHA256, but that would break old consumers so the wrapping method should be
+    //      passed on in message header for example
     private static final String ECIES = "ECIES";
-
-    // Ideally the transformation should also be part of the message property. This will prevent client
-    // from assuming hardcoded value. However, it will increase the size of the message even further.
-    private static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
-
-    private static final String DATAKEY_ALGORITHM = "AES";
 
     @Override
     public byte[] encryptDataKey(String logCtx, String keyName, PublicKey pubKey, SecretKey dataKey)
@@ -91,7 +86,7 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificUtility {
                 }
             }
             //TODO this is really a WRAP - but has to be tested for backwards compatibility if we can just change it to
-            // WRAP
+            // WRAP + ECIES is not supporting wrap operation
             dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
             return dataKeyCipher.doFinal(dataKey.getEncoded());
 
@@ -119,7 +114,7 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificUtility {
                 return Optional.empty();
             }
             //TODO this is really an UNWRAP - but has to be tested for backwards compatibility if we can just change it
-            // to UNWRAP
+            // to UNWRAP + ECIES is not supporting wrap operation
             dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
             dataKeyValue = dataKeyCipher.doFinal(encryptedDataKey);
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException | InvalidKeyException
@@ -127,7 +122,7 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificUtility {
             log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return Optional.empty();
         }
-        return Optional.of(new SecretKeySpec(dataKeyValue, DATAKEY_ALGORITHM));
+        return Optional.of(new SecretKeySpec(dataKeyValue, datakeyAlgorithm));
     }
 
     @Override

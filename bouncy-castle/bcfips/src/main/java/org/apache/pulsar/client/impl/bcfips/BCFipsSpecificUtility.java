@@ -35,7 +35,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.crypto.BcVersionSpecificUtility;
+import org.apache.pulsar.client.impl.crypto.BcVersionSpecificCryptoUtility;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -49,16 +49,11 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 @Slf4j
-public class BCFipsSpecificUtility implements BcVersionSpecificUtility {
+public class BCFipsSpecificUtility implements BcVersionSpecificCryptoUtility {
 
     private static final String providerName = BouncyCastleFipsProvider.PROVIDER_NAME;
 
     private static final String EC = "EC";
-    private static final String RSA = "RSA";
-
-    // Ideally the transformation should also be part of the message property. This will prevent client
-    // from assuming hardcoded value. However, it will increase the size of the message even further.
-    private static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
 
 
     @Override
@@ -77,7 +72,7 @@ public class BCFipsSpecificUtility implements BcVersionSpecificUtility {
             return dataKeyCipher.wrap(dataKey);
         } catch (IllegalBlockSizeException | NoSuchAlgorithmException | NoSuchProviderException
                  | NoSuchPaddingException | InvalidKeyException e) {
-            log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
+            log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage(), e);
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
     }
@@ -99,7 +94,7 @@ public class BCFipsSpecificUtility implements BcVersionSpecificUtility {
                             dataKeyCipher.unwrap(encryptedDataKey, datakeyAlgorithm, SECRET_KEY).getEncoded(),
                             datakeyAlgorithm));
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException | InvalidKeyException e) {
-            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
+            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage(), e);
             return Optional.empty();
         }
     }
