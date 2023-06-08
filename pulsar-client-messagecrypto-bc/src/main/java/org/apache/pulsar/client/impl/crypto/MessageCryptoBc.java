@@ -314,7 +314,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             pubKey = loadPublicKey(keyInfo.getKey());
         } catch (Exception e) {
             String msg = logCtx + "Failed to load public key " + keyName + ". " + e.getMessage();
-            log.error(msg);
+            log.error(msg, e);
             throw new PulsarClientException.CryptoException(msg);
         }
 
@@ -338,7 +338,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
                 | NoSuchPaddingException | InvalidKeyException e) {
-            log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
+            log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage(), e);
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
@@ -464,7 +464,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 return false;
             }
         } catch (Exception e) {
-            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
+            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage(), e);
             return false;
         }
 
@@ -491,7 +491,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
                 | NoSuchPaddingException | InvalidKeyException e) {
-            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
+            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage(), e);
             return false;
         }
         dataKey = new SecretKeySpec(dataKeyValue, "AES");
