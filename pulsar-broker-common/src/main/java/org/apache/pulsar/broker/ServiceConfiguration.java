@@ -2480,8 +2480,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
 
     @FieldContext(category = CATEGORY_LOAD_BALANCER, doc = "Name of topic bundle assignment strategy to use")
-    private String topicBundleAssignmentStrategy =
-            "org.apache.pulsar.common.naming.ConsistentHashingTopicBundleAssigner";
+    private String topicBundleAssignmentStrategy
+            = "org.apache.pulsar.common.naming.ConsistentHashingTopicBundleAssigner";
     
     @FieldContext(
         dynamic = true,
