@@ -19,9 +19,6 @@
 package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
-import com.google.common.base.Charsets;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;

@@ -380,7 +380,7 @@ public class NamespaceBundleFactory {
     public PulsarService getPulsar() {
         return pulsar;
     }
-    
+
     public static void validateFullRange(SortedSet<String> partitions) {
         checkArgument(partitions.first().equals(FIRST_BOUNDARY) && partitions.last().equals(LAST_BOUNDARY));
     }
