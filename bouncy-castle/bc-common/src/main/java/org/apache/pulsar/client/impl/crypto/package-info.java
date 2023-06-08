@@ -17,6 +17,6 @@
  * under the License.
  */
 /**
- * Package for Bouncy Castle FIPS specific crypto utility provider implementation.
+ * Package for Bouncy Castle FIPS/Non-FIPS specific crypto utility provider interface.
  */
-package org.apache.pulsar.client.impl.bcfips;
+package org.apache.pulsar.client.impl.crypto;
