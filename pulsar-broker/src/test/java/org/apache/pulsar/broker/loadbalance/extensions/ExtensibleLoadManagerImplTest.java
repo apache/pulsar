@@ -89,6 +89,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
@@ -96,6 +97,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -1081,6 +1083,24 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertTrue(status.is_active);
         assertFalse(status.is_controlled);
         assertEquals(status.broker_assignment, BrokerAssignment.shared);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTryAcquiringOwnership()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+        final String namespace = "public/testTryAcquiringOwnership";
+        admin.namespaces().createNamespace(namespace, 3);
+        String topic = "persistent://" + namespace + "/test";
+        admin.topics().createNonPartitionedTopic(topic);
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+        NamespaceEphemeralData namespaceEphemeralData = primaryLoadManager.tryAcquiringOwnership(bundle).get();
+        assertEquals(namespaceEphemeralData.getNativeUrl(), pulsar1.getBrokerServiceUrl());
+        admin.namespaces().deleteNamespace(namespace, true);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testHealthcheck() throws PulsarAdminException {
+        admin.brokers().healthcheck(TopicVersion.V2);
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {
