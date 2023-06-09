@@ -198,4 +198,8 @@ public class NamespaceBundles {
                 localPolicies.map(lp -> lp.getLeft().bookieAffinityGroup).orElse(null),
                 localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null));
     }
+
+    public NamespaceName getNsname() {
+        return this.nsname;
+    }
 }

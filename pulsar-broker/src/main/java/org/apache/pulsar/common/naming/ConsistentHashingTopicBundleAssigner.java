@@ -27,9 +27,9 @@ public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignme
     private NamespaceService namespaceService;
     @Override
     public NamespaceBundle findBundle(TopicName topicName, NamespaceBundles namespaceBundles) {
+        checkArgument(namespaceBundles.getNsname().equals(topicName.getNamespaceObject()));
         long hashCode = namespaceService.getNamespaceBundleFactory().getLongHashCode(topicName.toString());
         NamespaceBundle bundle = namespaceBundles.getBundle(hashCode);
-        checkArgument(bundle.getNamespaceObject().equals(topicName.getNamespaceObject()));
         if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
             bundle.setHasNonPersistentTopic(true);
         }
