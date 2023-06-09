@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import java.io.InputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javax.ws.rs.WebApplicationException;
@@ -64,6 +65,8 @@ public class PackagesBase extends AdminResource {
             asyncResponse.resume(throwable);
         } else if (throwable instanceof UnsupportedOperationException) {
             asyncResponse.resume(new RestException(Response.Status.SERVICE_UNAVAILABLE, throwable.getMessage()));
+        } else if (throwable instanceof FileAlreadyExistsException) {
+            asyncResponse.resume(new RestException(Response.Status.CONFLICT, throwable.getMessage()));
         } else {
             log.error("Encountered unexpected error", throwable);
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
