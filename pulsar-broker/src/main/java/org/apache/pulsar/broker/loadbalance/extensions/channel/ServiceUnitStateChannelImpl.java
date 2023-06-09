@@ -703,6 +703,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
+            pulsar.getNamespaceService().onNamespaceBundleOwned(getNamespaceBundle(serviceUnit));
             lastOwnEventHandledAt = System.currentTimeMillis();
         } else if (data.force() && isTargetBroker(data.sourceBroker())) {
             closeServiceUnit(serviceUnit);
@@ -841,6 +842,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .whenComplete((__, ex) -> {
                     // clean up topics that failed to unload from the broker ownership cache
                     pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    pulsar.getNamespaceService().onNamespaceBundleUnload(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));
                     if (ex != null) {
@@ -912,6 +914,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
                     log.info("Successfully split {} parent namespace-bundle to {} in {} ms",
                             parentBundle, childBundles, splitBundleTime);
+                    namespaceService.onNamespaceBundleSplit(parentBundle);
                     completionFuture.complete(null);
                 })
                 .exceptionally(ex -> {
