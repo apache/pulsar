@@ -1588,10 +1588,10 @@ flexible messaging model and an intuitive client API.</description>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
           <failOnNoGitDirectory>false</failOnNoGitDirectory>
+          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
           <skipPoms>false</skipPoms>
           <gitDescribe>
-            <skip>false</skip>
-            <always>false</always>
+            <skip>true</skip>
           </gitDescribe>
         </configuration>
       </plugin>
