@@ -83,7 +83,7 @@ public class ElasticSearchClient implements AutoCloseable {
                         checkForIrrecoverableError(record, result);
                     } else {
                         record.ack();
-                        metrics.incrementSuccessCounter(index);
+                        metrics.incrementCounter(ElasticSearchMetrics.SUCCESS, 1);
                     }
                 }
             }
