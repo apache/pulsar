@@ -32,8 +32,10 @@ public class ElasticSearchMetrics {
     // INCOMING = SUCCESS + FAILURE + SKIP + NULLVALUE_IGNORE
     static final public String SUCCESS = "_elasticsearch_success";
 
-    // DELETE is an attempt to delete a document by id
-    static final public String DELETE = "elasticsearch_delete";
+    // DELETE_ATTEMPT is an attempt to delete a document by id
+    // TODO: add delete success metrics, currently it's difficult to separate delete and index from the bulk operations
+    static final public String DELETE_ATTEMPT = "elasticsearch_delete_attempt";
+
     static final public String FAILURE = "elasticsearch_failure";
     static final public String SKIP = "elasticsearch_skip";
     static final public String WARN = "elasticsearch_warn";

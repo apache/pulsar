@@ -123,7 +123,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     switch (elasticSearchConfig.getNullValueAction()) {
                         case DELETE:
                             if (idAndDoc.getLeft() != null) {
-                                metrics.incrementCounter(ElasticSearchMetrics.DELETE, 1);
+                                metrics.incrementCounter(ElasticSearchMetrics.DELETE_ATTEMPT, 1);
                                 if (elasticSearchConfig.isBulkEnabled()) {
                                     elasticsearchClient.bulkDelete(record, idAndDoc.getLeft());
                                 } else {
