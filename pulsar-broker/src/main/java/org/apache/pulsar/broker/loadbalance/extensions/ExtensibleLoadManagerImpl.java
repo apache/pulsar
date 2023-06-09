@@ -37,14 +37,17 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -179,6 +182,23 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
     private final CountDownLatch initWaiter = new CountDownLatch(1);
+
+    /**
+     * Get all the bundles that are owned by this broker.
+     */
+    public Set<NamespaceBundle> getOwnedServiceUnits() {
+        var entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
+        return entrySet.stream()
+                .filter(entry -> {
+                    var stateData = entry.getValue();
+                    return stateData.state() == ServiceUnitState.Owned
+                            && StringUtils.isNotBlank(stateData.dstBroker())
+                            && stateData.dstBroker().equals(brokerRegistry.getBrokerId());
+                }).map(entry -> {
+                    var bundle = entry.getKey();
+                    return this.getNamespaceBundle(bundle);
+                }).collect(Collectors.toSet());
+    }
 
     public enum Role {
         Leader,
@@ -712,6 +732,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
+    }
+
+    public NamespaceBundle getNamespaceBundle(String bundle) {
+        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+        return pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
     }
 
     public void disableBroker() throws Exception {

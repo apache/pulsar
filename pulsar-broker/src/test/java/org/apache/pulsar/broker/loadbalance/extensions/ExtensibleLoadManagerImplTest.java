@@ -96,8 +96,10 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
@@ -568,7 +570,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertEquals(lookupResult1, lookupResult2);
             assertEquals(lookupResult1, lookupResult3);
 
-            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get("test")).get();
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
             LookupOptions options = LookupOptions.builder()
                     .authoritative(false)
                     .requestHttps(false)
@@ -964,10 +966,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
             ExtensibleLoadManagerImpl ternaryLoadManager = spy((ExtensibleLoadManagerImpl)
                     FieldUtils.readField(pulsar3.getLoadManager().get(), "loadManager", true));
-            String topic = "persistent://public/default/test";
+            String topic = "persistent://" + defaultTestNamespace +"/test";
 
             String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
-            TopicName topicName = TopicName.get("test");
+            TopicName topicName = TopicName.get(topic);
             NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
             if (!pulsar3.getBrokerServiceUrl().equals(lookupResult1)) {
                 admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(),
@@ -1033,6 +1035,52 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         List<String> list = admin.topics().getList(namespace);
         assertEquals(list.size(), 6);
         admin.namespaces().deleteNamespace(namespace, true);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testGetOwnedServiceUnitsAndGetOwnedNamespaceStatus() throws PulsarAdminException {
+        Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnits();
+        log.info("Owned service units: {}", ownedServiceUnitsByPulsar1);
+        assertTrue(ownedServiceUnitsByPulsar1.isEmpty());
+        Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnits();
+        log.info("Owned service units: {}", ownedServiceUnitsByPulsar2);
+        assertTrue(ownedServiceUnitsByPulsar2.isEmpty());
+        Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar1 =
+                admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar1.getLookupServiceAddress());
+        Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar2 =
+                admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar2.getLookupServiceAddress());
+        assertTrue(ownedNamespacesByPulsar1.isEmpty());
+        assertTrue(ownedNamespacesByPulsar2.isEmpty());
+
+        String topic = "persistent://" + defaultTestNamespace + "/test-get-owned-service-units";
+        admin.topics().createPartitionedTopic(topic, 1);
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).join();
+        CompletableFuture<Optional<BrokerLookupData>> owner = primaryLoadManager.assign(Optional.empty(), bundle);
+        assertFalse(owner.join().isEmpty());
+
+        BrokerLookupData brokerLookupData = owner.join().get();
+        if (brokerLookupData.getWebServiceUrl().equals(pulsar1.getWebServiceAddress())) {
+            assertOwnedServiceUnits(pulsar1, primaryLoadManager, bundle);
+        } else {
+            assertOwnedServiceUnits(pulsar2, secondaryLoadManager, bundle);
+        }
+    }
+
+    private void assertOwnedServiceUnits(
+            PulsarService pulsar,
+            ExtensibleLoadManagerImpl extensibleLoadManager,
+            NamespaceBundle bundle) throws PulsarAdminException {
+        Awaitility.await().untilAsserted(() -> {
+            Set<NamespaceBundle> ownedBundles = extensibleLoadManager.getOwnedServiceUnits();
+            assertTrue(ownedBundles.contains(bundle));
+        });
+        Map<String, NamespaceOwnershipStatus> ownedNamespaces =
+                admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar.getLookupServiceAddress());
+        assertTrue(ownedNamespaces.containsKey(bundle.toString()));
+        NamespaceOwnershipStatus status = ownedNamespaces.get(bundle.toString());
+        assertTrue(status.is_active);
+        assertFalse(status.is_controlled);
+        assertEquals(status.broker_assignment, BrokerAssignment.shared);
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {
