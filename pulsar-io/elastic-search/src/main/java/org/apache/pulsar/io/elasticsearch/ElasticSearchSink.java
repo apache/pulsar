@@ -53,7 +53,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-import org.opensearch.index.engine.Engine.Delete;
 
 @Connector(
         name = "elastic_search",

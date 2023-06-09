@@ -27,20 +27,20 @@ public class ElasticSearchMetrics {
 
     private SinkContext sinkContext;
     // sink metrics
-    static final public String INCOMING = "_elasticsearch_incoming";
+    public static final String INCOMING = "_elasticsearch_incoming";
 
     // INCOMING = SUCCESS + FAILURE + SKIP + NULLVALUE_IGNORE
-    static final public String SUCCESS = "_elasticsearch_success";
+    public static final String SUCCESS = "_elasticsearch_success";
 
     // DELETE_ATTEMPT is an attempt to delete a document by id
     // TODO: add delete success metrics, currently it's difficult to separate delete and index from the bulk operations
-    static final public String DELETE_ATTEMPT = "elasticsearch_delete_attempt";
+    public static final String DELETE_ATTEMPT = "elasticsearch_delete_attempt";
 
-    static final public String FAILURE = "elasticsearch_failure";
-    static final public String SKIP = "elasticsearch_skip";
-    static final public String WARN = "elasticsearch_warn";
-    static final public String MALFORMED_IGNORE = "elasticsearch_malformed_ignore";
-    static final public String NULLVALUE_IGNORE = "elasticsearch_nullvalue_ignore";
+    public static final String FAILURE = "elasticsearch_failure";
+    public static final String SKIP = "elasticsearch_skip";
+    public static final String WARN = "elasticsearch_warn";
+    public static final String MALFORMED_IGNORE = "elasticsearch_malformed_ignore";
+    public static final String NULLVALUE_IGNORE = "elasticsearch_nullvalue_ignore";
 
     public ElasticSearchMetrics(SinkContext sinkContext) {
         this.sinkContext = sinkContext;
