@@ -431,7 +431,8 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             LookupResult result = optionalResult.get();
-            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())) {
+            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())
+                    || result.getLookupData().getHttpUrlTls().equals(pulsar().getWebServiceAddressTls())) {
                 // Current broker owns the topic, add to owning topic.
                 if (log.isDebugEnabled()) {
                     log.debug("Complete topic look up for rest produce message request for topic {}, "
