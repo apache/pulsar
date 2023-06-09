@@ -22,6 +22,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
@@ -78,7 +80,8 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setIndexName(indexName);
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         // ensure auth is needed
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             expectThrows(ElasticSearchConnectionException.class, () -> {
@@ -104,8 +107,8 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
 
-
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         config.setPassword(ELASTICPWD);
         String token;
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
@@ -139,7 +142,8 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         config.setMaxRetries(1);
         config.setBulkEnabled(true);
 
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);        
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);        
         config.setPassword(ELASTICPWD);
         String apiKey;
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {

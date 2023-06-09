@@ -20,6 +20,7 @@ package org.apache.pulsar.io.elasticsearch;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -37,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestClient;
 import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.apache.pulsar.io.elasticsearch.testcontainers.ElasticToxiproxiContainer;
@@ -107,7 +109,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
 
     @Test
     public void testClientInstance() throws Exception {
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(INDEX), metrics)) {
@@ -124,7 +127,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         String index = "myindex-" + UUID.randomUUID();
         Record<GenericObject> record = Mockito.mock(Record.class);
         String topicName = "topic-" + UUID.randomUUID();
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         when(record.getTopicName()).thenReturn(Optional.of(topicName));
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
@@ -155,7 +159,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     @Test
     public void testIndexDelete() throws Exception {
         String index = "myindex-" + UUID.randomUUID();
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index), metrics);) {
@@ -180,7 +185,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     @Test
     public void testIndexExists() throws IOException {
         String index = "mynewindex-" + UUID.randomUUID();
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index), metrics);) {
@@ -197,7 +203,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
 
     @Test
     public void testTopicToIndexName() throws IOException {
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress()), metrics);) {
             assertEquals(client.topicToIndexName("data-ks1.table1"), "data-ks1.table1");
@@ -222,7 +229,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setBulkEnabled(true)
                 .setBulkFlushIntervalInMs(-1L)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.FAIL);
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
             client.bulkIndex(mockRecord, Pair.of("1", "{\"a\":1}"));
@@ -247,7 +255,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setBulkEnabled(true)
                 .setBulkFlushIntervalInMs(-1)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.IGNORE);
-       ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+       SinkContext mockContext = Mockito.mock(SinkContext.class);
+       ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
             client.bulkIndex(mockRecord, Pair.of("1", "{\"a\":1}"));
@@ -275,7 +284,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                     // disabled, we want to have full control over flush() method
                     .setBulkFlushIntervalInMs(-1);
 
-            ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+            SinkContext mockContext = Mockito.mock(SinkContext.class);
+            ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
             try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
                 try {
                     assertTrue(client.createIndexIfNeeded(index));
@@ -322,7 +332,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                     .setBulkConcurrentRequests(2)
                     .setRetryBackoffInMs(100)
                     .setBulkFlushIntervalInMs(10000);
-            ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+            SinkContext mockContext = Mockito.mock(SinkContext.class);
+            ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
             try (ElasticSearchClient client = new ElasticSearchClient(config, metrics);) {
                 assertTrue(client.createIndexIfNeeded(index));
 
@@ -382,7 +393,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setBulkActions(10)
                 .setBulkFlushIntervalInMs(-1L);
 
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics)) {
             assertTrue(client.createIndexIfNeeded(index));
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -406,7 +418,8 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index);
-        ElasticSearchMetrics metrics = new ElasticSearchMetrics(null);
+        SinkContext mockContext = Mockito.mock(SinkContext.class);
+        ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
 
         try (ElasticSearchClient client = new ElasticSearchClient(config, metrics)) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();

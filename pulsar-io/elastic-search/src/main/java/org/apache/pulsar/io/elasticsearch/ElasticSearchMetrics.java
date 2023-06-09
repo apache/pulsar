@@ -27,26 +27,24 @@ public class ElasticSearchMetrics {
 
     private SinkContext sinkContext;
     // sink metrics
-    public static final String INCOMING = "_elasticsearch_incoming_";
+    static final public String INCOMING = "_elasticsearch_incoming";
 
     // INCOMING = SUCCESS + FAILURE + SKIP + NULLVALUE_IGNORE
-    public static final String SUCCESS = "_elasticsearch_success_";
+    static final public String SUCCESS = "_elasticsearch_success";
 
     // DELETE is an attempt to delete a document by id
-    public static final String DELETE = "elasticsearch_delete_";
-    public static final String FAILURE = "elasticsearch_failure_";
-    public static final String SKIP = "elasticsearch_skip_";
-    public static final String WARN = "elasticsearch_warn_";
-    public static final String MALFORMED_IGNORE = "elasticsearch_malformed_ignore_";
-    public static final String NULLVALUE_IGNORE = "elasticsearch_nullvalue_ignore_";
+    static final public String DELETE = "elasticsearch_delete";
+    static final public String FAILURE = "elasticsearch_failure";
+    static final public String SKIP = "elasticsearch_skip";
+    static final public String WARN = "elasticsearch_warn";
+    static final public String MALFORMED_IGNORE = "elasticsearch_malformed_ignore";
+    static final public String NULLVALUE_IGNORE = "elasticsearch_nullvalue_ignore";
 
     public ElasticSearchMetrics(SinkContext sinkContext) {
         this.sinkContext = sinkContext;
     }
 
     public void incrementCounter(String counter, double value) {
-        if (sinkContext != null) {
-            this.sinkContext.recordMetric(counter, value);
-        }
+        this.sinkContext.recordMetric(counter, value);
     }
 }
