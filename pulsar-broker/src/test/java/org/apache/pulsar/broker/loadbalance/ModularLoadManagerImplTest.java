@@ -836,7 +836,6 @@ public class ModularLoadManagerImplTest {
         assertFalse(allBundlesAfterSplit.getBundles().contains(shouldBeDeletedBundle));
 
         // the bundle data should be deleted
-        ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 0;
 
         pulsar1.getBrokerService().updateRates();
         pulsar2.getBrokerService().updateRates();
@@ -858,9 +857,6 @@ public class ModularLoadManagerImplTest {
         List<String> bundlesAfterSplit = childrenAfterSplit.join();
 
         assertFalse(bundlesAfterSplit.contains(shouldBeDeletedBundle.getBundleRange()));
-
-        // change back to origin threshold.
-        ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 15;
     }
 
 }

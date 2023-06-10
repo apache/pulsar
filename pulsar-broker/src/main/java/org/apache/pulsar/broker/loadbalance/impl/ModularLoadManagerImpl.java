@@ -37,7 +37,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -63,6 +62,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -198,10 +198,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Lock lock = new ReentrantLock();
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
-
-    public static long nonActiveBundleDeleteThreshold = 15;
-    // counter for not active bundles if threshold exceed the bundle-data in metadata store will be deleted.
-    private final ConcurrentHashMap<String, AtomicLong> notActiveBundleCounter = new ConcurrentHashMap<>();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -600,26 +596,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 namespaceToBundleRange.clear();
                 LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
                 LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
-            }
-        }
-
-        // Remove not active bundle from loadData
-        for (String bundle : bundleData.keySet()) {
-            if (!activeBundles.contains(bundle)) {
-                long notActiveTimes = notActiveBundleCounter
-                        .computeIfAbsent(bundle, k -> new AtomicLong()).incrementAndGet();
-
-                if (notActiveTimes > nonActiveBundleDeleteThreshold) {
-                    notActiveBundleCounter.remove(bundle);
-                    bundleData.remove(bundle);
-                    if (isLeader()) {
-                        log.warn("namespace bundle {} not active, maybe delete or already split. "
-                                + "Remove load-balance bundle data from metadata store.", bundle);
-                        deleteBundleDataFromMetadataStore(bundle);
-                    }
-                }
-            } else {
-                notActiveBundleCounter.remove(bundle);
             }
         }
     }
@@ -1129,6 +1105,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
+        scanAndCleanupNonExistBundleData();
         updateBundleData();
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -1217,5 +1194,75 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
         broker = broker.replaceFirst("http[s]?://", "");
         return this.bundleBrokerAffinityMap.put(bundle, broker);
+    }
+
+    /**
+     * scanAndCleanupNonExistBundleData.
+     *
+     * When the bundle is split the loadManager's loadData.bundleData
+     * and the bundle-data in metadataStore need cleanup.
+     *
+     * Previous cleanup logic is in the `updateBundleData` method which rely on the loadData.bundleData.
+     *
+     * The reason to move the cleanup logic here is that the bundleData report by each broker
+     * may have a delay in `LoadReportUpdaterTask`,
+     * so the view in the LoadManager of the whole cluster data may not contain all the bundle data,
+     * which may cause active bundle-data (but not report to loadManager) to be deleted.
+     *
+     * To avoid active bundle-data to be deleted, this method use bundle-data in localPolicy
+     * as the truth active bundle source.
+     */
+    public void scanAndCleanupNonExistBundleData() {
+        Map<String, BundleData> loadManagerBundleData = this.loadData.getBundleData();
+
+        Set<String> allBundles = ConcurrentHashMap.newKeySet(loadManagerBundleData.size());
+        allBundles.addAll(this.loadData.getBundleData().keySet());
+
+        // namespace -> bundles
+        Map<String, Set<NamespaceBundle>> namespaceLocalBundleData = new HashMap<>();
+        for (String bundleName : allBundles) {
+            final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
+            final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
+            NamespaceBundle bundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(namespaceName, bundleRange);
+            namespaceLocalBundleData.computeIfAbsent(namespaceName, (key) -> new HashSet<>()).add(bundle);
+        }
+
+        Set<NamespaceBundle> realClusterBundles = new HashSet<>();
+
+        // check each namespace if bundle is valid in the cluster.
+        for (Map.Entry<String, Set<NamespaceBundle>> namespaceEntry : namespaceLocalBundleData.entrySet()) {
+            if (!isLeader()) {
+                return;
+            }
+
+            String namespace = namespaceEntry.getKey();
+
+            NamespaceBundles namespaceBundles =
+                    pulsar.getNamespaceService()
+                            .getNamespaceBundleFactory()
+                            .getBundles(NamespaceName.get(namespace));
+            if (namespaceBundles == null) {
+                continue;
+            }
+
+            Set<NamespaceBundle> loadManagerKnownBundles = namespaceEntry.getValue();
+
+            realClusterBundles.clear();
+            realClusterBundles.addAll(namespaceBundles.getBundles());
+
+            Sets.SetView<NamespaceBundle> alreadyNotExistBundles =
+                    Sets.difference(loadManagerKnownBundles, realClusterBundles);
+
+            alreadyNotExistBundles.forEach((bundle) -> {
+                String bundleString = bundle.toString();
+                loadManagerBundleData.remove(bundleString);
+                if (isLeader()) {
+                    log.info("namespace bundle [{}] is not exist in cluster, "
+                            + "remove from metadata store.", bundleString);
+                    deleteBundleDataFromMetadataStore(bundleString);
+                }
+            });
+        }
     }
 }

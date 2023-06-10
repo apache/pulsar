@@ -730,8 +730,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         TimeUnit.SECONDS.sleep(5);
 
-        ModularLoadManagerImpl.nonActiveBundleDeleteThreshold = 0;
-
         // update broker bundle report to zk
         waitResourceDataUpdateToZK(loadManager);
 
