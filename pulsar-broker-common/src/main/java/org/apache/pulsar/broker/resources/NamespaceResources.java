@@ -329,7 +329,8 @@ public class NamespaceResources extends BaseResources<Policies> {
             }
             return getPartitionedTopicMetadataAsync(tn, true)
                     .thenApply(mdOpt -> mdOpt.map(partitionedTopicMetadata -> partitionedTopicMetadata.deleted)
-                            .orElse(false));
+                            // if mdOpt.isEmpty, assuming the partition topic has been deleted.
+                            .orElse(true));
         }
 
         public CompletableFuture<Void> runWithMarkDeleteAsync(TopicName topic,

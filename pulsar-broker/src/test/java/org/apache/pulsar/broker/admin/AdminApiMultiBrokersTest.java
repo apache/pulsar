@@ -181,8 +181,6 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         admin.topics().deletePartitionedTopic(topic, true);
 
         log.info("closing producer and consumer");
-        producer.close();
-        consumer.close();
 
         // topic autocreate might sneak in after the delete / before close
         // but the topic metadata should be consistent to go through deletion again
@@ -208,5 +206,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
             log.info("trying to create the topic again");
             ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
         }
+        producer.close();
+        consumer.close();
     }
 }
