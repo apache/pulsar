@@ -367,7 +367,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         final String bundle = serviceUnit.toString();
 
-        return computeIfAbsent(bundle, k -> {
+        return dedupeLookupRequest(bundle, k -> {
             final CompletableFuture<Optional<String>> owner;
             // Assign the bundle to channel owner if is internal topic, to avoid circular references.
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
@@ -441,7 +441,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle namespaceBundle) {
         log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
         final String bundle = namespaceBundle.toString();
-        return computeIfAbsent(bundle, k -> {
+        return dedupeLookupRequest(bundle, k -> {
             final CompletableFuture<Optional<String>> owner =
                     this.getOwnerAsync(namespaceBundle, bundle, true);
             return getBrokerLookupData(owner, bundle);
@@ -454,7 +454,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         });
     }
 
-    private CompletableFuture<Optional<BrokerLookupData>> computeIfAbsent(
+    private CompletableFuture<Optional<BrokerLookupData>> dedupeLookupRequest(
             String key, Function<String, CompletableFuture<Optional<BrokerLookupData>>> provider) {
         CompletableFuture<Optional<BrokerLookupData>> future = lookupRequests.computeIfAbsent(key, provider);
         future.whenComplete((r, t) -> {

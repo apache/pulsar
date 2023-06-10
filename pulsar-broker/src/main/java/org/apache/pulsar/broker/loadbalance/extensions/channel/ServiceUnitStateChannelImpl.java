@@ -1207,22 +1207,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 if (isActiveState(state)) {
                     if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                         orphanSystemServiceUnits.put(serviceUnit, stateData);
+                    } else if (serviceUnit.startsWith(heartbeatNamespace)
+                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
+                        // Skip the heartbeat namespace
+                        log.info("Skip override heartbeat namespace bundle"
+                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
+                            if (e != null) {
+                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
+                                                + "stateData:{}, cleanupErrorCnt:{}.",
+                                        serviceUnit, stateData,
+                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                            }
+                        });
                     } else {
-                        if (serviceUnit.startsWith(heartbeatNamespace)
-                                || serviceUnit.startsWith(heartbeatNamespaceV2)) {
-                            // Skip the heartbeat namespace
-                            log.info("Skip override heartbeat namespace bundle"
-                                    + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
-                            tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                                if (e != null) {
-                                    log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
-                                                    + "stateData:{}, cleanupErrorCnt:{}.",
-                                            serviceUnit, stateData,
-                                            totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                                }
-                            });
-                            continue;
-                        }
                         overrideOwnership(serviceUnit, stateData, broker);
                     }
                     orphanServiceUnitCleanupCnt++;
