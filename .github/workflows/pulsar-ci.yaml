@@ -172,7 +172,7 @@ jobs:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -455,7 +455,7 @@ jobs:
 
   integration-tests:
     name: CI - Integration - ${{ matrix.name }}
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'pulsar-java-test-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
