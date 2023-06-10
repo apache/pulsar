@@ -189,12 +189,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      */
     public Set<NamespaceBundle> getOwnedServiceUnits() {
         var entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
+        var brokerId = brokerRegistry.getBrokerId();
         return entrySet.stream()
                 .filter(entry -> {
                     var stateData = entry.getValue();
                     return stateData.state() == ServiceUnitState.Owned
                             && StringUtils.isNotBlank(stateData.dstBroker())
-                            && stateData.dstBroker().equals(brokerRegistry.getBrokerId());
+                            && stateData.dstBroker().equals(brokerId);
                 }).map(entry -> {
                     var bundle = entry.getKey();
                     return getNamespaceBundle(pulsar, bundle);
