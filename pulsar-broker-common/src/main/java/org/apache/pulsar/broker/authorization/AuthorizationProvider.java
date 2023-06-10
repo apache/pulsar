@@ -431,7 +431,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Remove authorization-action permissions on a topic to the given client.
+     * Remove authorization-action permissions on a topic.
      * @param topicName
      * @return CompletableFuture<Void>
      */
@@ -442,7 +442,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Get authorization-action permissions on a topic to the given client.
+     * Get authorization-action permissions on a topic.
      * @param topicName
      * @return CompletableFuture<Map<String, Set<AuthAction>>>
      */
@@ -453,7 +453,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Get authorization-action permissions on a topic to the given client.
+     * Get authorization-action permissions on a topic.
      * @param namespaceName
      * @return CompletableFuture<Map<String, Set<String>>>
      */
@@ -464,7 +464,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Get authorization-action permissions on a namespace to the given client.
+     * Get authorization-action permissions on a namespace.
      * @param namespaceName
      * @return CompletableFuture<Map<String, Set<AuthAction>>>
      */
