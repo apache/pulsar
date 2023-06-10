@@ -300,7 +300,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void stopBroker() throws Exception {
         if (pulsar == null) {
-            log.warn("Attempting to stop a null Pulsar broker");
+            log.warn("Attempting to stop a null Pulsar broker, skipping...");
             return;
         }
         log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
