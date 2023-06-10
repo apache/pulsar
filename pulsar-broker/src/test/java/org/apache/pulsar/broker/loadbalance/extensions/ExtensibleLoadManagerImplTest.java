@@ -1089,9 +1089,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     public void testTryAcquiringOwnership()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         final String namespace = "public/testTryAcquiringOwnership";
-        admin.namespaces().createNamespace(namespace, 3);
+        admin.namespaces().createNamespace(namespace, 1);
         String topic = "persistent://" + namespace + "/test";
-        admin.topics().createNonPartitionedTopic(topic);
         NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
         NamespaceEphemeralData namespaceEphemeralData = primaryLoadManager.tryAcquiringOwnership(bundle).get();
         assertEquals(namespaceEphemeralData.getNativeUrl(), pulsar1.getBrokerServiceUrl());
