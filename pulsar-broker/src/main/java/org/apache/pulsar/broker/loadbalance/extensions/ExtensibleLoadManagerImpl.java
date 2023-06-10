@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadMana
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
+import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.getNamespaceBundle;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -173,7 +174,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private final SplitCounter splitCounter = new SplitCounter();
 
     // record unload metrics
-    private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference();
+    private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
     // record split metrics
     private final AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
 
@@ -196,7 +197,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                             && stateData.dstBroker().equals(brokerRegistry.getBrokerId());
                 }).map(entry -> {
                     var bundle = entry.getKey();
-                    return this.getNamespaceBundle(bundle);
+                    return getNamespaceBundle(pulsar, bundle);
                 }).collect(Collectors.toSet());
     }
 
@@ -732,12 +733,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
-    }
-
-    public NamespaceBundle getNamespaceBundle(String bundle) {
-        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-        return pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
     }
 
     public void disableBroker() throws Exception {
