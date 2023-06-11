@@ -663,7 +663,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceFactory);
 
         // recover again will throw then close topic
-        new TopicTransactionBuffer(originalTopic);
+        new TopicTransactionBuffer(originalTopic, PositionImpl.EARLIEST);
         Awaitility.await().untilAsserted(() -> {
             // isFenced means closed
             Field close = AbstractTopic.class.getDeclaredField("isFenced");

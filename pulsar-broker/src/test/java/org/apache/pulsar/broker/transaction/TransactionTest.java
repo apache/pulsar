@@ -739,7 +739,7 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
-        TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
+        TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic, PositionImpl.EARLIEST);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer2.getStats(false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
@@ -751,7 +751,7 @@ public class TransactionTest extends TransactionTestBase {
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
         managedCursors.add(managedCursor, managedCursor.getMarkDeletedPosition());
-        TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
+        TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic, PositionImpl.EARLIEST);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer3.getStats(false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
@@ -981,7 +981,7 @@ public class TransactionTest extends TransactionTestBase {
         doReturn(false).when(managedCursor).hasMoreEntries();
         doReturn(managedCursor).when(managedLedger).newNonDurableCursor(any(), any());
 
-        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic);
+        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic, PositionImpl.EARLIEST);
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
     }
 
@@ -1586,14 +1586,10 @@ public class TransactionTest extends TransactionTestBase {
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
         // Create topic.
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
-        try {
-            // Do check.
-            persistentTopic.get().checkIfTransactionBufferRecoverCompletely(true).get(5, TimeUnit.SECONDS);
-            fail("Expect failure by TB closed, but it is finished.");
-        } catch (ExecutionException executionException){
-            Throwable t = executionException.getCause();
-            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
-        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.get().getTransactionBuffer().getStats(false).state,
+                    TopicTransactionBufferState.State.Close.toString());
+        });
     }
 
     @Test

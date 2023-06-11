@@ -146,14 +146,6 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxnEnabled
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
-     */
-    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
-
-    /**
      * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);

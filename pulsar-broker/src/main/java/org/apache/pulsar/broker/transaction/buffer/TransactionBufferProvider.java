@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
 import java.io.IOException;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.util.Reflections;
 
@@ -51,5 +52,5 @@ public interface TransactionBufferProvider {
      * @param originTopic
      * @return
      */
-    TransactionBuffer newTransactionBuffer(Topic originTopic);
+    TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition);
 }

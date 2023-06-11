@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
@@ -29,7 +30,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
-    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
-        return new TopicTransactionBuffer((PersistentTopic) originTopic);
+    public TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition) {
+        return new TopicTransactionBuffer((PersistentTopic) originTopic, startUsedPosition);
     }
 }
