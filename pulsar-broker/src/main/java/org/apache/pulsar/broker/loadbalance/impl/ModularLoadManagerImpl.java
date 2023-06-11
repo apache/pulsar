@@ -65,6 +65,8 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1236,17 +1238,54 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 return;
             }
 
-            String namespace = namespaceEntry.getKey();
+            // check if namespace exist.
+            NamespaceName namespace = NamespaceName.get(namespaceEntry.getKey());
+            Set<NamespaceBundle> loadManagerKnownBundles = namespaceEntry.getValue();
+
+            Optional<Policies> nsPolicies;
+
+            try {
+                nsPolicies = pulsar.getPulsarResources()
+                        .getNamespaceResources().getPolicies(namespace);
+            } catch (MetadataStoreException e) {
+                log.error("error when get policies for namespace {}", namespace, e);
+                continue;
+            }
+
+            if (nsPolicies.isEmpty()) {
+                loadManagerKnownBundles.forEach((bundle) -> {
+                    String bundleString = bundle.toString();
+                    loadManagerBundleData.remove(bundleString);
+                    if (isLeader()) {
+                        log.info("namespace [{}] is not exist in cluster, "
+                                + "remove load-balance bundle-data {} from metadata store.", namespace, bundleString);
+                        deleteBundleDataFromMetadataStore(bundleString);
+                    }
+                });
+
+                continue;
+            }
+
+            // namespace is being deleted, do nothing because delete namespace will handle the bundle-data deletion.
+            if (nsPolicies.get().deleted) {
+                if (log.isDebugEnabled()) {
+                    log.debug("ignore namespace {} because the namespace is mark deleted", namespace);
+                }
+                continue;
+            }
 
             NamespaceBundles namespaceBundles =
                     pulsar.getNamespaceService()
                             .getNamespaceBundleFactory()
-                            .getBundles(NamespaceName.get(namespace));
+                            .getBundles(namespace);
+
+            if (log.isDebugEnabled()) {
+                log.debug("bundles in namespace {} is {}", namespace, namespaceBundles.getBundles());
+            }
+
             if (namespaceBundles == null) {
                 continue;
             }
-
-            Set<NamespaceBundle> loadManagerKnownBundles = namespaceEntry.getValue();
 
             realClusterBundles.clear();
             realClusterBundles.addAll(namespaceBundles.getBundles());
