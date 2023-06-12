@@ -1200,7 +1200,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of worker threads to serve topic ordered executor")
-    private int numWorkersTopicOrderedExecutor = Runtime.getRuntime().availableProcessors();
+    private int topicOrderedExecutorThreadNum = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -3482,8 +3482,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
 
-    public int getNumWorkersTopicOrderedExecutor() {
+    public int getTopicOrderedExecutorThreadNum() {
         return numWorkerThreadsForNonPersistentTopic > 0
-                ? numWorkerThreadsForNonPersistentTopic : numWorkersTopicOrderedExecutor;
+                ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
     }
 }
