@@ -18,13 +18,29 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -74,5 +90,49 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
         });
+    }
+
+    @Test
+    private void testUnloadNamespaceAfterStartReplicatorFailed() throws Exception {
+        final String tpNameStr = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+        final TopicName tpName = TopicName.get(tpNameStr);
+        final String ledgerName = tpName.getPersistenceNamingEncoding();
+        final String replicatorCursorName = "pulsar.repl.r2";
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar1.getManagedLedgerFactory().open(ledgerName);
+
+        // Make replicator start failed.
+        final AtomicBoolean mlTimeout = new AtomicBoolean(true);
+        ManagedLedgerImpl spyMl = spy(ml);
+        doAnswer(invocation -> {
+            String cursorName = (String) invocation.getArguments()[0];
+            AsyncCallbacks.OpenCursorCallback cb = (AsyncCallbacks.OpenCursorCallback) invocation.getArguments()[1];
+            Object ctx = invocation.getArguments()[2];
+            if (replicatorCursorName.equals(cursorName)) {
+                cb.openCursorFailed(new ManagedLedgerException.MetaStoreException("Mocked error"), ctx);
+            }
+            ml.asyncOpenCursor(cursorName, cb, ctx);
+            return null;
+        }).when(spyMl).asyncOpenCursor(anyString(), any(AsyncCallbacks.OpenCursorCallback.class), any());
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                WhiteboxImpl.getInternalState(pulsar1.getManagedLedgerFactory(), "ledgers");
+        ledgers.put(ledgerName, CompletableFuture.completedFuture(spyMl));
+
+        // Verify the topic load will fail by mocked error.
+        try {
+            admin1.topics().createNonPartitionedTopic(tpNameStr);
+            fail("Expected load topic timeout.");
+        } catch (Exception ex){
+            assertTrue(ex.getMessage().contains("Mocked error"));
+        }
+
+        // Verify unload bundle success.
+        NamespaceBundle namespaceBundle = pulsar1.getNamespaceService().getBundle(tpName);
+        Awaitility.await().untilAsserted(() -> {
+            pulsar1.getBrokerService().unloadServiceUnit(namespaceBundle, true, 30, TimeUnit.SECONDS).join();
+        });
+
+        // cleanup.
+        mlTimeout.set(false);
+        admin1.topics().delete(tpNameStr, false);
     }
 }
