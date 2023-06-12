@@ -488,6 +488,7 @@ public class ClusterMigrationTest {
         @Override
         protected void cleanup() throws Exception {
             stopBroker();
+            super.internalCleanup();
         }
 
         public void restart() throws Exception {
