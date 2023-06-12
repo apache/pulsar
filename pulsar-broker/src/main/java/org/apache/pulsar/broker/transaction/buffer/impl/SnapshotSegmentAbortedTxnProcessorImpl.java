@@ -385,7 +385,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public void getSnapshotStats(TransactionBufferStats stats) {
+    public void generateSnapshotStats(TransactionBufferStats stats) {
         stats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         TransactionBufferStats.SnapshotStats snapshotStats = new TransactionBufferStats.SnapshotStats();
         snapshotStats.segmentsSize = this.indexes.size();

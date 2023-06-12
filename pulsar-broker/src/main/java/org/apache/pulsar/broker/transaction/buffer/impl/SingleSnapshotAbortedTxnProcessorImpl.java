@@ -171,7 +171,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public void getSnapshotStats(TransactionBufferStats stats) {
+    public void generateSnapshotStats(TransactionBufferStats stats) {
         stats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
     }
 

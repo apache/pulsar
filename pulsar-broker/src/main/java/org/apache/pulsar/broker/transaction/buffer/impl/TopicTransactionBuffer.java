@@ -513,7 +513,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
-        snapshotAbortedTxnProcessor.getSnapshotStats(transactionBufferStats);
+        snapshotAbortedTxnProcessor.generateSnapshotStats(transactionBufferStats);
         if (lowWaterMarks) {
             transactionBufferStats.lowWaterMarks = this.lowWaterMarks;
         }

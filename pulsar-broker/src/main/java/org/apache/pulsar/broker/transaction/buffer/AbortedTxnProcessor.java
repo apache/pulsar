@@ -68,7 +68,7 @@ public interface AbortedTxnProcessor {
     /**
      * Get the snapshot stats form the processor.
      */
-    void getSnapshotStats(TransactionBufferStats stats);
+    void generateSnapshotStats(TransactionBufferStats stats);
 
     CompletableFuture<Void> closeAsync();
 
