@@ -90,6 +90,7 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
@@ -1040,19 +1041,48 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testGetOwnedServiceUnitsAndGetOwnedNamespaceStatus() throws PulsarAdminException {
+    public void testGetOwnedServiceUnitsAndGetOwnedNamespaceStatus() throws Exception {
+        NamespaceName heartbeatNamespacePulsar1V1 =
+                NamespaceService.getHeartbeatNamespace(pulsar1.getAdvertisedAddress(), pulsar1.getConfiguration());
+        NamespaceName heartbeatNamespacePulsar1V2 =
+                NamespaceService.getHeartbeatNamespaceV2(pulsar1.getAdvertisedAddress(), pulsar1.getConfiguration());
+
+        NamespaceName heartbeatNamespacePulsar2V1 =
+                NamespaceService.getHeartbeatNamespace(pulsar2.getAdvertisedAddress(), pulsar2.getConfiguration());
+        NamespaceName heartbeatNamespacePulsar2V2 =
+                NamespaceService.getHeartbeatNamespaceV2(pulsar2.getAdvertisedAddress(), pulsar2.getConfiguration());
+
+        NamespaceBundle bundle1 = pulsar1.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar1V1);
+        NamespaceBundle bundle2 = pulsar1.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar1V2);
+
+        NamespaceBundle bundle3 = pulsar2.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar2V1);
+        NamespaceBundle bundle4 = pulsar2.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar2V2);
+
         Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnits();
         log.info("Owned service units: {}", ownedServiceUnitsByPulsar1);
-        assertTrue(ownedServiceUnitsByPulsar1.isEmpty());
+        // heartbeat namespace bundle will own by pulsar1
+        assertEquals(ownedServiceUnitsByPulsar1.size(), 2);
+        assertTrue(ownedServiceUnitsByPulsar1.contains(bundle1));
+        assertTrue(ownedServiceUnitsByPulsar1.contains(bundle2));
         Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnits();
         log.info("Owned service units: {}", ownedServiceUnitsByPulsar2);
-        assertTrue(ownedServiceUnitsByPulsar2.isEmpty());
+        assertEquals(ownedServiceUnitsByPulsar2.size(), 2);
+        assertTrue(ownedServiceUnitsByPulsar2.contains(bundle3));
+        assertTrue(ownedServiceUnitsByPulsar2.contains(bundle4));
         Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar1 =
                 admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar1.getLookupServiceAddress());
         Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar2 =
                 admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar2.getLookupServiceAddress());
-        assertTrue(ownedNamespacesByPulsar1.isEmpty());
-        assertTrue(ownedNamespacesByPulsar2.isEmpty());
+        assertEquals(ownedNamespacesByPulsar1.size(), 2);
+        assertTrue(ownedNamespacesByPulsar1.containsKey(bundle1.toString()));
+        assertTrue(ownedNamespacesByPulsar1.containsKey(bundle2.toString()));
+        assertEquals(ownedNamespacesByPulsar2.size(), 2);
+        assertTrue(ownedNamespacesByPulsar2.containsKey(bundle3.toString()));
+        assertTrue(ownedNamespacesByPulsar2.containsKey(bundle4.toString()));
 
         String topic = "persistent://" + defaultTestNamespace + "/test-get-owned-service-units";
         admin.topics().createPartitionedTopic(topic, 1);
