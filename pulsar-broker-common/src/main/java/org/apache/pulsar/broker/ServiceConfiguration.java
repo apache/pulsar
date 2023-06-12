@@ -297,6 +297,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "The cache executor thread pool is used for restarting global zookeeper session. "
             + "Default is 10"
     )
+    @Deprecated
     private int numCacheExecutorThreadPoolSize = 10;
 
     @FieldContext(
