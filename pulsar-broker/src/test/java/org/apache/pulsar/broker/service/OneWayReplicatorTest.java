@@ -101,7 +101,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar1.getManagedLedgerFactory().open(ledgerName);
 
         // Make replicator start failed.
-        final AtomicBoolean mlTimeout = new AtomicBoolean(true);
+        final AtomicBoolean replicatorStartController = new AtomicBoolean(true);
         ManagedLedgerImpl spyMl = spy(ml);
         doAnswer(invocation -> {
             String cursorName = (String) invocation.getArguments()[0];
@@ -132,7 +132,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // cleanup.
-        mlTimeout.set(false);
+        replicatorStartController.set(false);
         admin1.topics().delete(tpNameStr, false);
     }
 }

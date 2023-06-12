@@ -3326,6 +3326,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         } catch (Exception ex){
             assertTrue(ex.getMessage().contains("timeout"));
         }
+        timeoutController.countDown();
 
         // Verify unload bundle success.
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(tpName);
@@ -3334,7 +3335,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         });
 
         // cleanup.
-        timeoutController.countDown();
         admin.topics().delete(tpNameStr, false);
     }
 }
