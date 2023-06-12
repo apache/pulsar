@@ -33,6 +33,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,6 +57,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -75,6 +77,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
 import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -143,6 +146,7 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @SuppressWarnings("unchecked")
@@ -290,6 +294,49 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Connected);
         CommandConnected response = (CommandConnected) getResponse();
         assertEquals(response.getProtocolVersion(), currentProtocolVersion);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectCommandWithProxyVersion() throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect("none", null, 1, null, null, null, null, null,
+                "my-pulsar-proxy");
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getProxyVersion(), "my-pulsar-proxy");
+        channel.finish();
+    }
+
+    @DataProvider(name = "clientVersions")
+    public Object[][] clientVersions() {
+        return new Object[][]{
+                {"Pulsar Client", true},
+                {"Pulsar Go 0.2.1", true},
+                {"Pulsar-Client-Java-v1.15.2", true},
+                {"pulsar-java-3.0.0", true},
+                {"", false},
+                {" ", false}
+        };
+    }
+
+    @Test(dataProvider = "clientVersions")
+    public void testStoreClientVersionWhenNotBlank(String clientVersion, boolean expectSetToClientVersion) throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect("", "", clientVersion);
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        assertEquals(serverCnx.getClientVersion(), expectSetToClientVersion ? clientVersion : null);
         channel.finish();
     }
 
@@ -480,6 +527,32 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test
+    public void testConnectWithNonProxyRoleAndProxyVersion() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthorizationEnabled(true);
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, AuthData.of("pass.pass".getBytes()),
+                1, null, null, null, null, null, "my-pulsar-proxy");
+        channel.writeInbound(clientCommand);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        assertEquals(((CommandError) response).getError(), ServerError.AuthorizationError);
+        assertEquals(serverCnx.getState(), State.Failed);
+        channel.finish();
+    }
+
+    @Test
     public void testAuthChallengePrincipalChangeFails() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
@@ -613,6 +686,8 @@ public class ServerCnxTest {
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.proxy");
         // Invalid combinations where the original principal is set to a non-proxy role
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client1", "pass.client");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client1");
     }
 
     private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
@@ -3136,6 +3211,46 @@ public class ServerCnxTest {
         assertEquals(response.getTxnidMostBits(), 12L);
         assertEquals(response.getError().getValue(), 0);
         assertEquals(response.getMessage(), "server error");
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendAddPartitionToTxnResponseFailedAuth() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setProxyRoles(Set.of("pass.fail"));
+
+        svcConfig.setAuthorizationProvider(MockAuthorizationProvider.class.getName());
+        AuthorizationService authorizationService =
+                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
+                        pulsarTestContext.getPulsarResources());
+        when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
+        svcConfig.setAuthorizationEnabled(true);
+
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(false));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+
+        ByteBuf connect = Commands.newConnect(authMethodName, "pass.fail", "test", "localhost",
+                "pass.pass", "pass.pass", authMethodName);
+        channel.writeInbound(connect);
+        Object connectResponse = getResponse();
+        assertTrue(connectResponse instanceof CommandConnected);
+
+        ByteBuf clientCommand = Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                List.of("tenant/ns/topic1"));
+        channel.writeInbound(clientCommand);
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.TransactionNotFound);
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
 
         channel.finish();
     }

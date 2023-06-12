@@ -56,8 +56,8 @@ import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -248,7 +248,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     } else {
                                         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                             topicPolicy.add(topic);
-                                        } else {
+                                        } else if (!isDeletedAlongWithUserCreatedTopic(topic)) {
                                             allSystemTopics.add(topic);
                                         }
                                     }
@@ -296,11 +296,11 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(ignore -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
                 .thenCompose(bundles -> FutureUtil.waitForAll(bundles.getBundles().stream()
-                        .map(bundle -> pulsar().getNamespaceService().getOwnerAsync(bundle)
-                                .thenCompose(owner -> {
+                        .map(bundle -> pulsar().getNamespaceService().checkOwnershipPresentAsync(bundle)
+                                .thenCompose(present -> {
                                     // check if the bundle is owned by any broker,
                                     // if not then we do not need to delete the bundle
-                                    if (owner.isPresent()) {
+                                    if (present) {
                                         PulsarAdmin admin;
                                         try {
                                             admin = pulsar().getAdminClient();
@@ -341,6 +341,11 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     callback.complete(result);
                 });
+    }
+
+    private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
+        // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
+        return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
     }
 
     private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
@@ -564,109 +569,86 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalGrantPermissionOnNamespaceAsync(String role, Set<AuthAction> actions) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(role, "Role should not be null");
-                        checkNotNull(actions, "Actions should not be null");
-                    }).thenCompose(__ ->
-                            authService.grantPermissionAsync(namespaceName, actions, role, null))
-                    .thenAccept(unused ->
-                            log.info("[{}] Successfully granted access for role {}: {} - namespaceName {}",
-                                    clientAppId(), role, actions, namespaceName))
-                    .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        //The IllegalArgumentException and the IllegalStateException were historically thrown by the
-                        // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
-                        if (realCause instanceof MetadataStoreException.NotFoundException
-                                || realCause instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                                    namespaceName, ex);
-                            throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
-                        } else if (realCause instanceof MetadataStoreException.BadVersionException
-                                || realCause instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: {}",
-                                    clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
-                            throw new RestException(Status.CONFLICT, "Concurrent modification");
-                        } else {
-                            log.error("[{}] Failed to get permissions for namespace {}",
-                                    clientAppId(), namespaceName, ex);
-                            throw new RestException(realCause);
-                        }
-                    });
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(role, "Role should not be null");
+                    checkNotNull(actions, "Actions should not be null");
+                }).thenCompose(__ ->
+                        getAuthorizationService().grantPermissionAsync(namespaceName, actions, role, null))
+                .thenAccept(unused ->
+                        log.info("[{}] Successfully granted access for role {}: {} - namespaceName {}",
+                                clientAppId(), role, actions, namespaceName))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to get permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
     }
 
 
     protected CompletableFuture<Void> internalGrantPermissionOnSubscriptionAsync(String subscription,
                                                                                 Set<String> roles) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscription, "Subscription should not be null");
-                        checkNotNull(roles, "Roles should not be null");
-                    })
-                    .thenCompose(__ -> authService.grantSubscriptionPermissionAsync(namespaceName, subscription,
-                            roles, null))
-                    .thenAccept(unused -> {
-                        log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
-                                + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
-                    })
-                    .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        //The IllegalArgumentException and the IllegalStateException were historically thrown by the
-                        // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
-                        if (realCause.getCause() instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                        } else if (realCause.getCause() instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
-                                    clientAppId(), namespaceName);
-                            throw new RestException(Status.CONFLICT, "Concurrent modification");
-                        } else {
-                            log.error("[{}] Failed to get permissions for namespace {}",
-                                    clientAppId(), namespaceName, realCause);
-                            throw new RestException(realCause);
-                        }
-                    });
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscription, "Subscription should not be null");
+                    checkNotNull(roles, "Roles should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService()
+                        .grantSubscriptionPermissionAsync(namespaceName, subscription, roles, null))
+                .thenAccept(unused -> {
+                    log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
+                            + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause.getCause() instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName);
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    } else if (realCause.getCause() instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
+                                clientAppId(), namespaceName);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to get permissions for namespace {}",
+                                clientAppId(), namespaceName, realCause);
+                        throw new RestException(realCause);
+                    }
+                });
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnNamespaceAsync(String role) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
                 .thenAccept(__ -> checkNotNull(role, "Role should not be null"))
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.auth_policies.getNamespaceAuthentication().remove(role);
-                    return policies;
-                }));
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(namespaceName, role));
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnSubscriptionAsync(String subscriptionName,
                                                                                   String role) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscriptionName, "SubscriptionName should not be null");
-                        checkNotNull(role, "Role should not be null");
-                    })
-                    .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                    .thenCompose(__ -> authService.revokeSubscriptionPermissionAsync(namespaceName,
-                            subscriptionName, role, null/* additional auth-data json */));
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscriptionName, "SubscriptionName should not be null");
+                    checkNotNull(role, "Role should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService().revokeSubscriptionPermissionAsync(namespaceName,
+                        subscriptionName, role, null/* additional auth-data json */));
     }
 
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {
@@ -877,7 +859,7 @@ public abstract class NamespacesBase extends AdminResource {
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
                                 policies.namespaceAntiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
+                        .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
                                 bookieAffinityGroup,
                                 null));
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
@@ -983,8 +965,17 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     return CompletableFuture.completedFuture(null);
                 })
-                .thenCompose(__ -> validateLeaderBrokerAsync())
+                .thenCompose(__ -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return validateLeaderBrokerAsync();
+                })
                 .thenAccept(__ -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                        return;
+                    }
+                    // For ExtensibleLoadManager, this operation will be ignored.
                     pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
                 });
     }
@@ -1036,10 +1027,11 @@ public abstract class NamespacesBase extends AdminResource {
                                         namespaceName, bundleRange);
                                 return CompletableFuture.completedFuture(null);
                             }
+                            Optional<String> destinationBrokerOpt = Optional.ofNullable(destinationBroker);
                             return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                     authoritative, true)
-                                    .thenCompose(nsBundle ->
-                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
+                                    .thenCompose(nsBundle -> pulsar().getNamespaceService()
+                                            .unloadNamespaceBundle(nsBundle, destinationBrokerOpt));
                         }));
     }
 
@@ -1395,7 +1387,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to clear
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .clearNamespaceBundleBacklogAsync(namespaceName.toString(), nsBundle.getBundleRange()));
                 }
@@ -1460,7 +1452,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to clear
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces().clearNamespaceBundleBacklogForSubscriptionAsync(
                             namespaceName.toString(), nsBundle.getBundleRange(), subscription));
                 }
@@ -1527,7 +1519,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there are no subscriptions
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces().unsubscribeNamespaceBundleAsync(
                             namespaceName.toString(), nsBundle.getBundleRange(), subscription));
                 }
@@ -1694,7 +1686,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             return getLocalPolicies()
                     .getLocalPolicies(namespaceName)
-                    .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
+                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles())
+                            , null, null)).namespaceAntiAffinityGroup;
         } catch (Exception e) {
             log.error("[{}] Failed to get the antiAffinityGroup of namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(Status.NOT_FOUND, "Couldn't find namespace policies");
@@ -1744,7 +1737,9 @@ public abstract class NamespacesBase extends AdminResource {
                     throw new RuntimeException(e);
                 }
 
-                String storedAntiAffinityGroup = policies.orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
+                String storedAntiAffinityGroup = policies.orElseGet(() ->
+                        new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
+                                null, null)).namespaceAntiAffinityGroup;
                 return antiAffinityGroup.equalsIgnoreCase(storedAntiAffinityGroup);
             }).collect(Collectors.toList());
 

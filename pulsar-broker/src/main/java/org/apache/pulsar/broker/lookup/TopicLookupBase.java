@@ -41,6 +41,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -221,26 +222,31 @@ public class TopicLookupBase extends PulsarWebResource {
                 // (2) authorize client
                 checkAuthorizationAsync(pulsarService, topicName, clientAppId, authenticationData).thenRun(() -> {
                         // (3) validate global namespace
+                        // It is necessary for system topic operations because system topics are used to store metadata
+                        // and other vital information. Even after namespace starting deletion,
+                        // we need to access the metadata of system topics to create readers and clean up topic data.
+                        // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
                         checkLocalOrGetPeerReplicationCluster(pulsarService,
-                                topicName.getNamespaceObject()).thenAccept(peerClusterData -> {
-                            if (peerClusterData == null) {
-                                // (4) all validation passed: initiate lookup
-                                validationFuture.complete(null);
-                                return;
-                            }
-                            // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
-                            // request should be redirect to the peer-cluster
-                            if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
-                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
-                                validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
-                                        "Redirected cluster's brokerService url is not configured",
-                                        requestId));
-                                return;
-                            }
-                            validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
-                                    requestId,
-                                    false));
+                                topicName.getNamespaceObject(), SystemTopicNames.isSystemTopic(topicName))
+                                .thenAccept(peerClusterData -> {
+                                    if (peerClusterData == null) {
+                                        // (4) all validation passed: initiate lookup
+                                        validationFuture.complete(null);
+                                        return;
+                                    }
+                                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster
+                                    // and request should be redirect to the peer-cluster
+                                    if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
+                                            && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
+                                        validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
+                                                "Redirected cluster's brokerService url is not configured",
+                                                requestId));
+                                        return;
+                                    }
+                                    validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                                            peerClusterData.getBrokerServiceUrlTls(), true,
+                                            LookupType.Redirect, requestId,
+                                            false));
                         }).exceptionally(ex -> {
                             Throwable throwable = FutureUtil.unwrapCompletionException(ex);
                             if (throwable instanceof RestException restException){

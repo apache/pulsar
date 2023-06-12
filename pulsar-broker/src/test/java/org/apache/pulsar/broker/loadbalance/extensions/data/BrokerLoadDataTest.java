@@ -59,7 +59,7 @@ public class BrokerLoadDataTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        data.update(usage1, 1, 2, 3, 4, 5, conf);
+        data.update(usage1, 1, 2, 3, 4, 5, 6, conf);
         
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
@@ -71,8 +71,10 @@ public class BrokerLoadDataTest {
         assertEquals(data.getMsgRateIn(), 3.0);
         assertEquals(data.getMsgRateOut(), 4.0);
         assertEquals(data.getBundleCount(), 5);
+        assertEquals(data.getTopics(), 6);
         assertEquals(data.getMaxResourceUsage(), 0.04); // skips memory usage
         assertEquals(data.getWeightedMaxEMA(), 2);
+        assertEquals(data.getMsgThroughputEMA(), 3);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
 
         now = System.currentTimeMillis();
@@ -87,7 +89,7 @@ public class BrokerLoadDataTest {
         usage2.setDirectMemory(directMemory);
         usage2.setBandwidthIn(bandwidthIn);
         usage2.setBandwidthOut(bandwidthOut);
-        data.update(usage2, 5, 6, 7, 8, 9, conf);
+        data.update(usage2, 5, 6, 7, 8, 9, 10, conf);
 
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
@@ -99,8 +101,10 @@ public class BrokerLoadDataTest {
         assertEquals(data.getMsgRateIn(), 7.0);
         assertEquals(data.getMsgRateOut(), 8.0);
         assertEquals(data.getBundleCount(), 9);
+        assertEquals(data.getTopics(), 10);
         assertEquals(data.getMaxResourceUsage(), 3.0);
         assertEquals(data.getWeightedMaxEMA(), 1.875);
+        assertEquals(data.getMsgThroughputEMA(), 5);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
         assertEquals(data.getReportedAt(), 0l);
         assertEquals(data.toString(conf), "cpu= 300.00%, memory= 100.00%, directMemory= 2.00%, "
@@ -109,8 +113,11 @@ public class BrokerLoadDataTest {
                 + "bandwithInResourceWeight= 0.500000, bandwithOutResourceWeight= 0.500000, "
                 + "msgThroughputIn= 5.00, msgThroughputOut= 6.00, "
                 + "msgRateIn= 7.00, msgRateOut= 8.00, bundleCount= 9, "
-                + "maxResourceUsage= 300.00%, weightedMaxEMA= 187.50%, "
+                + "maxResourceUsage= 300.00%, weightedMaxEMA= 187.50%, msgThroughputEMA= 5.00, "
                 + "updatedAt= " + data.getUpdatedAt() + ", reportedAt= " + data.getReportedAt());
+
+        data.clear();
+        assertEquals(data, new BrokerLoadData());
     }
 
     @Test
@@ -137,10 +144,13 @@ public class BrokerLoadDataTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        other.update(usage1, 1, 2, 3, 4, 5, conf);
+        other.update(usage1, 1, 2, 3, 4, 5, 6, conf);
         data.update(other);
 
         assertEquals(data, other);
+
+        data.clear();
+        assertEquals(data, new BrokerLoadData());
     }
 
 

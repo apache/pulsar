@@ -217,7 +217,11 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "If return the earliest time in backlog")
             @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             if (topicName.isGlobal()) {
                 try {
                     validateGlobalNamespaceOwnership(namespaceName);

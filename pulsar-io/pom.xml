@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io</artifactId>
@@ -85,22 +85,16 @@
         <module>batch-discovery-triggerers</module>
         <module>batch-data-generator</module>
         <module>common</module>
-        <module>docs</module>
         <module>aws</module>
         <module>twitter</module>
         <module>cassandra</module>
         <module>aerospike</module>
         <module>http</module>
-        <module>kafka</module>
         <module>rabbitmq</module>
         <module>kinesis</module>
         <module>hdfs3</module>
         <module>jdbc</module>
         <module>data-generator</module>
-        <module>elastic-search</module>
-        <module>kafka-connect-adaptor</module>
-        <module>kafka-connect-adaptor-nar</module>
-        <module>debezium</module>
         <module>hdfs2</module>
         <module>canal</module>
         <module>file</module>
@@ -114,6 +108,27 @@
         <module>dynamodb</module>
         <module>nsq</module>
         <module>alluxio</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>pulsar-io-elastic-tests</id>
+      <modules>
+        <module>core</module>
+        <module>common</module>
+        <module>elastic-search</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>pulsar-io-kafka-connect-tests</id>
+      <modules>
+        <module>core</module>
+        <module>common</module>
+        <module>kafka</module>
+        <module>kafka-connect-adaptor</module>
+        <module>kafka-connect-adaptor-nar</module>
+        <module>debezium</module>
       </modules>
     </profile>
 

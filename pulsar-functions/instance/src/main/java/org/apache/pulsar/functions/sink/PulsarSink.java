@@ -108,7 +108,6 @@ public class PulsarSink<T> implements Sink<T> {
                     .blockIfQueueFull(true)
                     .enableBatching(true)
                     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
@@ -121,6 +120,11 @@ public class PulsarSink<T> implements Sink<T> {
             }
             if (pulsarSinkConfig.getProducerConfig() != null) {
                 ProducerConfig producerConfig = pulsarSinkConfig.getProducerConfig();
+                if (producerConfig.getCompressionType() != null) {
+                    builder.compressionType(producerConfig.getCompressionType());
+                } else {
+                    builder.compressionType(CompressionType.LZ4);
+                }
                 if (producerConfig.getMaxPendingMessages() != 0) {
                     builder.maxPendingMessages(producerConfig.getMaxPendingMessages());
                 }
@@ -345,7 +349,7 @@ public class PulsarSink<T> implements Sink<T> {
                       ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
-        this.topicSchema = new TopicSchema(client);
+        this.topicSchema = new TopicSchema(client, functionClassLoader);
         this.properties = properties;
         this.stats = stats;
         this.functionClassLoader = functionClassLoader;

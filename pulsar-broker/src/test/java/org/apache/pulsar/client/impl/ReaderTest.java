@@ -600,7 +600,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
             System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
-            return topicStats.getSubscriptions().size() == 1;
+            return topicStats.getSubscriptions().size() == 0;
         });
     }
 

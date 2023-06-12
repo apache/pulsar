@@ -88,6 +88,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -128,6 +129,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -3858,12 +3860,26 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
+        List<Long> ledgerIds = new ArrayList<>();
+
         int totalAddEntries = 5;
         for (int i = 0; i < totalAddEntries; i++) {
             String content = "entry"; // 5 bytes
             ledger.checkInactiveLedgerAndRollOver();
             ledger.addEntry(content.getBytes());
             Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+
+            ledgerIds.add(ledger.currentLedger.getId());
+        }
+
+        Map<Long, PulsarMockLedgerHandle> ledgerMap = bkc.getLedgerMap();
+        // skip check last ledger, it should be open
+        for (int i = 0; i < ledgerIds.size() - 1; i++) {
+            long ledgerId = ledgerIds.get(i);
+            LedgerMetadata ledgerMetadata = ledgerMap.get(ledgerId).getLedgerMetadata();
+            if (ledgerMetadata != null) {
+                assertTrue(ledgerMetadata.isClosed());
+            }
         }
 
         List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
@@ -3968,5 +3984,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1))), 8);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext()), 0);
         ledger.close();
+    }
+
+    @Test
+    public void testDeleteCursorTwice() throws Exception {
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("ml");
+        String cursorName = "cursor_1";
+        ml.openCursor(cursorName);
+        syncRemoveCursor(ml, cursorName);
+        syncRemoveCursor(ml, cursorName);
+    }
+
+    private void syncRemoveCursor(ManagedLedgerImpl ml, String cursorName){
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ml.getStore().asyncRemoveCursor(ml.name, cursorName, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat stat) {
+                future.complete(null);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+            }
+        });
+        future.join();
     }
 }

@@ -18,6 +18,22 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
@@ -26,7 +42,18 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import lombok.Data;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -56,34 +83,6 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 public class TestPulsarRecordCursor extends TestPulsarConnector {
 
@@ -490,8 +489,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         // If the schemaVersion of the message is not null, try to get the schema.
         Mockito.when(pulsarSplit.getSchemaType()).thenReturn(SchemaType.AVRO);
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(0).bytes());
-        Mockito.when(schemas.getSchemaInfo(anyString(), eq(0L)))
-                .thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
+        Mockito.when(schemas.getSchemaInfoAsync(anyString(), eq(0L)))
+                .thenReturn(CompletableFuture.completedFuture(Schema.AVRO(Foo.class).getSchemaInfo()));
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(SchemaType.AVRO, schemaInfo.getType());
 
@@ -516,19 +515,21 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
         // If the specific version schema is null, throw runtime exception.
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(1L).bytes());
-        Mockito.when(schemas.getSchemaInfo(schemaTopic, 1)).thenReturn(null);
+        Mockito.when(schemas.getSchemaInfoAsync(schemaTopic, 1))
+                .thenReturn(CompletableFuture.completedFuture(null));
         try {
             schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
             fail("The specific version " + 1 + " schema is null, should fail.");
         } catch (InvocationTargetException e) {
             String schemaVersion = BytesSchemaVersion.of(new LongSchemaVersion(1L).bytes()).toString();
             assertTrue(e.getCause() instanceof RuntimeException);
-            assertTrue(e.getCause().getMessage().contains("schema of the topic " + schemaTopic + " is null"));
+            assertTrue(e.getCause().getMessage().contains("schema of the table " + topic + " is null"));
         }
 
         // Get the specific version schema.
         Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(2L).bytes());
-        Mockito.when(schemas.getSchemaInfo(schemaTopic, 2)).thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
+        Mockito.when(schemas.getSchemaInfoAsync(schemaTopic, 2))
+                .thenReturn(CompletableFuture.completedFuture(Schema.AVRO(Foo.class).getSchemaInfo()));
         schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
         assertEquals(Schema.AVRO(Foo.class).getSchemaInfo(), schemaInfo);
     }

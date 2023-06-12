@@ -74,7 +74,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public void disableBroker() throws Exception {
-        this.loadManager.getBrokerRegistry().unregister();
+        this.loadManager.disableBroker();
     }
 
     @Override
@@ -140,6 +140,10 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     @Override
     public void doNamespaceBundleSplit() {
         throw new UnsupportedOperationException();
+    }
+
+    public ExtensibleLoadManagerImpl get() {
+        return loadManager;
     }
 
 }
