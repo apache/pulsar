@@ -703,7 +703,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
-            pulsar.getNamespaceService().onNamespaceBundleOwned(getNamespaceBundle(serviceUnit));
+            pulsar.getNamespaceService()
+                    .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
             lastOwnEventHandledAt = System.currentTimeMillis();
         } else if (data.force() && isTargetBroker(data.sourceBroker())) {
             closeServiceUnit(serviceUnit);
@@ -803,12 +804,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return broker.equals(lookupServiceAddress);
     }
 
-    private NamespaceBundle getNamespaceBundle(String bundle) {
-        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-        return pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
-    }
-
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
         return getOwnerRequests
                 .computeIfAbsent(serviceUnit, k -> {
@@ -829,7 +824,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private CompletableFuture<Integer> closeServiceUnit(String serviceUnit) {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
-        NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
+        NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
                         true,
@@ -860,7 +855,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         long startTime = System.nanoTime();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
-        NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
+        NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
         Map<String, Optional<String>> bundleToDestBroker = data.splitServiceUnitToDestBroker();
         List<Long> boundaries = null;
@@ -1275,7 +1270,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
         try {
-            return loadManager.selectAsync(getNamespaceBundle(serviceUnit), Set.of(inactiveBroker))
+            return loadManager.selectAsync(
+                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit), Set.of(inactiveBroker))
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
