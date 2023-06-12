@@ -47,6 +47,7 @@ jobs:
             improve
             refactor
             revert
+            pip
           # Scope abbreviation comments:
           # cli     -> command line interface
           # fn      -> Pulsar Functions
@@ -85,6 +86,7 @@ jobs:
             txn
             ws
             zk
+            design
           # The pull request's title should be fulfilled the following pattern:
           #
           #     [<type>][<optional scope>] <description>
