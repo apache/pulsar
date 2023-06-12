@@ -1040,7 +1040,7 @@ public class BrokerService implements Closeable {
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
-                return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
+                topicFuture = topics.computeIfAbsent(topicName.toString(), (tpName) -> {
                     if (topicName.isPartitioned()) {
                         return fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
                                 .thenCompose((metadata) -> {
@@ -1055,7 +1055,7 @@ public class BrokerService implements Closeable {
                     return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
                 });
             } else {
-                return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                topicFuture = topics.computeIfAbsent(topicName.toString(), (name) -> {
                     topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
@@ -1091,6 +1091,9 @@ public class BrokerService implements Closeable {
                     }
                 });
             }
+            final CompletableFuture<Optional<Topic>> topicFutureToRemove = topicFuture;
+            topicFuture.whenComplete((ignore, ex) -> topics.remove(topicName.toString(), topicFutureToRemove));
+            return topicFuture;
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
             return FutureUtil.failedFuture(e);

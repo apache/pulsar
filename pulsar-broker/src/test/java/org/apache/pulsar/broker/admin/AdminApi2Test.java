@@ -20,9 +20,12 @@ package org.apache.pulsar.broker.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -48,7 +51,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
 import lombok.AllArgsConstructor;
@@ -59,6 +65,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
@@ -97,6 +104,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -123,6 +131,9 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -3289,5 +3300,46 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
         admin.namespaces().deleteNamespace(ns, true);
         Assert.assertFalse(admin.namespaces().getNamespaces(defaultTenant).contains(ns));
+    }
+
+    @Test
+    private void testUnloadNamespaceAfterLoadTopicFailed() throws Exception {
+        final String tpNameStr = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+        final TopicName tpName = TopicName.get(tpNameStr);
+        final String ledgerName = tpName.getPersistenceNamingEncoding();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar.getManagedLedgerFactory().open(ledgerName);
+
+        // Make topic created timeout.
+        final CountDownLatch timeoutController = new CountDownLatch(1);
+        ManagedLedgerImpl spyMl = spy(ml);
+        doAnswer(invocation -> {
+            timeoutController.wait();
+            return ml.getCursors();
+        }).when(spyMl).getCursors();
+        doAnswer(invocation -> {
+            timeoutController.wait();
+            return ml.getProperties();
+        }).when(spyMl).getProperties();
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                WhiteboxImpl.getInternalState(pulsar.getManagedLedgerFactory(), "ledgers");
+        ledgers.put(ledgerName, CompletableFuture.completedFuture(spyMl));
+
+        // Verify the topic load will fail by timeout.
+        try {
+            admin.topics().createNonPartitionedTopic(tpNameStr);
+            fail("Expected load topic timeout.");
+        } catch (Exception ex){
+            assertTrue(ex.getMessage().contains("timeout"));
+        }
+
+        // Verify unload bundle success.
+        NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(tpName);
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().unloadServiceUnit(namespaceBundle, true, 30, TimeUnit.SECONDS).join();
+        });
+
+        // cleanup.
+        timeoutController.countDown();
+        admin.topics().delete(tpNameStr, false);
     }
 }
