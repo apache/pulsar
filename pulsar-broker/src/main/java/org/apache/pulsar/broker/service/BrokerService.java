@@ -1092,7 +1092,11 @@ public class BrokerService implements Closeable {
                 });
             }
             final CompletableFuture<Optional<Topic>> topicFutureToRemove = topicFuture;
-            topicFuture.whenComplete((ignore, ex) -> topics.remove(topicName.toString(), topicFutureToRemove));
+            topicFuture.whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    topics.remove(topicName.toString(), topicFutureToRemove);
+                }
+            });
             return topicFuture;
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
