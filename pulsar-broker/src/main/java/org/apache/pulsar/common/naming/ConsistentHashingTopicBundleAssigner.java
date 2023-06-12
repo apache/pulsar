@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -37,7 +38,8 @@ public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignme
     }
 
     @Override
-    public void init(NamespaceService namespaceService, PulsarAdmin pulsarAdmin, ServiceConfiguration configuration) {
-        this.namespaceService = namespaceService;
+    public void init(PulsarService pulsarService) {
+        namespaceService = pulsarService.getNamespaceService();
     }
+
 }

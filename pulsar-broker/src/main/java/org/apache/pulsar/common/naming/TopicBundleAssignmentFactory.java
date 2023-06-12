@@ -27,11 +27,10 @@ public class TopicBundleAssignmentFactory {
 
     public static TopicBundleAssignmentStrategy create(PulsarService pulsar) {
         ServiceConfiguration conf = pulsar.getConfiguration();
-        NamespaceService namespaceService = pulsar.getNamespaceService();
         try {
             TopicBundleAssignmentStrategy strategy = Reflections.createInstance(conf.getTopicBundleAssignmentStrategy(),
                     TopicBundleAssignmentStrategy.class, Thread.currentThread().getContextClassLoader());
-            strategy.init(namespaceService, pulsar.getAdminClient(), pulsar.getConfiguration());
+            strategy.init(pulsar);
             return strategy;
         } catch (Exception e) {
             throw new RuntimeException(

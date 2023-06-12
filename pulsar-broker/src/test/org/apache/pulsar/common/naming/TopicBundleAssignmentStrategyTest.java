@@ -57,9 +57,11 @@ public class TopicBundleAssignmentStrategyTest {
         }
 
         @Override
-        public void init(NamespaceService namespaceService, PulsarAdmin pulsarAdmin,
-                         ServiceConfiguration configuration) {
+        public void init(PulsarService pulsarService) {
+            
         }
+
+
     }
 
 }
