@@ -123,7 +123,8 @@ public class CmdProduce {
     @Parameter(names = { "-kvk", "--key-value-key"}, description = "Value to add as message key in KeyValue schema")
     private String keyValueKey;
     @Parameter(names = { "-kvkf", "--key-value-key-file"},
-            description = "Path to file containing the value to add as message key in KeyValue schema. JSON and AVRO files are supported.")
+            description = "Path to file containing the value to add as message key in KeyValue schema. "
+            + "JSON and AVRO files are supported.")
     private String keyValueKeyFile;
 
     @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
@@ -276,13 +277,14 @@ public class CmdProduce {
                 final byte[] keyValueKeyBytes;
                 if (this.keyValueKey != null) {
                     if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new ParameterException("Key value encoding type must be set when using --key-value-key");
+                        throw new ParameterException(
+                            "Key value encoding type must be set when using --key-value-key");
                     }
                     keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
                 } else if (this.keyValueKeyFile != null) {
                     if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new ParameterException("Key value encoding type must be " +
-                                "set when using --key-value-key-file");
+                        throw new ParameterException(
+                            "Key value encoding type must be set when using --key-value-key-file");
                     }
                     keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
                 } else if (this.key != null) {
