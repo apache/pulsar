@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -188,8 +189,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      * Get all the bundles that are owned by this broker.
      */
     public Set<NamespaceBundle> getOwnedServiceUnits() {
-        var entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
-        var brokerId = brokerRegistry.getBrokerId();
+        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
+        String brokerId = brokerRegistry.getBrokerId();
         return entrySet.stream()
                 .filter(entry -> {
                     var stateData = entry.getValue();
