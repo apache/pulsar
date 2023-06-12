@@ -49,4 +49,8 @@ public class ElasticSearchMetrics {
     public void incrementCounter(String counter, double value) {
         this.sinkContext.recordMetric(counter, value);
     }
+
+    public void recordRecordIndexedSuccess() {
+        incrementCounter(SUCCESS, 1);
+    }
 }
