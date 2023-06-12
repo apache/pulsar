@@ -193,8 +193,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.metadataStore = metadataStore;
-        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor, config.getManagedLedgerInfoCompressionType(),
-                config.getManagedCursorInfoCompressionType());
+        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor,
+                config.getCompressionConfigForManagedLedgerInfo(),
+                config.getCompressionConfigForManagedCursorInfo());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this);
@@ -504,9 +505,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     void close(ManagedLedger ledger) {
-        // Remove the ledger from the internal factory cache
-        ledgers.remove(ledger.getName());
-        entryCacheManager.removeEntryCache(ledger.getName());
+        // If the future in map is not done or has exceptionally complete, it means that @param-ledger is not in the
+        // map.
+        CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.get(ledger.getName());
+        if (ledgerFuture == null || !ledgerFuture.isDone() || ledgerFuture.isCompletedExceptionally()){
+            return;
+        }
+        if (ledgerFuture.join() != ledger){
+            return;
+        }
+        // Remove the ledger from the internal factory cache.
+        if (ledgers.remove(ledger.getName(), ledgerFuture)) {
+            entryCacheManager.removeEntryCache(ledger.getName());
+        }
     }
 
     public CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException {

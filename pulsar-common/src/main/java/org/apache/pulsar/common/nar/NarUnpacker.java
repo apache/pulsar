@@ -122,6 +122,8 @@ public class NarUnpacker {
                 if (jarEntry.isDirectory()) {
                     FileUtils.ensureDirectoryExistAndCanReadAndWrite(f);
                 } else {
+                    // The directory entry might appear after the file entry
+                    FileUtils.ensureDirectoryExistAndCanReadAndWrite(f.getParentFile());
                     makeFile(jarFile.getInputStream(jarEntry), f);
                 }
             }

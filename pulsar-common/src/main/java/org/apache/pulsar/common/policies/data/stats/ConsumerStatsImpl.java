@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -79,22 +78,11 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public String readPositionWhenJoining;
 
     /** Address of this consumer. */
-    @JsonIgnore
-    private int addressOffset = -1;
-    @JsonIgnore
-    private int addressLength;
-
+    private String address;
     /** Timestamp of connection. */
-    @JsonIgnore
-    private int connectedSinceOffset = -1;
-    @JsonIgnore
-    private int connectedSinceLength;
-
+    private String connectedSince;
     /** Client library version. */
-    @JsonIgnore
-    private int clientVersionOffset = -1;
-    @JsonIgnore
-    private int clientVersionLength;
+    private String clientVersion;
 
     // ignore this json field to skip from stats in future release. replaced with readable #getLastAckedTime().
     @Deprecated
@@ -110,13 +98,6 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
-
-    /**
-     * In order to prevent multiple string object allocation under stats: create a string-buffer
-     * that stores data for all string place-holders.
-     */
-    @JsonIgnore
-    private StringBuilder stringBuffer = new StringBuilder();
 
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {
         Objects.requireNonNull(stats);
@@ -134,47 +115,27 @@ public class ConsumerStatsImpl implements ConsumerStats {
     }
 
     public String getAddress() {
-        return addressOffset == -1 ? null : stringBuffer.substring(addressOffset, addressOffset + addressLength);
+        return address;
     }
 
     public void setAddress(String address) {
-        if (address == null) {
-            this.addressOffset = -1;
-            return;
-        }
-        this.addressOffset = this.stringBuffer.length();
-        this.addressLength = address.length();
-        this.stringBuffer.append(address);
+        this.address = address;
     }
 
     public String getConnectedSince() {
-        return connectedSinceOffset == -1 ? null
-                : stringBuffer.substring(connectedSinceOffset, connectedSinceOffset + connectedSinceLength);
+        return connectedSince;
     }
 
     public void setConnectedSince(String connectedSince) {
-        if (connectedSince == null) {
-            this.connectedSinceOffset = -1;
-            return;
-        }
-        this.connectedSinceOffset = this.stringBuffer.length();
-        this.connectedSinceLength = connectedSince.length();
-        this.stringBuffer.append(connectedSince);
+        this.connectedSince = connectedSince;
     }
 
     public String getClientVersion() {
-        return clientVersionOffset == -1 ? null
-                : stringBuffer.substring(clientVersionOffset, clientVersionOffset + clientVersionLength);
+        return clientVersion;
     }
 
     public void setClientVersion(String clientVersion) {
-        if (clientVersion == null) {
-            this.clientVersionOffset = -1;
-            return;
-        }
-        this.clientVersionOffset = this.stringBuffer.length();
-        this.clientVersionLength = clientVersion.length();
-        this.stringBuffer.append(clientVersion);
+        this.clientVersion = clientVersion;
     }
 
     public String getReadPositionWhenJoining() {

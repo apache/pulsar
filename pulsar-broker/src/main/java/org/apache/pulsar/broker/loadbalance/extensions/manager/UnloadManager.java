@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 
 /**
  * Unload manager.
@@ -32,9 +36,11 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateD
 @Slf4j
 public class UnloadManager implements StateChangeListener {
 
+    private final UnloadCounter counter;
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
 
-    public UnloadManager() {
+    public UnloadManager(UnloadCounter counter) {
+        this.counter = counter;
         this.inFlightUnloadRequest = new ConcurrentHashMap<>();
     }
 
@@ -43,14 +49,8 @@ public class UnloadManager implements StateChangeListener {
             if (!future.isDone()) {
                 if (ex != null) {
                     future.completeExceptionally(ex);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Complete exceptionally unload bundle: {}", serviceUnit, ex);
-                    }
                 } else {
                     future.complete(null);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Complete unload bundle: {}", serviceUnit);
-                    }
                 }
             }
             return null;
@@ -59,6 +59,7 @@ public class UnloadManager implements StateChangeListener {
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
                                              String bundle,
+                                             UnloadDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
 
@@ -74,7 +75,15 @@ public class UnloadManager implements StateChangeListener {
                 }
             });
             return future;
-        }));
+        })).whenComplete((__, ex) -> {
+            if (ex != null) {
+                counter.update(Failure, Unknown);
+                log.warn("Failed to unload bundle: {}", bundle, ex);
+                return;
+            }
+            log.info("Complete unload bundle: {}", bundle);
+            counter.update(decision);
+        });
     }
 
     @Override

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
+import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,10 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
+import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
@@ -38,13 +42,15 @@ import org.roaringbitmap.RoaringBitmap;
 @AllArgsConstructor
 abstract class Bucket {
 
-    static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
     static final String DELIMITER = "_";
     static final int MaxRetryTimes = 3;
 
     protected final String dispatcherName;
 
     protected final ManagedCursor cursor;
+
+    protected final FutureUtil.Sequencer<Void> sequencer;
+
     protected final BucketSnapshotStorage bucketSnapshotStorage;
 
     long startLedgerId;
@@ -65,9 +71,10 @@ abstract class Bucket {
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
 
-    Bucket(String dispatcherName, ManagedCursor cursor,
+    Bucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        this(dispatcherName, cursor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
+        this(dispatcherName, cursor, sequencer, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0,
+                null, null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -126,11 +133,14 @@ abstract class Bucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
-            List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
+            ImmutableBucket bucket, SnapshotMetadata snapshotMetadata,
+            List<SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
+        final String cursorName = Codec.decode(cursor.getName());
+        final String topicName = dispatcherName.substring(0, dispatcherName.lastIndexOf(" / " + cursorName));
         return executeWithRetry(
-                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
+                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey,
+                                topicName, cursorName)
                         .whenComplete((__, ex) -> {
                             if (ex != null) {
                                 log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
@@ -149,12 +159,16 @@ abstract class Bucket {
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         Objects.requireNonNull(bucketId);
-        return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
-                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        return sequencer.sequential(() -> {
+            return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
+                    ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        });
     }
 
     protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
-        return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
-                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        return sequencer.sequential(() -> {
+            return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
+                    ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        });
     }
 }

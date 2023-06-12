@@ -107,7 +107,7 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * <p>Any exception thrown by this method will be ignored by the caller.
      *
      * @param consumer the consumer which contains the interceptor
-     * @param messageIds message to ack, null if acknowledge fail.
+     * @param messageIds the set of message ids to negatively ack
      */
     void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> messageIds);
 

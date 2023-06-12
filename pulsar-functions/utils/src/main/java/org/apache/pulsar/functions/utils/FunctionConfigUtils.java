@@ -24,6 +24,8 @@ import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.common.util.ClassLoaderUtils.loadJar;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromCompressionType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -271,6 +273,11 @@ public class FunctionConfigUtils {
             if (producerConf.getBatchBuilder() != null) {
                 pbldr.setBatchBuilder(producerConf.getBatchBuilder());
             }
+            if (producerConf.getCompressionType() != null) {
+                pbldr.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
+            } else {
+                pbldr.setCompressionType(Function.CompressionType.LZ4);
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -471,6 +478,7 @@ public class FunctionConfigUtils {
                 producerConfig.setBatchBuilder(spec.getBatchBuilder());
             }
             producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
             functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {

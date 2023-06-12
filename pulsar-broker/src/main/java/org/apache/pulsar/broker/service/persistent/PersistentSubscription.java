@@ -120,17 +120,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     // Map of properties that is used to mark this subscription as "replicated".
     // Since this is the only field at this point, we can just keep a static
     // instance of the map.
-    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = new TreeMap<>();
-    private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
+    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES =
+            Map.of(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+    private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Map.of();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
-
-    static {
-        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-    }
 
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
         return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
@@ -223,26 +220,18 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                 if (dispatcher == null || !dispatcher.isConsumerConnected()) {
                     Dispatcher previousDispatcher = null;
-                    boolean useStreamingDispatcher = topic.getBrokerService().getPulsar()
-                            .getConfiguration().isStreamingDispatch();
                     switch (consumer.subType()) {
                         case Exclusive:
                             if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
                                 previousDispatcher = dispatcher;
-                                dispatcher = useStreamingDispatcher
-                                        ? new PersistentStreamingDispatcherSingleActiveConsumer(
-                                        cursor, SubType.Exclusive, 0, topic, this)
-                                        : new PersistentDispatcherSingleActiveConsumer(
+                                dispatcher = new PersistentDispatcherSingleActiveConsumer(
                                         cursor, SubType.Exclusive, 0, topic, this);
                             }
                             break;
                         case Shared:
                             if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                                 previousDispatcher = dispatcher;
-                                dispatcher = useStreamingDispatcher
-                                        ? new PersistentStreamingDispatcherMultipleConsumers(
-                                        topic, cursor, this)
-                                        : new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                             }
                             break;
                         case Failover:
@@ -256,10 +245,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                             if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                                 previousDispatcher = dispatcher;
-                                dispatcher = useStreamingDispatcher
-                                        ? new PersistentStreamingDispatcherSingleActiveConsumer(
-                                        cursor, SubType.Failover, partitionIndex, topic, this) :
-                                        new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
+                                dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
                                                 partitionIndex, topic, this);
                             }
                             break;
@@ -293,12 +279,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     }
                 }
 
-                try {
-                    dispatcher.addConsumer(consumer);
-                    return CompletableFuture.completedFuture(null);
-                } catch (BrokerServiceException brokerServiceException) {
-                    return FutureUtil.failedFuture(brokerServiceException);
-                }
+                return dispatcher.addConsumer(consumer);
             }
         });
     }
@@ -649,9 +630,16 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
                 if (dispatcher != null) {
-                    dispatcher.clearDelayedMessages();
+                    dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            future.completeExceptionally(ex);
+                        } else {
+                            future.complete(null);
+                        }
+                    });
+                } else {
+                    future.complete(null);
                 }
-                future.complete(null);
             }
 
             @Override
@@ -1060,8 +1048,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
-        if ((getNumberOfEntriesInBacklog(false) == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
-                && getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        long backlog = getNumberOfEntriesInBacklog(false);
+        if (backlog == 0 || (dispatcher != null && dispatcher.isConsumerConnected()
+                && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return false;
@@ -1140,6 +1129,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
             subStats.delayedMessageIndexSizeInBytes =
                     ((PersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage();
+
+            subStats.bucketDelayedIndexStats =
+                    ((PersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
         }
 
         if (Subscription.isIndividualAckMode(subType)) {
