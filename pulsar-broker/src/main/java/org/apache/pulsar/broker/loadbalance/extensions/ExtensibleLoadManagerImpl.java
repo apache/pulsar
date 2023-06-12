@@ -38,8 +38,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -373,19 +373,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
                 owner = serviceUnitStateChannel.getChannelOwnerAsync();
             } else {
-                owner = getOwnerAsync(serviceUnit, bundle, false);
+                owner = getOwnerAsync(serviceUnit, bundle, false).thenApply(Optional::ofNullable);
             }
             return getBrokerLookupData(owner, bundle);
         });
     }
 
-    private CompletableFuture<Optional<String>> getOwnerAsync(
+    private CompletableFuture<String> getOwnerAsync(
             ServiceUnitId serviceUnit, String bundle, boolean ownByLocalBrokerIfAbsent) {
         return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
             // If the bundle not assign yet, select and publish assign event to channel.
             if (broker.isEmpty()) {
                 CompletableFuture<Optional<String>> selectedBroker;
-                if (ownByLocalBrokerIfAbsent){
+                if (ownByLocalBrokerIfAbsent) {
                     String brokerId = this.brokerRegistry.getBrokerId();
                     selectedBroker = CompletableFuture.completedFuture(Optional.of(brokerId));
                 } else {
@@ -395,17 +395,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
-                        return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get())
-                                .thenApply(Optional::of);
-                    } else {
-                        throw new IllegalStateException(
-                                "Failed to select the new owner broker for bundle: " + bundle);
+                        return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get());
                     }
+                    throw new IllegalStateException(
+                            "Failed to select the new owner broker for bundle: " + bundle);
                 });
             }
             assignCounter.incrementSkip();
             // Already assigned, return it.
-            return CompletableFuture.completedFuture(broker);
+            return CompletableFuture.completedFuture(broker.get());
         });
     }
 
@@ -442,9 +440,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
         final String bundle = namespaceBundle.toString();
         return dedupeLookupRequest(bundle, k -> {
-            final CompletableFuture<Optional<String>> owner =
+            final CompletableFuture<String> owner =
                     this.getOwnerAsync(namespaceBundle, bundle, true);
-            return getBrokerLookupData(owner, bundle);
+            return getBrokerLookupData(owner.thenApply(Optional::ofNullable), bundle);
         }).thenApply(brokerLookupData -> {
             if (brokerLookupData.isEmpty()) {
                 throw new IllegalStateException(
