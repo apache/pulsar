@@ -164,11 +164,10 @@ public abstract class AbstractReplicator {
     }
 
     protected void checkTopicActiveAndRetryStartProducer() {
-        isLocalTopicActive().thenApply(isTopicActive -> {
+        isLocalTopicActive().thenAccept(isTopicActive -> {
             if (isTopicActive) {
                 startProducer();
             }
-            return null;
         }).exceptionally(ex -> {
             log.warn("[{}] Stop retry to create producer due to topic load fail. Replicator state: {}", replicatorId,
                     STATE_UPDATER.get(this), ex);
