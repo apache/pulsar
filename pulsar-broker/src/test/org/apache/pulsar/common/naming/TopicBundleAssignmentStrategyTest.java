@@ -26,8 +26,6 @@ import com.google.common.collect.Range;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

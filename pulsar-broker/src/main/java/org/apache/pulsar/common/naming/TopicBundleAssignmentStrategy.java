@@ -19,9 +19,6 @@
 package org.apache.pulsar.common.naming;
 
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 
 public interface TopicBundleAssignmentStrategy {
     NamespaceBundle findBundle(TopicName topicName,  NamespaceBundles namespaceBundles);
