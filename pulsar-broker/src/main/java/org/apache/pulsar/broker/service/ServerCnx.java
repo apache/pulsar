@@ -1243,20 +1243,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 return topic.subscribe(option);
                             }
                         })
-                        .thenAccept(consumer -> {
-                            if (consumerFuture.complete(consumer)) {
-                                log.info("[{}] Created subscription on topic {} / {}",
-                                        remoteAddress, topicName, subscriptionName);
-                                commandSender.sendSuccessResponse(requestId);
-                                if (brokerInterceptor != null) {
-                                    try {
-                                        brokerInterceptor.consumerCreated(this, consumer, metadata);
-                                    } catch (Throwable t) {
-                                        log.error("Exception occur when intercept consumer created.", t);
-                                    }
-                                }
-                            } else {
-                                // The consumer future was completed before by a close command
+                        .thenAcceptAsync(consumer -> {
+                            if (consumerFuture.complete(consumer) || !isActive()) {
+                                // Two cases:
+                                // 1. The consumer future was completed before by a close command.
+                                // 2. The consumer future was completed after the ServerCnx closed.
                                 try {
                                     consumer.close();
                                     log.info("[{}] Cleared consumer created after timeout on client side {}",
@@ -1268,9 +1259,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             remoteAddress, consumer, e.getMessage());
                                 }
                                 consumers.remove(consumerId, consumerFuture);
+                            } else {
+                                log.info("[{}] Created subscription on topic {} / {}",
+                                        remoteAddress, topicName, subscriptionName);
+                                commandSender.sendSuccessResponse(requestId);
+                                if (brokerInterceptor != null) {
+                                    try {
+                                        brokerInterceptor.consumerCreated(this, consumer, metadata);
+                                    } catch (Throwable t) {
+                                        log.error("Exception occur when intercept consumer created.", t);
+                                    }
+                                }
                             }
 
-                        })
+                        }, ctx().channel().eventLoop())
                         .exceptionally(exception -> {
                             if (exception.getCause() instanceof ConsumerBusyException) {
                                 if (log.isDebugEnabled()) {
