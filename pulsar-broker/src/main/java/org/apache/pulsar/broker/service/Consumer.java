@@ -366,7 +366,8 @@ public class Consumer {
                                 + " {}) will be redelivered after the heartbeat check fails. If the next heartbeat"
                                 + " check is successful, these messages will be stuck until the client reconnect"
                                 + " or the topic is reloaded. Consumer: {}",
-                        topicName, subscription, totalMessages, consumerId, this.toString(), status.cause());
+                        topicName, subscription, status.cause() == null ? "" : status.cause().getMessage(),
+                        totalMessages, this.toString(), status.cause());
             }
         });
         return writeAndFlushPromise;
