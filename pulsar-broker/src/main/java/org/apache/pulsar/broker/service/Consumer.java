@@ -364,7 +364,7 @@ public class Consumer {
             } else {
                 log.warn("[{}-{}] Sent messages to client failed by IO exception[{}], these messages(messages count:"
                                 + " {}) will be redelivered after the heartbeat check fails. If the next heartbeat"
-                                + " check is successful, these messages will not be stuck until the client reconnect"
+                                + " check is successful, these messages will be stuck until the client reconnect"
                                 + " or the topic is reloaded. Consumer: {}",
                         topicName, subscription, totalMessages, consumerId, this.toString(), status.cause());
             }
