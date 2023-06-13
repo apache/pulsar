@@ -25,8 +25,12 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.channel.DefaultEventLoop;
+import io.netty.util.internal.DefaultPriorityQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -48,7 +52,7 @@ public class AbstractReplicatorTest {
     public void testRetryStartProducerStoppedByTopicRemove() throws Exception {
         final String localCluster = "localCluster";
         final String remoteCluster = "remoteCluster";
-        final String remoteTopicName = "remoteTopicName";
+        final String topicName = "remoteTopicName";
         final String replicatorPrefix = "pulsar.repl";
         final DefaultEventLoop eventLoopGroup = new DefaultEventLoop();
         // Mock services.
@@ -65,6 +69,7 @@ public class AbstractReplicatorTest {
         when(pulsar.getClient()).thenReturn(localClient);
         when(pulsar.getConfiguration()).thenReturn(pulsarConfig);
         when(pulsarConfig.getReplicationProducerQueueSize()).thenReturn(100);
+        when(localTopic.getName()).thenReturn(topicName);
         when(producerBuilder.topic(any())).thenReturn(producerBuilder);
         when(producerBuilder.messageRoutingMode(any())).thenReturn(producerBuilder);
         when(producerBuilder.enableBatching(anyBoolean())).thenReturn(producerBuilder);
@@ -76,15 +81,26 @@ public class AbstractReplicatorTest {
         when(producerBuilder.createAsync())
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("mocked ex")));
         // Make race condition: "retry start producer" and "close replicator".
-        ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, remoteTopicName,
+        final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
                 replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
         replicator.disconnect();
 
         // Verify task will done.
-        Awaitility.await().untilAsserted(() -> {
-            LinkedBlockingQueue taskQueue = WhiteboxImpl.getInternalState(eventLoopGroup, "taskQueue");
-            Assert.assertEquals(taskQueue.size(), 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            AtomicInteger taskCounter = new AtomicInteger();
+            CountDownLatch checkTaskFinished = new CountDownLatch(1);
+            eventLoopGroup.execute(() -> {
+                synchronized (replicator) {
+                    LinkedBlockingQueue taskQueue = WhiteboxImpl.getInternalState(eventLoopGroup, "taskQueue");
+                    DefaultPriorityQueue scheduledTaskQueue =
+                            WhiteboxImpl.getInternalState(eventLoopGroup, "scheduledTaskQueue");
+                    taskCounter.set(taskQueue.size() + scheduledTaskQueue.size());
+                    checkTaskFinished.countDown();
+                }
+            });
+            checkTaskFinished.await();
+            Assert.assertEquals(taskCounter.get(), 0);
         });
     }
 
