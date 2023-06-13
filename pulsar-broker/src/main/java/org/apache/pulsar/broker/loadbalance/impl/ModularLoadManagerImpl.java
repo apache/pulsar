@@ -1216,8 +1216,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     public void scanAndCleanupNonExistBundleData() {
         Map<String, BundleData> loadManagerBundleData = this.loadData.getBundleData();
 
-        Set<String> allBundles = ConcurrentHashMap.newKeySet(loadManagerBundleData.size());
-        allBundles.addAll(this.loadData.getBundleData().keySet());
+        Set<String> allBundles = loadManagerBundleData.keySet();
 
         // namespace -> bundles
         Map<String, Set<NamespaceBundle>> namespaceLocalBundleData = new HashMap<>();
@@ -1234,6 +1233,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         // check each namespace if bundle is valid in the cluster.
         for (Map.Entry<String, Set<NamespaceBundle>> namespaceEntry : namespaceLocalBundleData.entrySet()) {
             if (!isLeader()) {
+                log.warn("leader changed while check non exist bundle data in metadata store,"
+                        + " skip check other bundle.");
                 return;
             }
 
@@ -1251,12 +1252,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 continue;
             }
 
+            // trigger cleanup if the namespace not exist but loadManager has bundle-data.
+            // this may happen when delete namespace the broker dead.
             if (nsPolicies.isEmpty()) {
                 loadManagerKnownBundles.forEach((bundle) -> {
                     String bundleString = bundle.toString();
                     loadManagerBundleData.remove(bundleString);
                     if (isLeader()) {
-                        log.info("namespace [{}] is not exist in cluster, "
+                        log.info("namespace [{}] policy is not exist in cluster, "
                                 + "remove load-balance bundle-data {} from metadata store.", namespace, bundleString);
                         deleteBundleDataFromMetadataStore(bundleString);
                     }
@@ -1283,6 +1286,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
 
             if (namespaceBundles == null) {
+                log.warn("namespace {} policy exist but namespace bundles are empty, "
+                        + "skip check non exist bundle data", namespace);
                 continue;
             }
 
