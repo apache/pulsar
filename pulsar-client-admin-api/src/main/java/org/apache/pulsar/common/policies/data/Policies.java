@@ -126,6 +126,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
 
+    public boolean isMigrated;
+
     public enum BundleType {
         LARGEST, HOT;
     }
