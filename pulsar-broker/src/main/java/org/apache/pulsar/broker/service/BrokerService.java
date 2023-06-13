@@ -1039,8 +1039,10 @@ public class BrokerService implements Closeable {
                 }
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
+            AtomicBoolean topicFutureCreatedByCurrentRequest = new AtomicBoolean();
             if (isPersistentTopic) {
                 topicFuture = topics.computeIfAbsent(topicName.toString(), (tpName) -> {
+                    topicFutureCreatedByCurrentRequest.set(true);
                     if (topicName.isPartitioned()) {
                         return fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
                                 .thenCompose((metadata) -> {
@@ -1056,6 +1058,7 @@ public class BrokerService implements Closeable {
                 });
             } else {
                 topicFuture = topics.computeIfAbsent(topicName.toString(), (name) -> {
+                    topicFutureCreatedByCurrentRequest.set(true);
                     topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
@@ -1091,12 +1094,14 @@ public class BrokerService implements Closeable {
                     }
                 });
             }
-            final CompletableFuture<Optional<Topic>> topicFutureToRemove = topicFuture;
-            topicFuture.whenComplete((ignore, ex) -> {
-                if (ex != null) {
-                    topics.remove(topicName.toString(), topicFutureToRemove);
-                }
-            });
+            if (topicFutureCreatedByCurrentRequest.get()) {
+                final CompletableFuture<Optional<Topic>> topicFutureToRemove = topicFuture;
+                topicFutureToRemove.whenComplete((tpOptional, ex) -> {
+                    if (ex != null || !tpOptional.isPresent()) {
+                        topics.remove(topicName.toString(), topicFutureToRemove);
+                    }
+                });
+            }
             return topicFuture;
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
