@@ -200,9 +200,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
+        log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
         if (consumerSet.removeAll(consumer) == 1) {
             consumerList.remove(consumer);
-            log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 cancelPendingRead();
 
