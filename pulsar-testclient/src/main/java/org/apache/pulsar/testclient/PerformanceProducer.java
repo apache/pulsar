@@ -547,6 +547,7 @@ public class PerformanceProducer {
 
             oldTime = now;
         }
+        PerfClientUtils.exit(0);
     }
 
     static IMessageFormatter getMessageFormatter(String formatterClass) {
@@ -568,6 +569,7 @@ public class PerformanceProducer {
                                     Random random,
                                     CountDownLatch doneLatch) {
         PulsarClient client = null;
+        boolean produceEnough = false;
         try {
             // Now processing command line arguments
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
@@ -683,6 +685,9 @@ public class PerformanceProducer {
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
+                if (produceEnough) {
+                    break;
+                }
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
@@ -690,7 +695,8 @@ public class PerformanceProducer {
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
+                            produceEnough = true;
+                            break;
                         }
                     }
 
@@ -700,7 +706,8 @@ public class PerformanceProducer {
                                     , numMessages);
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
+                            produceEnough = true;
+                            break;
                         }
                     }
                     rateLimiter.acquire();
@@ -825,10 +832,12 @@ public class PerformanceProducer {
         } catch (Throwable t) {
             log.error("Got error", t);
         } finally {
+            if (!produceEnough) {
+                doneLatch.countDown();
+            }
             if (null != client) {
                 try {
                     client.close();
-                    PerfClientUtils.exit(-1);
                 } catch (PulsarClientException e) {
                     log.error("Failed to close test client", e);
                 }
