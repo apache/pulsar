@@ -263,7 +263,6 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.2.0</awaitility.version>
-    <reload4j.version>1.2.22</reload4j.version>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
@@ -1370,12 +1369,6 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>com.typesafe.netty</groupId>
           <artifactId>netty-reactive-streams</artifactId>
           <version>${netty-reactive-streams.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>ch.qos.reload4j</groupId>
-        <artifactId>reload4j</artifactId>
-        <version>${reload4j.version}</version>
       </dependency>
 
       <dependency>
