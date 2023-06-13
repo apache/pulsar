@@ -875,7 +875,8 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sourceConfig,
-                    null, null, null);
+                    null,
+                    null);
             fail("Update without changes should fail");
         } catch (RestException e) {
             assertTrue(e.getMessage().contains("Update contains no change"));
@@ -892,7 +893,8 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sourceConfig,
-                    null, null, updateOptions);
+                    null,
+                    updateOptions);
             fail("Update without changes should fail");
         } catch (RestException e) {
             assertTrue(e.getMessage().contains("Update contains no change"));
@@ -909,7 +911,8 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 sourceConfig,
-                null, null, updateOptions);
+                null,
+                updateOptions);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a "

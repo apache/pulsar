@@ -656,7 +656,8 @@ public class FunctionApiV3ResourceTest {
                     mockedFormData,
                     null,
                     funcConfig,
-                    null, null, null);
+                    null,
+                    null);
             fail("Update without changes should fail");
         } catch (RestException e) {
             assertTrue(e.getMessage().contains("Update contains no change"));
@@ -673,7 +674,8 @@ public class FunctionApiV3ResourceTest {
                     mockedFormData,
                     null,
                     funcConfig,
-                    null, null, updateOptions);
+                    null,
+                    updateOptions);
             fail("Update without changes should fail");
         } catch (RestException e) {
             assertTrue(e.getMessage().contains("Update contains no change"));
@@ -690,7 +692,8 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 funcConfig,
-                null, null, updateOptions);
+                null,
+                updateOptions);
     }
 
 

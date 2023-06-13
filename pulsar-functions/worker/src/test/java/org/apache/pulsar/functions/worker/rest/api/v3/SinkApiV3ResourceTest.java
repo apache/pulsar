@@ -18,23 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATLEAST_ONCE;
-import static org.apache.pulsar.functions.source.TopicSchema.DEFAULT_SERDE;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileInputStream;
@@ -100,6 +83,23 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATLEAST_ONCE;
+import static org.apache.pulsar.functions.source.TopicSchema.DEFAULT_SERDE;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link SinksApiV3Resource}.
@@ -1884,7 +1884,8 @@ public class SinkApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sinkConfig,
-                    null, null, null);
+                    null,
+                    null);
             fail("Update without changes should fail");
         } catch (RestException e) {
             assertTrue(e.getMessage().contains("Update contains no change"));
@@ -1901,7 +1902,8 @@ public class SinkApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sinkConfig,
-                    null, null, updateOptions);
+                    null,
+                    updateOptions);
             fail("Update without changes should fail");
         } catch (RestException e) {
             assertTrue(e.getMessage().contains("Update contains no change"));
@@ -1918,6 +1920,7 @@ public class SinkApiV3ResourceTest {
                 mockedFormData,
                 null,
                 sinkConfig,
-                null, null, updateOptions);
+                null,
+                updateOptions);
     }
 }
