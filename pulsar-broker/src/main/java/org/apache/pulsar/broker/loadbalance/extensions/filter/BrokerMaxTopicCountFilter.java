@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
 import java.util.Optional;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -34,11 +33,6 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
     @Override
     public String name() {
         return FILTER_NAME;
-    }
-
-    @Override
-    public void initialize(PulsarService pulsar) {
-        // No-op
     }
 
     @Override

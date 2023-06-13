@@ -204,11 +204,10 @@ public class PulsarStats implements Closeable {
                 }
             });
             if (clusterReplicationMetrics.isMetricsEnabled()) {
-                clusterReplicationMetrics.get().forEach(clusterMetric -> tempMetricsCollection.add(clusterMetric));
+                tempMetricsCollection.addAll(clusterReplicationMetrics.get());
                 clusterReplicationMetrics.reset();
             }
-            brokerOperabilityMetrics.getMetrics()
-                    .forEach(brokerOperabilityMetric -> tempMetricsCollection.add(brokerOperabilityMetric));
+            tempMetricsCollection.addAll(brokerOperabilityMetrics.getMetrics());
 
             // json end
             topicStatsStream.endObject();
@@ -233,7 +232,7 @@ public class PulsarStats implements Closeable {
         updatedAt = System.currentTimeMillis();
     }
 
-    public NamespaceBundleStats invalidBundleStats(String bundleName) {
+    public synchronized NamespaceBundleStats invalidBundleStats(String bundleName) {
         return bundleStats.remove(bundleName);
     }
 
@@ -254,7 +253,7 @@ public class PulsarStats implements Closeable {
         return brokerOperabilityMetrics;
     }
 
-    public Map<String, NamespaceBundleStats> getBundleStats() {
+    public synchronized Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
 
@@ -264,6 +263,10 @@ public class PulsarStats implements Closeable {
         } catch (Exception ex) {
             log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
         }
+    }
+
+    public void recordTopicLoadFailed() {
+        brokerOperabilityMetrics.recordTopicLoadFailed();
     }
 
     public void recordConnectionCreate() {

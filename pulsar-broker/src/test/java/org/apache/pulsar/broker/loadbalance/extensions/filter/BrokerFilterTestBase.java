@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -105,6 +106,10 @@ public class BrokerFilterTestBase {
     }
 
     public BrokerLookupData getLookupData(String version) {
+        return getLookupData(version, ExtensibleLoadManagerImpl.class.getName());
+    }
+
+    public BrokerLookupData getLookupData(String version, String loadManagerClassName) {
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
@@ -115,6 +120,7 @@ public class BrokerFilterTestBase {
         }};
         return new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true, version);
+                pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
+                loadManagerClassName, -1, version);
     }
 }

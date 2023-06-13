@@ -43,6 +43,7 @@ import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -205,7 +206,7 @@ public class DirectProxyHandler {
                 int brokerProxyReadTimeoutMs = service.getConfiguration().getBrokerProxyReadTimeoutMs();
                 if (brokerProxyReadTimeoutMs > 0) {
                     ch.pipeline().addLast("readTimeoutHandler",
-                            new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+                            new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                         service.getConfiguration().getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0,
@@ -326,7 +327,7 @@ public class DirectProxyHandler {
             ByteBuf command = Commands.newConnect(
                     authentication.getAuthMethodName(), authData, protocolVersion,
                     proxyConnection.clientVersion, null /* target broker */,
-                    originalPrincipal, clientAuthData, clientAuthMethod);
+                    originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion());
             writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }
@@ -362,6 +363,9 @@ public class DirectProxyHandler {
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
+                        if (ctx.pipeline().get("readTimeoutHandler") != null) {
+                            ctx.pipeline().remove("readTimeoutHandler");
+                        }
                         ProxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                         (EpollSocketChannel) inboundChannel, ProxyConnection.SPLICE_BYTES)
                                 .addListener(future -> {

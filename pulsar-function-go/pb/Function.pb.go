@@ -579,7 +579,6 @@ type FunctionDetails struct {
 	Runtime              FunctionDetails_Runtime `protobuf:"varint,8,opt,name=runtime,proto3,enum=proto.FunctionDetails_Runtime" json:"runtime,omitempty"`
 	// Deprecated since, see https://github.com/apache/pulsar/issues/15560
 	//
-	// Deprecated: Do not use.
 	AutoAck              bool                          `protobuf:"varint,9,opt,name=autoAck,proto3" json:"autoAck,omitempty"`
 	Parallelism          int32                         `protobuf:"varint,10,opt,name=parallelism,proto3" json:"parallelism,omitempty"`
 	Source               *SourceSpec                   `protobuf:"bytes,11,opt,name=source,proto3" json:"source,omitempty"`

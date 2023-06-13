@@ -178,11 +178,6 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 && !hasMessageAvailable();
     }
 
-    @Override
-    public boolean containsMessage(long ledgerId, long entryId) {
-        return false;
-    }
-
     protected long nextDeliveryTime() {
         return priorityQueue.peekN1();
     }

@@ -22,7 +22,6 @@ import com.github.zafarkhaja.semver.Version;
 import java.util.Iterator;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
@@ -147,10 +146,5 @@ public class BrokerVersionFilter implements BrokerFilter {
     @Override
     public String name() {
         return FILTER_NAME;
-    }
-
-    @Override
-    public void initialize(PulsarService pulsar) {
-        // No-op
     }
 }

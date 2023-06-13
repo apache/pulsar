@@ -97,4 +97,3 @@ test-reports/
 
 # Gradle Enterprise
 .mvn/.gradle-enterprise/
-.mvn/extensions.xml

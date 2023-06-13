@@ -162,7 +162,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         }
     }
 
-    private String offsetTopicName = "persistent://my-property/my-ns/kafka-connect-sink-offset";
+    final private String offsetTopicName = "persistent://my-property/my-ns/kafka-connect-sink-offset";
 
     private Path file;
     private Map<String, Object> props;
@@ -797,7 +797,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema);
+                .getKafkaConnectSchema(schema, true);
+
+        Assert.assertFalse(kafkaSchema.isOptional());
 
         java.util.Date date = getDateFromString("12/30/1999 11:12:13");
         Object connectData = KafkaConnectData
@@ -815,7 +817,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema);
+                .getKafkaConnectSchema(schema, true);
+
+        Assert.assertFalse(kafkaSchema.isOptional());
 
         java.util.Date date = getDateFromString("01/01/1970 11:12:13");
         Object connectData = KafkaConnectData
@@ -833,7 +837,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema);
+                .getKafkaConnectSchema(schema, true);
+
+        Assert.assertFalse(kafkaSchema.isOptional());
 
         java.util.Date date = getDateFromString("12/31/2022 00:00:00");
         Object connectData = KafkaConnectData
@@ -854,7 +860,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(schema);
+                .getKafkaConnectSchema(schema, true);
+
+        Assert.assertFalse(kafkaSchema.isOptional());
 
         Object connectData = KafkaConnectData
                 .getKafkaConnectData(Decimal.fromLogical(kafkaSchema, BigDecimal.valueOf(100L, 10)), kafkaSchema);
@@ -874,11 +882,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
                 getGenericRecord(value, pulsarAvroSchema));
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema));
+                .getKafkaConnectSchema(Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema), false);
 
-        Object connectData = KafkaConnectData.getKafkaConnectData(kv, kafkaSchema);
-
-        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+        Assert.assertTrue(kafkaSchema.isOptional());
+        Assert.assertTrue(kafkaSchema.keySchema().isOptional());
+        Assert.assertTrue(kafkaSchema.valueSchema().isOptional());
     }
 
     @Test
@@ -990,13 +998,26 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         Object value = pojoAsAvroRecord(pojo, pulsarAvroSchema);
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
-                .getKafkaConnectSchema(pulsarAvroSchema);
+                .getKafkaConnectSchema(pulsarAvroSchema, false);
+        Assert.assertFalse(kafkaSchema.isOptional());
 
         Object connectData = KafkaConnectData.getKafkaConnectData(value, kafkaSchema);
 
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
 
         Object jsonNode = pojoAsJsonNode(pojo);
+        connectData = KafkaConnectData.getKafkaConnectData(jsonNode, kafkaSchema);
+        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+
+        kafkaSchema = PulsarSchemaToKafkaSchema
+                .getKafkaConnectSchema(pulsarAvroSchema, true);
+        Assert.assertFalse(kafkaSchema.isOptional());
+
+        connectData = KafkaConnectData.getKafkaConnectData(value, kafkaSchema);
+
+        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+
+        jsonNode = pojoAsJsonNode(pojo);
         connectData = KafkaConnectData.getKafkaConnectData(jsonNode, kafkaSchema);
         org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
     }
@@ -1551,7 +1572,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertNull(ref);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
-                        new TopicMessageIdImpl("topic-0", "topic", new MessageIdImpl(ledgerId, entryId, 0))
+                        new TopicMessageIdImpl("topic-0", new MessageIdImpl(ledgerId, entryId, 0))
         );
         assertNull(ref);
 
@@ -1563,12 +1584,100 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(ref.getBatchIdx(), batchIdx);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
-                new TopicMessageIdImpl("topic-0", "topic", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
+                new TopicMessageIdImpl("topic-0", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
         );
 
         assertEquals(ref.getLedgerId(), ledgerId);
         assertEquals(ref.getEntryId(), entryId);
         assertEquals(ref.getBatchIdx(), batchIdx);
+    }
+
+    @Test
+    public void collapsePartitionedTopicEnabledTest() throws Exception {
+        testCollapsePartitionedTopic(true,
+                "persistent://a/b/fake-topic-partition-0",
+                "persistent://a/b/fake-topic",
+                0);
+
+        testCollapsePartitionedTopic(true,
+                "persistent://a/b/fake-topic-partition-1",
+                "persistent://a/b/fake-topic",
+                1);
+
+        testCollapsePartitionedTopic(true,
+                "persistent://a/b/fake-topic",
+                "persistent://a/b/fake-topic",
+                0);
+
+        testCollapsePartitionedTopic(true,
+                "fake-topic-partition-5",
+                "persistent://public/default/fake-topic",
+                5);
+    }
+
+    @Test
+    public void collapsePartitionedTopicDisabledTest() throws Exception {
+        testCollapsePartitionedTopic(false,
+                "persistent://a/b/fake-topic-partition-0",
+                "persistent://a/b/fake-topic-partition-0",
+                0);
+
+        testCollapsePartitionedTopic(false,
+                "persistent://a/b/fake-topic-partition-1",
+                "persistent://a/b/fake-topic-partition-1",
+                0);
+
+        testCollapsePartitionedTopic(false,
+                "persistent://a/b/fake-topic",
+                "persistent://a/b/fake-topic",
+                0);
+
+        testCollapsePartitionedTopic(false,
+                "fake-topic-partition-5",
+                "fake-topic-partition-5",
+                0);
+    }
+
+    private void testCollapsePartitionedTopic(boolean isEnabled,
+                                              String pulsarTopic,
+                                              String expectedKafkaTopic,
+                                              int expectedPartition) throws Exception {
+        props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
+        props.put("collapsePartitionedTopics", Boolean.toString(isEnabled));
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+            sink.open(props, context);
+
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
+                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+
+        final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
+        obj.put("field1", (byte) 10);
+        obj.put("field2", "test");
+        obj.put("field3", (short) 100);
+
+        final GenericRecord rec = getGenericRecord(obj, pulsarAvroSchema);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        when(msg.getKey()).thenReturn("key");
+        when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName(pulsarTopic)
+                .message(msg)
+                .schema(pulsarAvroSchema)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .build();
+
+        SinkRecord sinkRecord = sink.toSinkRecord(record);
+
+        Assert.assertEquals(sinkRecord.topic(), expectedKafkaTopic);
+        Assert.assertEquals(sinkRecord.kafkaPartition(), expectedPartition);
+
+        sink.close();
     }
 
     @SneakyThrows

@@ -45,9 +45,24 @@ public record ServiceUnitStateData(
                 System.currentTimeMillis(), versionId);
     }
 
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker,
+                                Map<String, Optional<String>> splitServiceUnitToDestBroker, boolean force,
+                                long versionId) {
+        this(state, dstBroker, sourceBroker, splitServiceUnitToDestBroker, force,
+                System.currentTimeMillis(), versionId);
+    }
+
     public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker, long versionId) {
         this(state, dstBroker, sourceBroker, null, false, System.currentTimeMillis(), versionId);
     }
+
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker, boolean force,
+                                long versionId) {
+        this(state, dstBroker, sourceBroker, null, force,
+                System.currentTimeMillis(), versionId);
+    }
+
+
 
     public ServiceUnitStateData(ServiceUnitState state, String dstBroker, long versionId) {
         this(state, dstBroker, null, null, false, System.currentTimeMillis(), versionId);

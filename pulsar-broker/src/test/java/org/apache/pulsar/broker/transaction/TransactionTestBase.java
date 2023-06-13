@@ -114,10 +114,10 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         createTransactionCoordinatorAssign(numPartitionsOfTC);
+        admin.tenants().createTenant(TENANT,
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace(NAMESPACE1);
         if (topic != null) {
-            admin.tenants().createTenant(TENANT,
-                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-            admin.namespaces().createNamespace(NAMESPACE1);
             if (numPartitions == 0) {
                 admin.topics().createNonPartitionedTopic(topic);
             } else {

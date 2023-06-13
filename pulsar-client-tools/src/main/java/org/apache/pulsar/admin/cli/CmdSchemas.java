@@ -42,6 +42,7 @@ public class CmdSchemas extends CmdBase {
         jcommander.addCommand("delete", new DeleteSchema());
         jcommander.addCommand("upload", new UploadSchema());
         jcommander.addCommand("extract", new ExtractSchema());
+        jcommander.addCommand("compatibility", new TestCompatibility());
     }
 
     @Parameters(commandDescription = "Get the schema for a topic")
@@ -161,6 +162,22 @@ public class CmdSchemas extends CmdBase {
             } else {
                 getAdmin().schemas().createSchema(topic, input);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Test schema compatibility")
+    private class TestCompatibility extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-f", "--filename" }, description = "filename", required = true)
+        private String schemaFileName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
+            getAdmin().schemas().testCompatibility(topic, input);
         }
     }
 
