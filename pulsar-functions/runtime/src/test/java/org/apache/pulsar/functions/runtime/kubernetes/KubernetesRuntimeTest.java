@@ -35,9 +35,21 @@ import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1Toleration;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.net.HttpURLConnection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import okhttp3.Call;
+import okhttp3.Response;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.JavaVersion;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -53,29 +65,15 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.mockito.ArgumentMatcher;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Type;
-import java.math.BigDecimal;
-import java.net.HttpURLConnection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import okhttp3.Call;
-import okhttp3.Response;
-
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
-import org.mockito.ArgumentMatcher;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -84,9 +82,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -1311,9 +1309,8 @@ public class KubernetesRuntimeTest {
     @Test
     public void testDeleteStatefulSetWithTranslatedKubernetesLabelChars() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
-        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
-            return fb.setTenant("c:tenant").setNamespace("c:ns").setName("c:fn");
-        }));
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false,
+                (fb) -> fb.setTenant("c:tenant").setNamespace("c:ns").setName("c:fn")));
 
         CoreV1Api coreApi = mock(CoreV1Api.class);
         AppsV1Api appsApi = mock(AppsV1Api.class);
@@ -1331,9 +1328,7 @@ public class KubernetesRuntimeTest {
         factory.setCoreClient(coreApi);
         factory.setAppsClient(appsApi);
 
-        ArgumentMatcher<String> hasTranslatedFunctionName = (String t) -> {
-            return t.startsWith(expectedFunctionNamePrefix);
-        };
+        ArgumentMatcher<String> hasTranslatedFunctionName = (String t) -> t.startsWith(expectedFunctionNamePrefix);
         
         when(appsApi.deleteNamespacedStatefulSetCall(
                 argThat(hasTranslatedFunctionName),
@@ -1341,8 +1336,8 @@ public class KubernetesRuntimeTest {
 
         ApiException notFoundException = mock(ApiException.class);
         when(notFoundException.getCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
-        when(appsApi.readNamespacedStatefulSet(argThat(hasTranslatedFunctionName), anyString(),
-                isNull(), isNull(), isNull())).thenThrow(notFoundException);
+        when(appsApi.readNamespacedStatefulSet(
+                argThat(hasTranslatedFunctionName), anyString(), anyString())).thenThrow(notFoundException);
 
         V1PodList podList = mock(V1PodList.class);
         when(podList.getItems()).thenReturn(Collections.emptyList());
