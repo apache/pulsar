@@ -1337,7 +1337,7 @@ public class KubernetesRuntimeTest {
         ApiException notFoundException = mock(ApiException.class);
         when(notFoundException.getCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
         when(appsApi.readNamespacedStatefulSet(
-                argThat(hasTranslatedFunctionName), anyString(), anyString())).thenThrow(notFoundException);
+                argThat(hasTranslatedFunctionName), anyString(), isNull())).thenThrow(notFoundException);
 
         V1PodList podList = mock(V1PodList.class);
         when(podList.getItems()).thenReturn(Collections.emptyList());
