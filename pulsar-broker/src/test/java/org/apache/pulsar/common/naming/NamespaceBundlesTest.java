@@ -92,11 +92,11 @@ public class NamespaceBundlesTest {
     @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
+        NamespaceService namespaceService =  mock(NamespaceService.class);
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
-        when(pulsar.getNamespaceService()).thenReturn(new NamespaceService(pulsar));
 
         PulsarResources resources = mock(PulsarResources.class);
         when(pulsar.getPulsarResources()).thenReturn(resources);
@@ -107,7 +107,10 @@ public class NamespaceBundlesTest {
         when(resources.getNamespaceResources()).thenReturn(mock(NamespaceResources.class));
         when(resources.getNamespaceResources().getPoliciesAsync(any())).thenReturn(
                 CompletableFuture.completedFuture(Optional.empty()));
-        return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
+        NamespaceBundleFactory factory1 = NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
+        when(namespaceService.getNamespaceBundleFactory()).thenReturn(factory1);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        return factory1;
     }
 
     @Test
