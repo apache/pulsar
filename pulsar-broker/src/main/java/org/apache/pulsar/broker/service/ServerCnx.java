@@ -1244,7 +1244,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
                         })
                         .thenAcceptAsync(consumer -> {
-                            if (consumerFuture.complete(consumer) || !isActive()) {
+                            if (!consumerFuture.complete(consumer) || !isActive()) {
                                 // Two cases:
                                 // 1. The consumer future was completed before by a close command.
                                 // 2. The consumer future was completed after the ServerCnx closed.
