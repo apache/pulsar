@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -95,6 +96,7 @@ public class NamespaceBundlesTest {
         when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
+        when(pulsar.getNamespaceService()).thenReturn(new NamespaceService(pulsar));
 
         PulsarResources resources = mock(PulsarResources.class);
         when(pulsar.getPulsarResources()).thenReturn(resources);
