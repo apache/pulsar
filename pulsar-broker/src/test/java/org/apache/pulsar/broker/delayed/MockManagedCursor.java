@@ -46,7 +46,7 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public String getName() {
-        return null;
+        return this.name;
     }
 
     @Override

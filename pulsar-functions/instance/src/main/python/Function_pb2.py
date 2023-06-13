@@ -39,7 +39,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'\n!org.apache.pulsar.functions.protoB\010Function',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0e\x46unction.proto\x12\x05proto\"3\n\tResources\x12\x0b\n\x03\x63pu\x18\x01 \x01(\x01\x12\x0b\n\x03ram\x18\x02 \x01(\x03\x12\x0c\n\x04\x64isk\x18\x03 \x01(\x03\"B\n\x0cRetryDetails\x12\x19\n\x11maxMessageRetries\x18\x01 \x01(\x05\x12\x17\n\x0f\x64\x65\x61\x64LetterTopic\x18\x02 \x01(\t\"\xa6\x06\n\x0f\x46unctionDetails\x12\x0e\n\x06tenant\x18\x01 \x01(\t\x12\x11\n\tnamespace\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x11\n\tclassName\x18\x04 \x01(\t\x12\x10\n\x08logTopic\x18\x05 \x01(\t\x12\x39\n\x14processingGuarantees\x18\x06 \x01(\x0e\x32\x1b.proto.ProcessingGuarantees\x12\x12\n\nuserConfig\x18\x07 \x01(\t\x12\x12\n\nsecretsMap\x18\x10 \x01(\t\x12/\n\x07runtime\x18\x08 \x01(\x0e\x32\x1e.proto.FunctionDetails.Runtime\x12\x13\n\x07\x61utoAck\x18\t \x01(\x08\x42\x02\x18\x01\x12\x13\n\x0bparallelism\x18\n \x01(\x05\x12!\n\x06source\x18\x0b \x01(\x0b\x32\x11.proto.SourceSpec\x12\x1d\n\x04sink\x18\x0c \x01(\x0b\x32\x0f.proto.SinkSpec\x12#\n\tresources\x18\r \x01(\x0b\x32\x10.proto.Resources\x12\x12\n\npackageUrl\x18\x0e \x01(\t\x12)\n\x0cretryDetails\x18\x0f \x01(\x0b\x32\x13.proto.RetryDetails\x12\x14\n\x0cruntimeFlags\x18\x11 \x01(\t\x12;\n\rcomponentType\x18\x12 \x01(\x0e\x32$.proto.FunctionDetails.ComponentType\x12\x1c\n\x14\x63ustomRuntimeOptions\x18\x13 \x01(\t\x12\x0f\n\x07\x62uiltin\x18\x14 \x01(\t\x12\x16\n\x0eretainOrdering\x18\x15 \x01(\x08\x12\x19\n\x11retainKeyOrdering\x18\x16 \x01(\x08\x12\x39\n\x14subscriptionPosition\x18\x17 \x01(\x0e\x32\x1b.proto.SubscriptionPosition\"\'\n\x07Runtime\x12\x08\n\x04JAVA\x10\x00\x12\n\n\x06PYTHON\x10\x01\x12\x06\n\x02GO\x10\x03\"@\n\rComponentType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0c\n\x08\x46UNCTION\x10\x01\x12\n\n\x06SOURCE\x10\x02\x12\x08\n\x04SINK\x10\x03\"\xf7\x03\n\x0c\x43onsumerSpec\x12\x12\n\nschemaType\x18\x01 \x01(\t\x12\x16\n\x0eserdeClassName\x18\x02 \x01(\t\x12\x16\n\x0eisRegexPattern\x18\x03 \x01(\x08\x12@\n\x11receiverQueueSize\x18\x04 \x01(\x0b\x32%.proto.ConsumerSpec.ReceiverQueueSize\x12\x43\n\x10schemaProperties\x18\x05 \x03(\x0b\x32).proto.ConsumerSpec.SchemaPropertiesEntry\x12G\n\x12\x63onsumerProperties\x18\x06 \x03(\x0b\x32+.proto.ConsumerSpec.ConsumerPropertiesEntry\x12%\n\ncryptoSpec\x18\x07 \x01(\x0b\x32\x11.proto.CryptoSpec\x12\x14\n\x0cpoolMessages\x18\x08 \x01(\x08\x1a\"\n\x11ReceiverQueueSize\x12\r\n\x05value\x18\x01 \x01(\x05\x1a\x37\n\x15SchemaPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x39\n\x17\x43onsumerPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xb4\x01\n\x0cProducerSpec\x12\x1a\n\x12maxPendingMessages\x18\x01 \x01(\x05\x12*\n\"maxPendingMessagesAcrossPartitions\x18\x02 \x01(\x05\x12\x1f\n\x17useThreadLocalProducers\x18\x03 \x01(\x08\x12%\n\ncryptoSpec\x18\x04 \x01(\x0b\x32\x11.proto.CryptoSpec\x12\x14\n\x0c\x62\x61tchBuilder\x18\x05 \x01(\t\"\xbb\x02\n\nCryptoSpec\x12 \n\x18\x63ryptoKeyReaderClassName\x18\x01 \x01(\t\x12\x1d\n\x15\x63ryptoKeyReaderConfig\x18\x02 \x01(\t\x12!\n\x19producerEncryptionKeyName\x18\x03 \x03(\t\x12\x44\n\x1bproducerCryptoFailureAction\x18\x04 \x01(\x0e\x32\x1f.proto.CryptoSpec.FailureAction\x12\x44\n\x1b\x63onsumerCryptoFailureAction\x18\x05 \x01(\x0e\x32\x1f.proto.CryptoSpec.FailureAction\"=\n\rFailureAction\x12\x08\n\x04\x46\x41IL\x10\x00\x12\x0b\n\x07\x44ISCARD\x10\x01\x12\x0b\n\x07\x43ONSUME\x10\x02\x12\x08\n\x04SEND\x10\n\"\xe2\x04\n\nSourceSpec\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x0f\n\x07\x63onfigs\x18\x02 \x01(\t\x12\x15\n\rtypeClassName\x18\x05 \x01(\t\x12\x31\n\x10subscriptionType\x18\x03 \x01(\x0e\x32\x17.proto.SubscriptionType\x12Q\n\x16topicsToSerDeClassName\x18\x04 \x03(\x0b\x32-.proto.SourceSpec.TopicsToSerDeClassNameEntryB\x02\x18\x01\x12\x35\n\ninputSpecs\x18\n \x03(\x0b\x32!.proto.SourceSpec.InputSpecsEntry\x12\x11\n\ttimeoutMs\x18\x06 \x01(\x04\x12\x19\n\rtopicsPattern\x18\x07 \x01(\tB\x02\x18\x01\x12\x0f\n\x07\x62uiltin\x18\x08 \x01(\t\x12\x18\n\x10subscriptionName\x18\t \x01(\t\x12\x1b\n\x13\x63leanupSubscription\x18\x0b \x01(\x08\x12\x39\n\x14subscriptionPosition\x18\x0c \x01(\x0e\x32\x1b.proto.SubscriptionPosition\x12$\n\x1cnegativeAckRedeliveryDelayMs\x18\r \x01(\x04\x1a=\n\x1bTopicsToSerDeClassNameEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x46\n\x0fInputSpecsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\"\n\x05value\x18\x02 \x01(\x0b\x32\x13.proto.ConsumerSpec:\x02\x38\x01\"\xdc\x03\n\x08SinkSpec\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x0f\n\x07\x63onfigs\x18\x02 \x01(\t\x12\x15\n\rtypeClassName\x18\x05 \x01(\t\x12\r\n\x05topic\x18\x03 \x01(\t\x12)\n\x0cproducerSpec\x18\x0b \x01(\x0b\x32\x13.proto.ProducerSpec\x12\x16\n\x0eserDeClassName\x18\x04 \x01(\t\x12\x0f\n\x07\x62uiltin\x18\x06 \x01(\t\x12\x12\n\nschemaType\x18\x07 \x01(\t\x12$\n\x1c\x66orwardSourceMessageProperty\x18\x08 \x01(\x08\x12?\n\x10schemaProperties\x18\t \x03(\x0b\x32%.proto.SinkSpec.SchemaPropertiesEntry\x12\x43\n\x12\x63onsumerProperties\x18\n \x03(\x0b\x32\'.proto.SinkSpec.ConsumerPropertiesEntry\x1a\x37\n\x15SchemaPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x39\n\x17\x43onsumerPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"H\n\x17PackageLocationMetaData\x12\x13\n\x0bpackagePath\x18\x01 \x01(\t\x12\x18\n\x10originalFileName\x18\x02 \x01(\t\"\xf0\x02\n\x10\x46unctionMetaData\x12/\n\x0f\x66unctionDetails\x18\x01 \x01(\x0b\x32\x16.proto.FunctionDetails\x12\x37\n\x0fpackageLocation\x18\x02 \x01(\x0b\x32\x1e.proto.PackageLocationMetaData\x12\x0f\n\x07version\x18\x03 \x01(\x04\x12\x12\n\ncreateTime\x18\x04 \x01(\x04\x12\x43\n\x0einstanceStates\x18\x05 \x03(\x0b\x32+.proto.FunctionMetaData.InstanceStatesEntry\x12;\n\x10\x66unctionAuthSpec\x18\x06 \x01(\x0b\x32!.proto.FunctionAuthenticationSpec\x1aK\n\x13InstanceStatesEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12#\n\x05value\x18\x02 \x01(\x0e\x32\x14.proto.FunctionState:\x02\x38\x01\"<\n\x1a\x46unctionAuthenticationSpec\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\x12\x10\n\x08provider\x18\x02 \x01(\t\"Q\n\x08Instance\x12\x31\n\x10\x66unctionMetaData\x18\x01 \x01(\x0b\x32\x17.proto.FunctionMetaData\x12\x12\n\ninstanceId\x18\x02 \x01(\x05\"A\n\nAssignment\x12!\n\x08instance\x18\x01 \x01(\x0b\x32\x0f.proto.Instance\x12\x10\n\x08workerId\x18\x02 \x01(\t*[\n\x14ProcessingGuarantees\x12\x10\n\x0c\x41TLEAST_ONCE\x10\x00\x12\x0f\n\x0b\x41TMOST_ONCE\x10\x01\x12\x14\n\x10\x45\x46\x46\x45\x43TIVELY_ONCE\x10\x02\x12\n\n\x06MANUAL\x10\x03*<\n\x10SubscriptionType\x12\n\n\x06SHARED\x10\x00\x12\x0c\n\x08\x46\x41ILOVER\x10\x01\x12\x0e\n\nKEY_SHARED\x10\x02*0\n\x14SubscriptionPosition\x12\n\n\x06LATEST\x10\x00\x12\x0c\n\x08\x45\x41RLIEST\x10\x01*)\n\rFunctionState\x12\x0b\n\x07RUNNING\x10\x00\x12\x0b\n\x07STOPPED\x10\x01\x42-\n!org.apache.pulsar.functions.protoB\x08\x46unctionb\x06proto3'
+  serialized_pb=b'\n\x0e\x46unction.proto\x12\x05proto\"3\n\tResources\x12\x0b\n\x03\x63pu\x18\x01 \x01(\x01\x12\x0b\n\x03ram\x18\x02 \x01(\x03\x12\x0c\n\x04\x64isk\x18\x03 \x01(\x03\"B\n\x0cRetryDetails\x12\x19\n\x11maxMessageRetries\x18\x01 \x01(\x05\x12\x17\n\x0f\x64\x65\x61\x64LetterTopic\x18\x02 \x01(\t\"\xa6\x06\n\x0f\x46unctionDetails\x12\x0e\n\x06tenant\x18\x01 \x01(\t\x12\x11\n\tnamespace\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x11\n\tclassName\x18\x04 \x01(\t\x12\x10\n\x08logTopic\x18\x05 \x01(\t\x12\x39\n\x14processingGuarantees\x18\x06 \x01(\x0e\x32\x1b.proto.ProcessingGuarantees\x12\x12\n\nuserConfig\x18\x07 \x01(\t\x12\x12\n\nsecretsMap\x18\x10 \x01(\t\x12/\n\x07runtime\x18\x08 \x01(\x0e\x32\x1e.proto.FunctionDetails.Runtime\x12\x13\n\x07\x61utoAck\x18\t \x01(\x08\x42\x02\x18\x01\x12\x13\n\x0bparallelism\x18\n \x01(\x05\x12!\n\x06source\x18\x0b \x01(\x0b\x32\x11.proto.SourceSpec\x12\x1d\n\x04sink\x18\x0c \x01(\x0b\x32\x0f.proto.SinkSpec\x12#\n\tresources\x18\r \x01(\x0b\x32\x10.proto.Resources\x12\x12\n\npackageUrl\x18\x0e \x01(\t\x12)\n\x0cretryDetails\x18\x0f \x01(\x0b\x32\x13.proto.RetryDetails\x12\x14\n\x0cruntimeFlags\x18\x11 \x01(\t\x12;\n\rcomponentType\x18\x12 \x01(\x0e\x32$.proto.FunctionDetails.ComponentType\x12\x1c\n\x14\x63ustomRuntimeOptions\x18\x13 \x01(\t\x12\x0f\n\x07\x62uiltin\x18\x14 \x01(\t\x12\x16\n\x0eretainOrdering\x18\x15 \x01(\x08\x12\x19\n\x11retainKeyOrdering\x18\x16 \x01(\x08\x12\x39\n\x14subscriptionPosition\x18\x17 \x01(\x0e\x32\x1b.proto.SubscriptionPosition\"\'\n\x07Runtime\x12\x08\n\x04JAVA\x10\x00\x12\n\n\x06PYTHON\x10\x01\x12\x06\n\x02GO\x10\x03\"@\n\rComponentType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0c\n\x08\x46UNCTION\x10\x01\x12\n\n\x06SOURCE\x10\x02\x12\x08\n\x04SINK\x10\x03\"\xf7\x03\n\x0c\x43onsumerSpec\x12\x12\n\nschemaType\x18\x01 \x01(\t\x12\x16\n\x0eserdeClassName\x18\x02 \x01(\t\x12\x16\n\x0eisRegexPattern\x18\x03 \x01(\x08\x12@\n\x11receiverQueueSize\x18\x04 \x01(\x0b\x32%.proto.ConsumerSpec.ReceiverQueueSize\x12\x43\n\x10schemaProperties\x18\x05 \x03(\x0b\x32).proto.ConsumerSpec.SchemaPropertiesEntry\x12G\n\x12\x63onsumerProperties\x18\x06 \x03(\x0b\x32+.proto.ConsumerSpec.ConsumerPropertiesEntry\x12%\n\ncryptoSpec\x18\x07 \x01(\x0b\x32\x11.proto.CryptoSpec\x12\x14\n\x0cpoolMessages\x18\x08 \x01(\x08\x1a\"\n\x11ReceiverQueueSize\x12\r\n\x05value\x18\x01 \x01(\x05\x1a\x37\n\x15SchemaPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x39\n\x17\x43onsumerPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xe5\x01\n\x0cProducerSpec\x12\x1a\n\x12maxPendingMessages\x18\x01 \x01(\x05\x12*\n\"maxPendingMessagesAcrossPartitions\x18\x02 \x01(\x05\x12\x1f\n\x17useThreadLocalProducers\x18\x03 \x01(\x08\x12%\n\ncryptoSpec\x18\x04 \x01(\x0b\x32\x11.proto.CryptoSpec\x12\x14\n\x0c\x62\x61tchBuilder\x18\x05 \x01(\t\x12/\n\x0f\x63ompressionType\x18\x06 \x01(\x0e\x32\x16.proto.CompressionType\"\xbb\x02\n\nCryptoSpec\x12 \n\x18\x63ryptoKeyReaderClassName\x18\x01 \x01(\t\x12\x1d\n\x15\x63ryptoKeyReaderConfig\x18\x02 \x01(\t\x12!\n\x19producerEncryptionKeyName\x18\x03 \x03(\t\x12\x44\n\x1bproducerCryptoFailureAction\x18\x04 \x01(\x0e\x32\x1f.proto.CryptoSpec.FailureAction\x12\x44\n\x1b\x63onsumerCryptoFailureAction\x18\x05 \x01(\x0e\x32\x1f.proto.CryptoSpec.FailureAction\"=\n\rFailureAction\x12\x08\n\x04\x46\x41IL\x10\x00\x12\x0b\n\x07\x44ISCARD\x10\x01\x12\x0b\n\x07\x43ONSUME\x10\x02\x12\x08\n\x04SEND\x10\n\"\xe2\x04\n\nSourceSpec\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x0f\n\x07\x63onfigs\x18\x02 \x01(\t\x12\x15\n\rtypeClassName\x18\x05 \x01(\t\x12\x31\n\x10subscriptionType\x18\x03 \x01(\x0e\x32\x17.proto.SubscriptionType\x12Q\n\x16topicsToSerDeClassName\x18\x04 \x03(\x0b\x32-.proto.SourceSpec.TopicsToSerDeClassNameEntryB\x02\x18\x01\x12\x35\n\ninputSpecs\x18\n \x03(\x0b\x32!.proto.SourceSpec.InputSpecsEntry\x12\x11\n\ttimeoutMs\x18\x06 \x01(\x04\x12\x19\n\rtopicsPattern\x18\x07 \x01(\tB\x02\x18\x01\x12\x0f\n\x07\x62uiltin\x18\x08 \x01(\t\x12\x18\n\x10subscriptionName\x18\t \x01(\t\x12\x1b\n\x13\x63leanupSubscription\x18\x0b \x01(\x08\x12\x39\n\x14subscriptionPosition\x18\x0c \x01(\x0e\x32\x1b.proto.SubscriptionPosition\x12$\n\x1cnegativeAckRedeliveryDelayMs\x18\r \x01(\x04\x1a=\n\x1bTopicsToSerDeClassNameEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x46\n\x0fInputSpecsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\"\n\x05value\x18\x02 \x01(\x0b\x32\x13.proto.ConsumerSpec:\x02\x38\x01\"\xdc\x03\n\x08SinkSpec\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x0f\n\x07\x63onfigs\x18\x02 \x01(\t\x12\x15\n\rtypeClassName\x18\x05 \x01(\t\x12\r\n\x05topic\x18\x03 \x01(\t\x12)\n\x0cproducerSpec\x18\x0b \x01(\x0b\x32\x13.proto.ProducerSpec\x12\x16\n\x0eserDeClassName\x18\x04 \x01(\t\x12\x0f\n\x07\x62uiltin\x18\x06 \x01(\t\x12\x12\n\nschemaType\x18\x07 \x01(\t\x12$\n\x1c\x66orwardSourceMessageProperty\x18\x08 \x01(\x08\x12?\n\x10schemaProperties\x18\t \x03(\x0b\x32%.proto.SinkSpec.SchemaPropertiesEntry\x12\x43\n\x12\x63onsumerProperties\x18\n \x03(\x0b\x32\'.proto.SinkSpec.ConsumerPropertiesEntry\x1a\x37\n\x15SchemaPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x39\n\x17\x43onsumerPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"H\n\x17PackageLocationMetaData\x12\x13\n\x0bpackagePath\x18\x01 \x01(\t\x12\x18\n\x10originalFileName\x18\x02 \x01(\t\"\xba\x03\n\x10\x46unctionMetaData\x12/\n\x0f\x66unctionDetails\x18\x01 \x01(\x0b\x32\x16.proto.FunctionDetails\x12\x37\n\x0fpackageLocation\x18\x02 \x01(\x0b\x32\x1e.proto.PackageLocationMetaData\x12\x0f\n\x07version\x18\x03 \x01(\x04\x12\x12\n\ncreateTime\x18\x04 \x01(\x04\x12\x43\n\x0einstanceStates\x18\x05 \x03(\x0b\x32+.proto.FunctionMetaData.InstanceStatesEntry\x12;\n\x10\x66unctionAuthSpec\x18\x06 \x01(\x0b\x32!.proto.FunctionAuthenticationSpec\x12H\n transformFunctionPackageLocation\x18\x07 \x01(\x0b\x32\x1e.proto.PackageLocationMetaData\x1aK\n\x13InstanceStatesEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12#\n\x05value\x18\x02 \x01(\x0e\x32\x14.proto.FunctionState:\x02\x38\x01\"<\n\x1a\x46unctionAuthenticationSpec\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\x12\x10\n\x08provider\x18\x02 \x01(\t\"Q\n\x08Instance\x12\x31\n\x10\x66unctionMetaData\x18\x01 \x01(\x0b\x32\x17.proto.FunctionMetaData\x12\x12\n\ninstanceId\x18\x02 \x01(\x05\"A\n\nAssignment\x12!\n\x08instance\x18\x01 \x01(\x0b\x32\x0f.proto.Instance\x12\x10\n\x08workerId\x18\x02 \x01(\t*[\n\x14ProcessingGuarantees\x12\x10\n\x0c\x41TLEAST_ONCE\x10\x00\x12\x0f\n\x0b\x41TMOST_ONCE\x10\x01\x12\x14\n\x10\x45\x46\x46\x45\x43TIVELY_ONCE\x10\x02\x12\n\n\x06MANUAL\x10\x03*<\n\x10SubscriptionType\x12\n\n\x06SHARED\x10\x00\x12\x0c\n\x08\x46\x41ILOVER\x10\x01\x12\x0e\n\nKEY_SHARED\x10\x02*0\n\x14SubscriptionPosition\x12\n\n\x06LATEST\x10\x00\x12\x0c\n\x08\x45\x41RLIEST\x10\x01*D\n\x0f\x43ompressionType\x12\x07\n\x03LZ4\x10\x00\x12\x08\n\x04NONE\x10\x01\x12\x08\n\x04ZLIB\x10\x02\x12\x08\n\x04ZSTD\x10\x03\x12\n\n\x06SNAPPY\x10\x04*)\n\rFunctionState\x12\x0b\n\x07RUNNING\x10\x00\x12\x0b\n\x07STOPPED\x10\x01\x42-\n!org.apache.pulsar.functions.protoB\x08\x46unctionb\x06proto3'
 )
 
 _PROCESSINGGUARANTEES = _descriptor.EnumDescriptor(
@@ -72,8 +72,8 @@ _PROCESSINGGUARANTEES = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3711,
-  serialized_end=3802,
+  serialized_start=3834,
+  serialized_end=3925,
 )
 _sym_db.RegisterEnumDescriptor(_PROCESSINGGUARANTEES)
 
@@ -103,8 +103,8 @@ _SUBSCRIPTIONTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3804,
-  serialized_end=3864,
+  serialized_start=3927,
+  serialized_end=3987,
 )
 _sym_db.RegisterEnumDescriptor(_SUBSCRIPTIONTYPE)
 
@@ -129,12 +129,53 @@ _SUBSCRIPTIONPOSITION = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3866,
-  serialized_end=3914,
+  serialized_start=3989,
+  serialized_end=4037,
 )
 _sym_db.RegisterEnumDescriptor(_SUBSCRIPTIONPOSITION)
 
 SubscriptionPosition = enum_type_wrapper.EnumTypeWrapper(_SUBSCRIPTIONPOSITION)
+_COMPRESSIONTYPE = _descriptor.EnumDescriptor(
+  name='CompressionType',
+  full_name='proto.CompressionType',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='LZ4', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='NONE', index=1, number=1,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='ZLIB', index=2, number=2,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='ZSTD', index=3, number=3,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='SNAPPY', index=4, number=4,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=4039,
+  serialized_end=4107,
+)
+_sym_db.RegisterEnumDescriptor(_COMPRESSIONTYPE)
+
+CompressionType = enum_type_wrapper.EnumTypeWrapper(_COMPRESSIONTYPE)
 _FUNCTIONSTATE = _descriptor.EnumDescriptor(
   name='FunctionState',
   full_name='proto.FunctionState',
@@ -155,8 +196,8 @@ _FUNCTIONSTATE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3916,
-  serialized_end=3957,
+  serialized_start=4109,
+  serialized_end=4150,
 )
 _sym_db.RegisterEnumDescriptor(_FUNCTIONSTATE)
 
@@ -170,6 +211,11 @@ FAILOVER = 1
 KEY_SHARED = 2
 LATEST = 0
 EARLIEST = 1
+LZ4 = 0
+NONE = 1
+ZLIB = 2
+ZSTD = 3
+SNAPPY = 4
 RUNNING = 0
 STOPPED = 1
 
@@ -269,8 +315,8 @@ _CRYPTOSPEC_FAILUREACTION = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1899,
-  serialized_end=1960,
+  serialized_start=1948,
+  serialized_end=2009,
 )
 _sym_db.RegisterEnumDescriptor(_CRYPTOSPEC_FAILUREACTION)
 
@@ -779,6 +825,13 @@ _PRODUCERSPEC = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='compressionType', full_name='proto.ProducerSpec.compressionType', index=5,
+      number=6, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -792,7 +845,7 @@ _PRODUCERSPEC = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=1462,
-  serialized_end=1642,
+  serialized_end=1691,
 )
 
 
@@ -852,8 +905,8 @@ _CRYPTOSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1645,
-  serialized_end=1960,
+  serialized_start=1694,
+  serialized_end=2009,
 )
 
 
@@ -891,8 +944,8 @@ _SOURCESPEC_TOPICSTOSERDECLASSNAMEENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2440,
-  serialized_end=2501,
+  serialized_start=2489,
+  serialized_end=2550,
 )
 
 _SOURCESPEC_INPUTSPECSENTRY = _descriptor.Descriptor(
@@ -929,8 +982,8 @@ _SOURCESPEC_INPUTSPECSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2503,
-  serialized_end=2573,
+  serialized_start=2552,
+  serialized_end=2622,
 )
 
 _SOURCESPEC = _descriptor.Descriptor(
@@ -1044,8 +1097,8 @@ _SOURCESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1963,
-  serialized_end=2573,
+  serialized_start=2012,
+  serialized_end=2622,
 )
 
 
@@ -1222,8 +1275,8 @@ _SINKSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2576,
-  serialized_end=3052,
+  serialized_start=2625,
+  serialized_end=3101,
 )
 
 
@@ -1261,8 +1314,8 @@ _PACKAGELOCATIONMETADATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3054,
-  serialized_end=3126,
+  serialized_start=3103,
+  serialized_end=3175,
 )
 
 
@@ -1300,8 +1353,8 @@ _FUNCTIONMETADATA_INSTANCESTATESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3422,
-  serialized_end=3497,
+  serialized_start=3545,
+  serialized_end=3620,
 )
 
 _FUNCTIONMETADATA = _descriptor.Descriptor(
@@ -1354,6 +1407,13 @@ _FUNCTIONMETADATA = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='transformFunctionPackageLocation', full_name='proto.FunctionMetaData.transformFunctionPackageLocation', index=6,
+      number=7, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -1366,8 +1426,8 @@ _FUNCTIONMETADATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3129,
-  serialized_end=3497,
+  serialized_start=3178,
+  serialized_end=3620,
 )
 
 
@@ -1405,8 +1465,8 @@ _FUNCTIONAUTHENTICATIONSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3499,
-  serialized_end=3559,
+  serialized_start=3622,
+  serialized_end=3682,
 )
 
 
@@ -1444,8 +1504,8 @@ _INSTANCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3561,
-  serialized_end=3642,
+  serialized_start=3684,
+  serialized_end=3765,
 )
 
 
@@ -1483,8 +1543,8 @@ _ASSIGNMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3644,
-  serialized_end=3709,
+  serialized_start=3767,
+  serialized_end=3832,
 )
 
 _FUNCTIONDETAILS.fields_by_name['processingGuarantees'].enum_type = _PROCESSINGGUARANTEES
@@ -1505,6 +1565,7 @@ _CONSUMERSPEC.fields_by_name['schemaProperties'].message_type = _CONSUMERSPEC_SC
 _CONSUMERSPEC.fields_by_name['consumerProperties'].message_type = _CONSUMERSPEC_CONSUMERPROPERTIESENTRY
 _CONSUMERSPEC.fields_by_name['cryptoSpec'].message_type = _CRYPTOSPEC
 _PRODUCERSPEC.fields_by_name['cryptoSpec'].message_type = _CRYPTOSPEC
+_PRODUCERSPEC.fields_by_name['compressionType'].enum_type = _COMPRESSIONTYPE
 _CRYPTOSPEC.fields_by_name['producerCryptoFailureAction'].enum_type = _CRYPTOSPEC_FAILUREACTION
 _CRYPTOSPEC.fields_by_name['consumerCryptoFailureAction'].enum_type = _CRYPTOSPEC_FAILUREACTION
 _CRYPTOSPEC_FAILUREACTION.containing_type = _CRYPTOSPEC
@@ -1526,6 +1587,7 @@ _FUNCTIONMETADATA.fields_by_name['functionDetails'].message_type = _FUNCTIONDETA
 _FUNCTIONMETADATA.fields_by_name['packageLocation'].message_type = _PACKAGELOCATIONMETADATA
 _FUNCTIONMETADATA.fields_by_name['instanceStates'].message_type = _FUNCTIONMETADATA_INSTANCESTATESENTRY
 _FUNCTIONMETADATA.fields_by_name['functionAuthSpec'].message_type = _FUNCTIONAUTHENTICATIONSPEC
+_FUNCTIONMETADATA.fields_by_name['transformFunctionPackageLocation'].message_type = _PACKAGELOCATIONMETADATA
 _INSTANCE.fields_by_name['functionMetaData'].message_type = _FUNCTIONMETADATA
 _ASSIGNMENT.fields_by_name['instance'].message_type = _INSTANCE
 DESCRIPTOR.message_types_by_name['Resources'] = _RESOURCES
@@ -1544,6 +1606,7 @@ DESCRIPTOR.message_types_by_name['Assignment'] = _ASSIGNMENT
 DESCRIPTOR.enum_types_by_name['ProcessingGuarantees'] = _PROCESSINGGUARANTEES
 DESCRIPTOR.enum_types_by_name['SubscriptionType'] = _SUBSCRIPTIONTYPE
 DESCRIPTOR.enum_types_by_name['SubscriptionPosition'] = _SUBSCRIPTIONPOSITION
+DESCRIPTOR.enum_types_by_name['CompressionType'] = _COMPRESSIONTYPE
 DESCRIPTOR.enum_types_by_name['FunctionState'] = _FUNCTIONSTATE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 

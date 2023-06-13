@@ -179,13 +179,24 @@ function test_group_other() {
 }
 
 function test_group_pulsar_io() {
-    $MVN_TEST_OPTIONS -pl kafka-connect-avro-converter-shaded clean install
     echo "::group::Running pulsar-io tests"
     mvn_test --install -Ppulsar-io-tests,-main
     echo "::endgroup::"
 
     echo "::group::Running pulsar-sql tests"
     mvn_test --install -Ppulsar-sql-tests,-main -DtestForkCount=1
+    echo "::endgroup::"
+}
+
+function test_group_pulsar_io_elastic() {
+    echo "::group::Running elastic-search tests"
+    mvn_test --install -Ppulsar-io-elastic-tests,-main
+    echo "::endgroup::"
+}
+
+function test_group_pulsar_io_kafka_connect() {
+    echo "::group::Running Pulsar IO Kafka connect adaptor tests"
+    mvn_test --install -Ppulsar-io-kafka-connect-tests,-main
     echo "::endgroup::"
 }
 

@@ -131,6 +131,7 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     protected void stopMetadataStore() throws Exception {
+        metadataStore.close();
         metadataStore.setAlwaysFail(new MetadataStoreException("error"));
     }
 

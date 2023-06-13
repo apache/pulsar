@@ -73,6 +73,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this.
     static final String CONF_TOKEN_AUDIENCE = "tokenAudience";
+    // The amount of time in seconds that a token is allowed to be out of sync with the server's time when performing
+    // token validation.
+    static final String CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS = "tokenAllowedClockSkewSeconds";
 
     static final String TOKEN = "token";
 
@@ -101,6 +104,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenPublicAlgSettingName;
     private String confTokenAudienceClaimSettingName;
     private String confTokenAudienceSettingName;
+    private String confTokenAllowedClockSkewSecondsSettingName;
+
+    public enum ErrorCode {
+        INVALID_AUTH_DATA,
+        INVALID_TOKEN,
+        INVALID_AUDIENCES,
+    }
 
     @Override
     public void close() throws IOException {
@@ -125,6 +135,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.confTokenPublicAlgSettingName = prefix + CONF_TOKEN_PUBLIC_ALG;
         this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
         this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
+        this.confTokenAllowedClockSkewSecondsSettingName = prefix + CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS;
 
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
@@ -133,7 +144,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
 
-        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
+        long allowedSkew = getConfTokenAllowedClockSkewSeconds(config);
+
+        this.parser = Jwts.parserBuilder()
+                .setAllowedClockSkewSeconds(allowedSkew)
+                .setSigningKey(this.validationKey)
+                .build();
 
         if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -148,19 +164,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        String token;
         try {
             // Get Token
-            String token;
             token = getToken(authData);
-            // Parse Token by validating
-            String role = getPrincipal(authenticateToken(token));
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-            return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
             throw exception;
         }
+        // Parse Token by validating
+        String role = getPrincipal(authenticateToken(token));
+        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        return role;
     }
 
     @Override
@@ -231,16 +246,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
-                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
-                                                          + "] not contains this broker: " + audience);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException("Audiences in token: ["
+                                + String.join(", ", audiences) + "] not contains this broker: " + audience);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
-                        throw new AuthenticationException("Audiences in token: [" + object
-                                                          + "] not contains this broker: " + audience);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException(
+                                "Audiences in token: [" + object + "] not contains this broker: " + audience);
                     }
                 } else {
                     // should not reach here.
+                    incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
                     throw new AuthenticationException("Audiences in token is not in expected format: " + object);
                 }
             }
@@ -254,6 +272,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             if (e instanceof ExpiredJwtException) {
                 expiredTokenMetrics.inc();
             }
+            incrementFailureMetric(ErrorCode.INVALID_TOKEN);
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
@@ -326,6 +345,16 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return tokenAudience;
         } else {
             return null;
+        }
+    }
+
+    // get Token's allowed clock skew in seconds. If not configured, defaults to 0.
+    private long getConfTokenAllowedClockSkewSeconds(ServiceConfiguration conf) throws IllegalArgumentException {
+        String allowedSkewStr = (String) conf.getProperty(confTokenAllowedClockSkewSecondsSettingName);
+        if (StringUtils.isNotBlank(allowedSkewStr)) {
+            return Long.parseLong(allowedSkewStr);
+        } else {
+            return 0;
         }
     }
 

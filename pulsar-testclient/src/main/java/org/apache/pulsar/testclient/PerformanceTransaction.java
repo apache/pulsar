@@ -19,9 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -70,7 +68,6 @@ import org.slf4j.LoggerFactory;
 
 public class PerformanceTransaction {
 
-
     private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
     private static final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
@@ -92,9 +89,8 @@ public class PerformanceTransaction {
     private static final Recorder messageSendRCumulativeRecorder =
             new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-
     @Parameters(commandDescription = "Test pulsar transaction performance.")
-    static class Arguments  extends PerformanceBaseArguments {
+    static class Arguments extends PerformanceBaseArguments {
 
         @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
                 true)
@@ -187,26 +183,10 @@ public class PerformanceTransaction {
     public static void main(String[] args)
             throws IOException, PulsarAdminException, ExecutionException, InterruptedException {
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf transaction");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-        arguments.fillArgumentsFromProperties();
+        arguments.parseCLI("pulsar-perf transaction", args);
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
-
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar perf transaction with config: {}", w.writeValueAsString(arguments));

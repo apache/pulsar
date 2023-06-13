@@ -45,12 +45,25 @@ public class PositionAckSetUtil {
         if (currentPosition == null || otherPosition == null) {
             return;
         }
-        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
-        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
+        currentPosition.setAckSet(andAckSet(currentPosition.getAckSet(), otherPosition.getAckSet()));
+    }
+
+    //This method is do `and` operation for ack set
+    public static long[] andAckSet(long[] firstAckSet, long[] secondAckSet) {
+        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(firstAckSet);
+        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(secondAckSet);
         thisAckSet.and(otherAckSet);
-        currentPosition.setAckSet(thisAckSet.toLongArray());
+        long[] ackSet = thisAckSet.toLongArray();
         thisAckSet.recycle();
         otherAckSet.recycle();
+        return ackSet;
+    }
+
+    public static boolean isAckSetEmpty(long[] ackSet) {
+        BitSetRecyclable bitSet =  BitSetRecyclable.create().resetWords(ackSet);
+        boolean isEmpty = bitSet.isEmpty();
+        bitSet.recycle();
+        return isEmpty;
     }
 
     //This method is compare two position which position is bigger than another one.

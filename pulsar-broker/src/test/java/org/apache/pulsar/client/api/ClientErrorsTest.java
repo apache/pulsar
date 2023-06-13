@@ -22,16 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.channel.ChannelHandlerContext;
-
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
+import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
@@ -830,5 +829,29 @@ public class ClientErrorsTest {
 
         mockBrokerService.resetHandleConnect();
         mockBrokerService.resetHandleSubscribe();
+    }
+
+    @Test
+    public void testCommandErrorMessageIsNull() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
+
+        mockBrokerService.setHandleProducer((ctx, producer) -> {
+            try {
+                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, null));
+            } catch (Exception e) {
+                fail("Send error command failed", e);
+            }
+        });
+
+        try {
+            client.newProducer().topic("persistent://prop/use/ns/t1").create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthorizationException);
+            Map<String, String> map = JsonUtil.fromJson(e.getMessage(), Map.class);
+            assertEquals(map.get("errorMsg"), "");
+        }
+        mockBrokerService.resetHandleProducer();
     }
 }
