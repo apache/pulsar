@@ -2620,6 +2620,21 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Update migration state for a namespace")
+    private class UpdateMigrationState extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--migrated", description = "Is namespace migrated")
+        private boolean migrated;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().updateMigrationState(namespace, migrated);
+        }
+    }
+
     @Parameters(commandDescription = "Get entry filters for a namespace")
     private class GetEntryFiltersPerTopic extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2844,5 +2859,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-entry-filters", new GetEntryFiltersPerTopic());
         jcommander.addCommand("set-entry-filters", new SetEntryFiltersPerTopic());
         jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
+
+        jcommander.addCommand("update-migration-state", new UpdateMigrationState());
     }
 }

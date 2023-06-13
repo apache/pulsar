@@ -1234,7 +1234,7 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      * @param enableDeduplication
-     *            wether to enable or disable deduplication feature
+     *            whether to enable or disable deduplication feature
      */
     CompletableFuture<Void> setDeduplicationStatusAsync(String namespace, boolean enableDeduplication);
 
@@ -4579,6 +4579,7 @@ public interface Namespaces {
     CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
 
     /**
+<<<<<<< HEAD
      * Get entry filters for a namespace.
      * @param namespace
      * @return entry filters classes info.
@@ -4623,4 +4624,28 @@ public interface Namespaces {
      * @return
      */
     CompletableFuture<Void> removeNamespaceEntryFiltersAsync(String namespace);
+
+    /**
+     * Enable migration for all topics within a namespace.
+     * <p/>
+     * Migrate all topics of a namespace to new broker.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param migrated
+     *            Flag to determine namespace is migrated or not
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException;
 }
