@@ -362,7 +362,7 @@ public class Consumer {
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
             } else {
-                log.warn("[{}-{}] Sent messages to client failed by IO exception[{}], these messages(messages count:"
+                log.warn("[{}-{}] Sent messages to client fail by IO exception[{}], these messages(messages count:"
                                 + " {}) will be redelivered after the heartbeat check fails. If the next heartbeat"
                                 + " check is successful, these messages will be stuck until the client reconnect"
                                 + " or the topic is reloaded. Consumer: {}",
