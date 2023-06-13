@@ -19,10 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Failure;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Skip;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Balanced;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Bandwidth;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.MsgRate;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Sessions;
@@ -32,7 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang3.mutable.MutableLong;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.stats.Metrics;
 
 /**
@@ -40,23 +38,20 @@ import org.apache.pulsar.common.stats.Metrics;
  */
 public class SplitCounter {
 
-    long splitCount = 0;
-
-    final Map<SplitDecision.Label, Map<SplitDecision.Reason, MutableLong>> breakdownCounters;
+    private long splitCount = 0;
+    private final Map<SplitDecision.Label, Map<SplitDecision.Reason, AtomicLong>> breakdownCounters;
+    private volatile long updatedAt = 0;
 
     public SplitCounter() {
         breakdownCounters = Map.of(
                 Success, Map.of(
-                        Topics, new MutableLong(),
-                        Sessions, new MutableLong(),
-                        MsgRate, new MutableLong(),
-                        Bandwidth, new MutableLong(),
-                        Admin, new MutableLong()),
-                Skip, Map.of(
-                        Balanced, new MutableLong()
-                        ),
+                        Topics, new AtomicLong(),
+                        Sessions, new AtomicLong(),
+                        MsgRate, new AtomicLong(),
+                        Bandwidth, new AtomicLong(),
+                        Admin, new AtomicLong()),
                 Failure, Map.of(
-                        Unknown, new MutableLong())
+                        Unknown, new AtomicLong())
         );
     }
 
@@ -64,7 +59,16 @@ public class SplitCounter {
         if (decision.label == Success) {
             splitCount++;
         }
-        breakdownCounters.get(decision.getLabel()).get(decision.getReason()).increment();
+        breakdownCounters.get(decision.getLabel()).get(decision.getReason()).incrementAndGet();
+        updatedAt = System.currentTimeMillis();
+    }
+
+    public void update(SplitDecision.Label label, SplitDecision.Reason reason) {
+        if (label == Success) {
+            splitCount++;
+        }
+        breakdownCounters.get(label).get(reason).incrementAndGet();
+        updatedAt = System.currentTimeMillis();
     }
 
     public List<Metrics> toMetrics(String advertisedBrokerAddress) {
@@ -77,17 +81,18 @@ public class SplitCounter {
         m.put("brk_lb_bundles_split_total", splitCount);
         metrics.add(m);
 
-        for (Map.Entry<SplitDecision.Label, Map<SplitDecision.Reason, MutableLong>> etr
+
+        for (Map.Entry<SplitDecision.Label, Map<SplitDecision.Reason, AtomicLong>> etr
                 : breakdownCounters.entrySet()) {
             var result = etr.getKey();
-            for (Map.Entry<SplitDecision.Reason, MutableLong> counter : etr.getValue().entrySet()) {
+            for (Map.Entry<SplitDecision.Reason, AtomicLong> counter : etr.getValue().entrySet()) {
                 var reason = counter.getKey();
                 var count = counter.getValue();
                 Map<String, String> breakdownDims = new HashMap<>(dimensions);
                 breakdownDims.put("result", result.toString());
                 breakdownDims.put("reason", reason.toString());
                 Metrics breakdownMetric = Metrics.create(breakdownDims);
-                breakdownMetric.put("brk_lb_bundles_split_breakdown_total", count);
+                breakdownMetric.put("brk_lb_bundles_split_breakdown_total", count.get());
                 metrics.add(breakdownMetric);
             }
         }
@@ -95,4 +100,7 @@ public class SplitCounter {
         return metrics;
     }
 
+    public long updatedAt() {
+        return updatedAt;
+    }
 }

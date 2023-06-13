@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 
 /**
  * Filter by broker version.
@@ -45,7 +46,9 @@ public class BrokerVersionFilter implements BrokerFilter {
      *
      */
     @Override
-    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers, LoadManagerContext context)
+    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                ServiceUnitId serviceUnit,
+                                                LoadManagerContext context)
             throws BrokerFilterException {
         ServiceConfiguration conf = context.brokerConfiguration();
         if (!conf.isPreferLaterVersions() || brokers.isEmpty()) {

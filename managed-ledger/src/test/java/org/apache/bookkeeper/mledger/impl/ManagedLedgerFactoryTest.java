@@ -20,12 +20,16 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
@@ -69,6 +73,45 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(mri.from.entryId, -1);
         assertEquals(mri.to.ledgerId, p2.getLedgerId());
         assertEquals(mri.to.entryId, 0);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/18688
+     */
+    @Test
+    public void testConcurrentCloseLedgerAndSwitchLedgerForReproduceIssue() throws Exception {
+        String managedLedgerName = "lg_" + UUID.randomUUID().toString().replaceAll("-", "_");
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setThrottleMarkDelete(1);
+        config.setMaximumRolloverTime(Integer.MAX_VALUE, TimeUnit.SECONDS);
+        config.setMaxEntriesPerLedger(5);
+
+        // create managedLedger once and close it.
+        ManagedLedgerImpl managedLedger1 = (ManagedLedgerImpl) factory.open(managedLedgerName, config);
+        waitManagedLedgerStateEquals(managedLedger1, ManagedLedgerImpl.State.LedgerOpened);
+        managedLedger1.close();
+
+        // create managedLedger the second time.
+        ManagedLedgerImpl managedLedger2 = (ManagedLedgerImpl) factory.open(managedLedgerName, config);
+        waitManagedLedgerStateEquals(managedLedger2, ManagedLedgerImpl.State.LedgerOpened);
+
+        // Mock the task create ledger complete now, it will change the state to another value which not is Closed.
+        // Close managedLedger1 the second time.
+        managedLedger1.createComplete(1, null, null);
+        managedLedger1.close();
+
+        // Verify managedLedger2 is still there.
+        Assert.assertFalse(factory.ledgers.isEmpty());
+        Assert.assertEquals(factory.ledgers.get(managedLedger2.getName()).join(), managedLedger2);
+
+        // cleanup.
+        managedLedger2.close();
+    }
+
+    private void waitManagedLedgerStateEquals(ManagedLedgerImpl managedLedger, ManagedLedgerImpl.State expectedStat){
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(managedLedger.getState() == expectedStat));
     }
 
 }

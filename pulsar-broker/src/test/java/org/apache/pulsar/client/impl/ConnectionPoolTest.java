@@ -154,7 +154,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetProxyToTargetBrokerAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setConnectionsPerBroker(5);
+        conf.setConnectionsPerBroker(1);
 
 
         EventLoopGroup eventLoop =
@@ -176,19 +176,24 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
             @Override
             protected void doResolveAll(SocketAddress socketAddress, Promise promise) throws Exception {
                 final InetSocketAddress socketAddress1 = (InetSocketAddress) socketAddress;
-                final boolean isProxy = socketAddress1.getHostName().equals("proxy");
-                final boolean isBroker = socketAddress1.getHostName().equals("broker");
+                String hostName = socketAddress1.getHostName();
+                final boolean isProxy = hostName.equals("proxy");
+                final boolean isBroker = hostName.startsWith("broker");
                 if (!isProxy && !isBroker) {
                     promise.setFailure(new IllegalStateException());
                     throw new IllegalStateException();
                 }
                 List<InetSocketAddress> result = new ArrayList<>();
+                // All 127.0.0.0/8 addresses are valid local loopback addresses
                 if (isProxy) {
-                    result.add(new InetSocketAddress("localhost", brokerPort));
-                    result.add(InetSocketAddress.createUnresolved("proxy", brokerPort));
-                } else {
-                    result.add(new InetSocketAddress("127.0.0.1", brokerPort));
-                    result.add(InetSocketAddress.createUnresolved("broker", brokerPort));
+                    result.add(new InetSocketAddress("127.0.0.101", brokerPort));
+                    result.add(new InetSocketAddress("127.0.0.102", brokerPort));
+                } else if (hostName.equals("broker1")){
+                    result.add(new InetSocketAddress("127.0.0.103", brokerPort));
+                    result.add(new InetSocketAddress("127.0.0.104", brokerPort));
+                } else if (hostName.equals("broker2")){
+                    result.add(new InetSocketAddress("127.0.0.105", brokerPort));
+                    result.add(new InetSocketAddress("127.0.0.106", brokerPort));
                 }
                 promise.setSuccess(result);
             }
@@ -203,23 +208,19 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
                 InetSocketAddress.createUnresolved("proxy", 9999)).get();
         Assert.assertEquals(cnx.remoteHostName, "proxy");
         Assert.assertNull(cnx.proxyToTargetBrokerAddress);
-        cnx.close();
 
         cnx = pool.getConnection(
-                InetSocketAddress.createUnresolved("broker", 9999),
+                InetSocketAddress.createUnresolved("broker1", 9999),
                 InetSocketAddress.createUnresolved("proxy", 9999)).get();
         Assert.assertEquals(cnx.remoteHostName, "proxy");
-        Assert.assertEquals(cnx.proxyToTargetBrokerAddress, "broker:9999");
-        cnx.close();
+        Assert.assertEquals(cnx.proxyToTargetBrokerAddress, "broker1:9999");
 
 
         cnx = pool.getConnection(
-                InetSocketAddress.createUnresolved("broker", 9999),
-                InetSocketAddress.createUnresolved("broker", 9999)).get();
-        Assert.assertEquals(cnx.remoteHostName, "broker");
+                InetSocketAddress.createUnresolved("broker2", 9999),
+                InetSocketAddress.createUnresolved("broker2", 9999)).get();
+        Assert.assertEquals(cnx.remoteHostName, "broker2");
         Assert.assertNull(cnx.proxyToTargetBrokerAddress);
-        cnx.close();
-
 
         pool.closeAllConnections();
         pool.close();

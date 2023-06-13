@@ -38,7 +38,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -56,6 +58,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManager;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -137,6 +140,11 @@ public class NamespaceService implements AutoCloseable {
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
+    private final List<NamespaceBundleSplitListener> bundleSplitListeners;
+
+
+    private final RedirectManager redirectManager;
+
 
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
@@ -163,7 +171,9 @@ public class NamespaceService implements AutoCloseable {
         this.namespaceClients =
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
+        this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
+        this.redirectManager = new RedirectManager(pulsar);
     }
 
     public void initialize() {
@@ -177,12 +187,20 @@ public class NamespaceService implements AutoCloseable {
 
         CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
                 .thenCompose(bundle -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
-                        return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
-                    } else {
-                        // TODO: Add unit tests cover it.
-                        return findBrokerServiceUrl(bundle, options);
-                    }
+                    // Do redirection if the cluster is in rollback or deploying.
+                    return redirectManager.findRedirectLookupResultAsync().thenCompose(optResult -> {
+                        if (optResult.isPresent()) {
+                            LOG.info("[{}] Redirect lookup request to {} for topic {}",
+                                    pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
+                            return CompletableFuture.completedFuture(optResult);
+                        }
+                        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                            return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
+                        } else {
+                            // TODO: Add unit tests cover it.
+                            return findBrokerServiceUrl(bundle, options);
+                        }
+                    });
                 });
 
         future.thenAccept(optResult -> {
@@ -271,22 +289,40 @@ public class NamespaceService implements AutoCloseable {
                                                                       NamespaceBundle bundle,
                                                                       LookupOptions options) {
 
-        return (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
-                ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
-                // TODO: Add unit tests cover it.
-                findBrokerServiceUrl(bundle, options)).thenApply(lookupResult -> {
-            if (lookupResult.isPresent()) {
+        return redirectManager.findRedirectLookupResultAsync().thenCompose(optResult -> {
+            if (optResult.isPresent()) {
+                LOG.info("[{}] Redirect lookup request to {} for topic {}",
+                        pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
                 try {
-                    LookupData lookupData = lookupResult.get().getLookupData();
+                    LookupData lookupData = optResult.get().getLookupData();
                     final String redirectUrl = options.isRequestHttps()
                             ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
-                    return Optional.of(new URL(redirectUrl));
+                    return CompletableFuture.completedFuture(Optional.of(new URL(redirectUrl)));
                 } catch (Exception e) {
                     // just log the exception, nothing else to do
                     LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
                 }
+                return CompletableFuture.completedFuture(Optional.empty());
             }
-            return Optional.empty();
+            CompletableFuture<Optional<LookupResult>> future =
+                    ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+                    ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
+                    findBrokerServiceUrl(bundle, options);
+
+            return future.thenApply(lookupResult -> {
+                if (lookupResult.isPresent()) {
+                    try {
+                        LookupData lookupData = lookupResult.get().getLookupData();
+                        final String redirectUrl = options.isRequestHttps()
+                                ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
+                        return Optional.of(new URL(redirectUrl));
+                    } catch (Exception e) {
+                        // just log the exception, nothing else to do
+                        LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
+                    }
+                }
+                return Optional.empty();
+            });
         });
     }
 
@@ -717,6 +753,14 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
+        return unloadNamespaceBundle(bundle, Optional.empty());
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, Optional<String> destinationBroker) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return ExtensibleLoadManagerImpl.get(loadManager.get())
+                    .unloadNamespaceBundleAsync(bundle, destinationBroker);
+        }
         // unload namespace bundle
         return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
     }
@@ -814,7 +858,10 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
                                                      NamespaceBundleSplitAlgorithm splitAlgorithm,
                                                      List<Long> boundaries) {
-
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return ExtensibleLoadManagerImpl.get(loadManager.get())
+                    .splitNamespaceBundleAsync(bundle, splitAlgorithm, boundaries);
+        }
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
         splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm, boundaries);
@@ -933,6 +980,7 @@ public class NamespaceService implements AutoCloseable {
                                 // affect the split operation which is already safely completed
                                 r.forEach(this::unloadNamespaceBundle);
                             }
+                            onNamespaceBundleSplit(bundle);
                         })
                         .exceptionally(e -> {
                             String msg1 = format(
@@ -955,12 +1003,8 @@ public class NamespaceService implements AutoCloseable {
      * @return A pair, left is target namespace bundle, right is split bundles.
      */
     public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> getSplitBoundary(
-            NamespaceBundle bundle, List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
-        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
-                getNamespaceBundleSplitAlgorithmByName(config.getDefaultNamespaceBundleSplitAlgorithm());
-        CompletableFuture<List<Long>> splitBoundary =
-                nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
+            NamespaceBundle bundle, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm, List<Long> boundaries) {
+        CompletableFuture<List<Long>> splitBoundary = getSplitBoundary(bundle, boundaries, nsBundleSplitAlgorithm);
         return splitBoundary.thenCompose(splitBoundaries -> {
                     if (splitBoundaries == null || splitBoundaries.size() == 0) {
                         LOG.info("[{}] No valid boundary found in {} to split bundle {}",
@@ -970,6 +1014,12 @@ public class NamespaceService implements AutoCloseable {
                     return pulsar.getNamespaceService().getNamespaceBundleFactory()
                             .splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries);
                 });
+    }
+
+    public CompletableFuture<List<Long>> getSplitBoundary(
+            NamespaceBundle bundle, List<Long> boundaries, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm) {
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        return nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
     }
 
     private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,
@@ -1058,19 +1108,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public boolean isServiceUnitOwned(ServiceUnitId suName) throws Exception {
-        if (suName instanceof TopicName) {
-            return isTopicOwnedAsync((TopicName) suName).get();
-        }
-
-        if (suName instanceof NamespaceName) {
-            return isNamespaceOwned((NamespaceName) suName);
-        }
-
-        if (suName instanceof NamespaceBundle) {
-            return ownershipCache.isNamespaceBundleOwned((NamespaceBundle) suName);
-        }
-
-        throw new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName());
+        return isServiceUnitOwnedAsync(suName).get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
     }
 
     public CompletableFuture<Boolean> isServiceUnitOwnedAsync(ServiceUnitId suName) {
@@ -1095,16 +1133,17 @@ public class NamespaceService implements AutoCloseable {
                 new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName()));
     }
 
+    /**
+     * @Deprecated This method is only used in test now.
+     */
+    @Deprecated
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
-            OwnedBundle ownedBundle = ownershipCache.getOwnedBundle(getBundle(topicName));
-            if (ownedBundle == null) {
-                return false;
-            }
-            return ownedBundle.isActive();
-        } catch (Exception e) {
-            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName, e);
-            return false;
+            return isServiceUnitActiveAsync(topicName).get(pulsar.getConfig()
+                    .getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOG.warn("Unable to find OwnedBundle for topic in time - [{}]", topicName, e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -1114,16 +1153,13 @@ public class NamespaceService implements AutoCloseable {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
-        Optional<CompletableFuture<OwnedBundle>> res = ownershipCache.getOwnedBundleAsync(getBundle(topicName));
-        if (!res.isPresent()) {
-            return CompletableFuture.completedFuture(false);
-        }
-
-        return res.get().thenApply(ob -> ob != null && ob.isActive());
-    }
-
-    private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
-        return ownershipCache.getOwnedBundle(getFullBundle(fqnn)) != null;
+        return getBundleAsync(topicName).thenCompose(bundle -> {
+            Optional<CompletableFuture<OwnedBundle>> optionalFuture = ownershipCache.getOwnedBundleAsync(bundle);
+            if (!optionalFuture.isPresent()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return optionalFuture.get().thenApply(ob -> ob != null && ob.isActive());
+        });
     }
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
@@ -1156,17 +1192,23 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
-        return ownershipCache.removeOwnership(nsBundle)
-                .thenRun(() -> bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject()));
+        CompletableFuture<Void> future;
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
+            future = extensibleLoadManager.unloadNamespaceBundleAsync(nsBundle, Optional.empty());
+        } else {
+            future = ownershipCache.removeOwnership(nsBundle);
+        }
+        return future.thenRun(() -> bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject()));
     }
 
-    protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
+    public void onNamespaceBundleOwned(NamespaceBundle bundle) {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             notifyNamespaceBundleOwnershipListener(bundle, bundleOwnedListener);
         }
     }
 
-    protected void onNamespaceBundleUnload(NamespaceBundle bundle) {
+    public void onNamespaceBundleUnload(NamespaceBundle bundle) {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             try {
                 if (bundleOwnedListener.test(bundle)) {
@@ -1174,6 +1216,18 @@ public class NamespaceService implements AutoCloseable {
                 }
             } catch (Throwable t) {
                 LOG.error("Call bundle {} ownership lister error", bundle, t);
+            }
+        }
+    }
+
+    public void onNamespaceBundleSplit(NamespaceBundle bundle) {
+        for (NamespaceBundleSplitListener bundleSplitListener : bundleSplitListeners) {
+            try {
+                if (bundleSplitListener.test(bundle)) {
+                    bundleSplitListener.onSplit(bundle);
+                }
+            } catch (Throwable t) {
+                LOG.error("Call bundle {} split listener {} error", bundle, bundleSplitListener, t);
             }
         }
     }
@@ -1186,6 +1240,15 @@ public class NamespaceService implements AutoCloseable {
             }
         }
         getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+    }
+
+    public void addNamespaceBundleSplitListener(NamespaceBundleSplitListener... listeners) {
+        Objects.requireNonNull(listeners);
+        for (NamespaceBundleSplitListener listener : listeners) {
+            if (listener != null) {
+                bundleSplitListeners.add(listener);
+            }
+        }
     }
 
     private void notifyNamespaceBundleOwnershipListener(NamespaceBundle bundle,
@@ -1436,13 +1499,38 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
-    public Optional<NamespaceEphemeralData> getOwner(NamespaceBundle bundle) throws Exception {
-        // if there is no znode for the service unit, it is not owned by any broker
-        return getOwnerAsync(bundle).get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+    public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
+            return extensibleLoadManager.getOwnershipWithLookupDataAsync(bundle)
+                    .thenCompose(lookupData -> {
+                        if (lookupData.isPresent()) {
+                            return CompletableFuture.completedFuture(
+                                    Optional.of(lookupData.get().toNamespaceEphemeralData()));
+                        } else {
+                            return CompletableFuture.completedFuture(Optional.empty());
+                        }
+                    });
+        }
+        return ownershipCache.getOwnerAsync(bundle);
     }
 
-    public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {
-        return ownershipCache.getOwnerAsync(bundle);
+    public boolean checkOwnershipPresent(NamespaceBundle bundle) throws Exception {
+        return checkOwnershipPresentAsync(bundle).get(pulsar.getConfiguration()
+                        .getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+    }
+
+    public CompletableFuture<Boolean> checkOwnershipPresentAsync(NamespaceBundle bundle) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            if (bundle.getNamespaceObject().equals(SYSTEM_NAMESPACE)) {
+                return FutureUtil.failedFuture(new UnsupportedOperationException(
+                        "Ownership check for system namespace is not supported"));
+            }
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
+            return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
+                    .thenApply(Optional::isPresent);
+        }
+        return getOwnerAsync(bundle).thenApply(Optional::isPresent);
     }
 
     public void unloadSLANamespace() throws Exception {
@@ -1452,7 +1540,7 @@ public class NamespaceService implements AutoCloseable {
         LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
         NamespaceBundle nsFullBundle = getFullBundle(namespaceName);
-        if (!getOwner(nsFullBundle).isPresent()) {
+        if (!checkOwnershipPresent(nsFullBundle)) {
             // No one owns the namespace so no point trying to unload it
             // Next lookup will assign the bundle to this broker.
             return;
@@ -1526,6 +1614,17 @@ public class NamespaceService implements AutoCloseable {
     public static boolean isSystemServiceNamespace(String namespace) {
         return SYSTEM_NAMESPACE.toString().equals(namespace)
                 || SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+    }
+
+    /**
+     * used for filtering bundles in special namespace.
+     * @param namespace
+     * @return True if namespace is HEARTBEAT_NAMESPACE or SLA_NAMESPACE
+     */
+    public static boolean filterNamespaceForShedding(String namespace) {
+        return SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
     }

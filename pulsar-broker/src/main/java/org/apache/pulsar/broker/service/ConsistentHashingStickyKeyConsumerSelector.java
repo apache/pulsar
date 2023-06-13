@@ -26,9 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
@@ -53,7 +53,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public void addConsumer(Consumer consumer) throws ConsumerAssignException {
+    public CompletableFuture<Void> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             // Insert multiple points on the hash ring for every consumer
@@ -73,6 +73,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 });
             }
+            return CompletableFuture.completedFuture(null);
         } finally {
             rwLock.writeLock().unlock();
         }

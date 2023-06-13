@@ -221,6 +221,7 @@ public class FunctionActioner {
         if (workerConfig.getAdditionalJavaRuntimeArguments() != null) {
             instanceConfig.setAdditionalJavaRuntimeArguments(workerConfig.getAdditionalJavaRuntimeArguments());
         }
+        instanceConfig.setIgnoreUnknownConfigFields(workerConfig.isIgnoreUnknownConfigFields());
         return instanceConfig;
     }
 

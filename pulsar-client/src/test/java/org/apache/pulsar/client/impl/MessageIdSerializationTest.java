@@ -43,8 +43,7 @@ public class MessageIdSerializationTest {
 
     @Test
     public void testBatchSizeNotSet() throws Exception {
-        MessageId id = new BatchMessageIdImpl(1L, 2L, 3, 4, -1,
-                BatchMessageAckerDisabled.INSTANCE);
+        MessageId id = new BatchMessageIdImpl(1L, 2L, 3, 4, -1, null);
         byte[] serialized = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serialized), id);
         assertEquals(MessageId.fromByteArrayWithTopic(serialized, "my-topic"), id);

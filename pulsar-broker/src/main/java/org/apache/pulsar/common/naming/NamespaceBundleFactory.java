@@ -272,8 +272,7 @@ public class NamespaceBundleFactory {
         String[] boundaries = bundleRange.split("_");
         Long lowerEndpoint = Long.decode(boundaries[0]);
         Long upperEndpoint = Long.decode(boundaries[1]);
-        Range<Long> hashRange = Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
-                (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
+        Range<Long> hashRange = getRange(lowerEndpoint, upperEndpoint);
         return getBundle(NamespaceName.get(namespace), hashRange);
     }
 
@@ -412,6 +411,11 @@ public class NamespaceBundleFactory {
         i.next();
         // prop, cluster, namespace
         return Joiner.on("/").join(i);
+    }
+
+    public static Range<Long> getRange(Long lowerEndpoint, Long upperEndpoint) {
+        return Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
+                (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
     }
 
 }

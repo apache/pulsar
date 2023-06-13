@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static org.testng.Assert.assertEquals;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -30,12 +28,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Request;
 import org.testng.annotations.Test;
 
+import java.util.Optional;
+
+import static org.testng.Assert.assertEquals;
+
 @Slf4j
 public class TopicSchemaTest {
 
     @Test
     public void testGetSchema() {
-        TopicSchema topicSchema = new TopicSchema(null);
+        TopicSchema topicSchema = new TopicSchema(null, Thread.currentThread().getContextClassLoader());
 
         String TOPIC = "public/default/test";
         Schema<?> schema = topicSchema.getSchema(TOPIC + "1", DummyClass.class, Optional.of(SchemaType.JSON));
