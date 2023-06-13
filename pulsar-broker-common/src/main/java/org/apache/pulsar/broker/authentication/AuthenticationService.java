@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
@@ -158,7 +159,7 @@ public class AuthenticationService implements Closeable {
     /**
      * @deprecated use {@link #authenticateHttpRequest(HttpServletRequest, HttpServletResponse)}
      */
-    @Deprecated(since = "2.12.0")
+    @Deprecated(since = "3.0.0")
     public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData)
             throws AuthenticationException {
         String authMethodName = getAuthMethodName(request);
@@ -171,20 +172,26 @@ public class AuthenticationService implements Closeable {
                     authData = authenticationState.getAuthDataSource();
                 }
                 // Backward compatible, the authData value was null in the previous implementation
-                return providerToUse.authenticate(authData);
+                return providerToUse.authenticateAsync(authData).get();
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
                             + e.getMessage(), e);
                 }
                 throw e;
+            } catch (ExecutionException | InterruptedException e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                            + e.getMessage(), e);
+                }
+                throw new RuntimeException(e);
             }
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     AuthenticationState authenticationState = provider.newHttpAuthState(request);
-                    return provider.authenticate(authenticationState.getAuthDataSource());
-                } catch (AuthenticationException e) {
+                    return provider.authenticateAsync(authenticationState.getAuthDataSource()).get();
+                } catch (ExecutionException | InterruptedException | AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
                                 + e.getMessage(), e);

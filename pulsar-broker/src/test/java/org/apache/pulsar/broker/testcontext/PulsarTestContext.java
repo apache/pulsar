@@ -290,6 +290,10 @@ public class PulsarTestContext implements AutoCloseable {
             if (svcConfig.getManagedLedgerCacheSizeMB() == unconfiguredDefaults.getManagedLedgerCacheSizeMB()) {
                 svcConfig.setManagedLedgerCacheSizeMB(8);
             }
+
+            if (svcConfig.getTopicLoadTimeoutSeconds() == unconfiguredDefaults.getTopicLoadTimeoutSeconds()) {
+                svcConfig.setTopicLoadTimeoutSeconds(10);
+            }
         }
 
         /**
@@ -323,6 +327,9 @@ public class PulsarTestContext implements AutoCloseable {
          */
         public Builder configCustomizer(Consumer<ServiceConfiguration> configCustomerizer) {
             configCustomerizer.accept(svcConfig);
+            if (config != null) {
+                configCustomerizer.accept(config);
+            }
             return this;
         }
 

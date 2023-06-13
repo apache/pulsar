@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -55,7 +56,8 @@ public class MetadataStoreFactoryImplTest {
 
 
     @Test
-    public void testCreate() throws MetadataStoreException{
+    public void testCreate() throws Exception{
+        @Cleanup
         MetadataStore instance = MetadataStoreFactoryImpl.create(
                 "custom://localhost",
                 MetadataStoreConfig.builder().build());

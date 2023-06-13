@@ -228,6 +228,23 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(((AtomicInteger) FieldUtils.readDeclaredField(strategy, "count", true)).get(), 0);
     }
 
+    public void testActiveBrokersChange() throws Exception {
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", initBrokerData());
+        brokerDataMap.put("2", initBrokerData());
+        brokerDataMap.put("3", initBrokerData());
+        ServiceConfiguration conf = new ServiceConfiguration();
+        LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
+        strategy.selectBroker(brokerDataMap.keySet(), new BundleData(), loadData, conf);
+        Field field = LeastResourceUsageWithWeight.class.getDeclaredField("brokerAvgResourceUsageWithWeight");
+        field.setAccessible(true);
+        Map<String, Double> map = (Map<String, Double>) field.get(strategy);
+        assertEquals(map.size(), 3);
+        strategy.onActiveBrokersChange(new HashSet<>());
+        assertEquals(map.size(), 0);
+    }
+
     private BrokerData initBrokerData(double usage, double limit) {
         LocalBrokerData localBrokerData = new LocalBrokerData();
         localBrokerData.setCpu(new ResourceUsage(usage, limit));

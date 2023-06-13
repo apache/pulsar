@@ -23,11 +23,15 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -96,5 +100,27 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             return true;
         });
 
+    }
+
+    @Test
+    public void testClientVersion() throws Exception {
+        final String expectedVersion = String.format("Pulsar-Java-v%s", PulsarVersion.getVersion());
+        final String topic = "persistent://" + NAMESPACE + "/testClientVersion";
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("my-sub")
+                .topic(topic)
+                .subscribe();
+
+        Assert.assertEquals(admin.topics().getStats(topic).getPublishers().get(0).getClientVersion(), expectedVersion);
+        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get("my-sub").getConsumers().get(0)
+                .getClientVersion(), expectedVersion);
+
+        producer.close();
+        consumer.close();
     }
 }

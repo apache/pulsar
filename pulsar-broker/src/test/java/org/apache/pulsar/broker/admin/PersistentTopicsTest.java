@@ -1144,10 +1144,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // Check examine message not allowed on partitioned topic.
         try {
             admin.topics().examineMessage(topicName, "earliest", 1);
+            Assert.fail("fail to check examine message not allowed on partitioned topic");
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getMessage(),
                     "Examine messages on a partitioned topic is not allowed, please try examine message on specific "
                             + "topic partition");
+        }
+
+        try {
+            admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Could not examine messages due to the total message is zero");
         }
 
         producer.send("message1");

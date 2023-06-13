@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -30,20 +29,19 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.testng.annotations.Test;
 
 /**
  * Unit test for {@link BrokerVersionFilter}.
  */
 @Test(groups = "broker")
-public class BrokerVersionFilterTest {
+public class BrokerVersionFilterTest extends BrokerFilterTestBase {
 
 
     @Test
     public void testFilterEmptyBrokerList() throws BrokerFilterException {
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(), getContext());
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(), null, getContext());
         assertTrue(result.isEmpty());
     }
 
@@ -60,7 +58,7 @@ public class BrokerVersionFilterTest {
         );
         Map<String, BrokerLookupData> brokers = new HashMap<>(originalBrokers);
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(brokers, context);
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(brokers, null, context);
         assertEquals(result, originalBrokers);
     }
 
@@ -73,7 +71,8 @@ public class BrokerVersionFilterTest {
                 "localhost:6653", getLookupData("2.10.1")
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(
+                new HashMap<>(originalBrokers), null, getContext());
         assertEquals(result, Map.of(
                 "localhost:6651", getLookupData("2.10.1"),
                 "localhost:6652", getLookupData("2.10.1"),
@@ -86,7 +85,7 @@ public class BrokerVersionFilterTest {
                 "localhost:6652", getLookupData("2.10.1"),
                 "localhost:6653", getLookupData("2.10.1")
         );
-        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext());
 
         assertEquals(result, Map.of(
                 "localhost:6652", getLookupData("2.10.1"),
@@ -100,7 +99,7 @@ public class BrokerVersionFilterTest {
                 "localhost:6653", getLookupData("2.10.2-SNAPSHOT")
         );
 
-        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext());
         assertEquals(result, Map.of(
                 "localhost:6653", getLookupData("2.10.2-SNAPSHOT")
         ));
@@ -113,28 +112,6 @@ public class BrokerVersionFilterTest {
                 "localhost:6650", getLookupData("xxx")
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
-    }
-
-    public LoadManagerContext getContext() {
-        LoadManagerContext mockContext = mock(LoadManagerContext.class);
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setPreferLaterVersions(true);
-        doReturn(configuration).when(mockContext).brokerConfiguration();
-        return mockContext;
-    }
-
-    public BrokerLookupData getLookupData(String version) {
-        String webServiceUrl = "http://localhost:8080";
-        String webServiceUrlTls = "https://localhoss:8081";
-        String pulsarServiceUrl = "pulsar://localhost:6650";
-        String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
-        Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        Map<String, String> protocols = new HashMap<>(){{
-            put("kafka", "9092");
-        }};
-        return new BrokerLookupData(
-                webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true, version);
+        brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext());
     }
 }

@@ -36,10 +36,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Slf4j
 public class KafkaSchemaWrappedSchema implements Schema<byte[]>, Serializable {
 
-    private SchemaInfo schemaInfo = null;
+    private final SchemaInfo schemaInfo;
 
-    public KafkaSchemaWrappedSchema(org.apache.pulsar.kafka.shade.avro.Schema schema,
-                                    Converter converter) {
+    public KafkaSchemaWrappedSchema(org.apache.avro.Schema schema, Converter converter) {
         Map<String, String> props = new HashMap<>();
         boolean isJsonConverter = converter instanceof JsonConverter;
         props.put(GenericAvroSchema.OFFSET_PROP, isJsonConverter ? "0" : "5");

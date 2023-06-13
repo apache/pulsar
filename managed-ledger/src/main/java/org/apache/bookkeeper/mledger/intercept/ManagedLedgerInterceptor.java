@@ -42,6 +42,14 @@ public interface ManagedLedgerInterceptor {
     OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages);
 
     /**
+     * Intercept When add entry failed.
+     * @param numberOfMessages
+     */
+    default void afterFailedAddEntry(int numberOfMessages){
+
+    }
+
+    /**
      * Intercept when ManagedLedger is initialized.
      * @param propertiesMap map of properties.
      */

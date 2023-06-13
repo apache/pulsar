@@ -169,7 +169,8 @@ public class TransactionMetadataStoreService {
                                     tcLoadSemaphore.release();
                                 })).exceptionally(e -> {
                             internalPinnedExecutor.execute(() -> {
-                                completableFuture.completeExceptionally(e.getCause());
+                                Throwable realCause = FutureUtil.unwrapCompletionException(e);
+                                completableFuture.completeExceptionally(realCause);
                                 // release before handle request queue,
                                 //in order to client reconnect infinite loop
                                 tcLoadSemaphore.release();
@@ -180,7 +181,7 @@ public class TransactionMetadataStoreService {
                                         CompletableFuture<Void> future = deque.poll();
                                         if (future != null) {
                                             // this means that this tc client connection connect fail
-                                            future.completeExceptionally(e);
+                                            future.completeExceptionally(realCause);
                                         } else {
                                             break;
                                         }
@@ -256,12 +257,13 @@ public class TransactionMetadataStoreService {
         }
     }
 
-    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills) {
+    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills,
+                                                   String owner) {
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.newTransaction(timeoutInMills);
+        return store.newTransaction(timeoutInMills, owner);
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {
@@ -482,6 +484,21 @@ public class TransactionMetadataStoreService {
     public Map<TransactionCoordinatorID, TransactionMetadataStore> getStores() {
         return Collections.unmodifiableMap(stores);
     }
+
+    public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, String checkOwner) {
+        return getTxnMeta(txnID)
+                .thenCompose(meta -> {
+                    // owner was null in the old versions or no auth enabled
+                    if (meta.getOwner() == null) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    if (meta.getOwner().equals(checkOwner)) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return CompletableFuture.completedFuture(false);
+                });
+    }
+
 
     public void close () {
         this.internalPinnedExecutor.shutdown();
