@@ -96,15 +96,20 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         for (int i = 0; i < super.getBrokerCount(); i++) {
             getPulsarServiceList().get(i).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         }
-        final String topic1 = NAMESPACE1 +  "/testGetTransactionBufferInternalStatsInMultiBroker";
-        while (true) {
+        String topic1 = NAMESPACE1 +  "/testGetTransactionBufferInternalStatsInMultiBroker";
+        assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
+        for (int i = 0; true ; i++) {
+            topic1 = topic1 + i;
             admin.topics().createNonPartitionedTopic(topic1);
             String segmentTopicBroker = admin.lookups()
                     .lookupTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
             String indexTopicBroker = admin.lookups()
                     .lookupTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-            if (segmentTopicBroker == indexTopicBroker) {
-                admin.topics().delete(topic1);
+            if (segmentTopicBroker.equals(indexTopicBroker)) {
+                String topicBroker = admin.lookups().lookupTopic(topic1);
+                if (!topicBroker.equals(segmentTopicBroker)) {
+                    break;
+                }
             } else {
                 break;
             }

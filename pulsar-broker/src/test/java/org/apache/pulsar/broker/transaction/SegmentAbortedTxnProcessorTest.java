@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
@@ -263,55 +264,81 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
     @Test
     public void testTxnSegmentStats() throws Exception {
+        // Set up test environment
+        String namespace = TENANT + "/testTxnSegmentStats";
+        String topic = "persistent://" + namespace + "/testTxnSegmentStats";
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + topic.length() + SEGMENT_SIZE * 3);
+
+        // Create necessary resources
         Transactions transactions = admin.transactions();
-        String PROCESSOR_TOPIC = "persistent://" + NAMESPACE1 + "/testTxnSegmentStats";
-        admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
-        // Prepare topic, producer, consumer
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // Prepare topic, producer, and consumer
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(PROCESSOR_TOPIC)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(PROCESSOR_TOPIC)
-                .subscriptionName("my-sub")
-                .subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
         // Record the start time of the test
         long testStartTime = System.currentTimeMillis();
 
+        Transaction transaction = null;
         // Send messages with transactions and abort them
-        for (int i = 0; i < SEGMENT_SIZE + 2; i++) {
-            Transaction transaction = pulsarClient.newTransaction()
+        for (int i = 0; i < SEGMENT_SIZE; i++) {
+            transaction = pulsarClient.newTransaction()
                     .withTransactionTimeout(5, TimeUnit.HOURS).build().get();
             producer.newMessage(transaction).send();
-            transaction.abort();
+            transaction.abort().get();
         }
 
+        Transaction txn = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+        producer.newMessage(txn).send();
+        txn.abort().get();
+
         // Get the transaction buffer stats without segment stats
-        TransactionBufferStats statsWithoutSegmentStats = transactions.getTransactionBufferStats(PROCESSOR_TOPIC,
-                false, false);
+        TransactionBufferStats statsWithoutSegmentStats = transactions
+                .getTransactionBufferStats(topic, false, false);
         assertNotNull(statsWithoutSegmentStats);
         assertNotNull(statsWithoutSegmentStats.segmentsStats);
         assertNull(statsWithoutSegmentStats.segmentsStats.segmentStats);
-
-        // Get the transaction buffer stats with segment stats
-        TransactionBufferStats statsWithSegmentStats = transactions.getTransactionBufferStats(PROCESSOR_TOPIC,
-                false, true);
-        assertNotNull(statsWithSegmentStats);
-        assertNotNull(statsWithSegmentStats.segmentsStats);
+        assertEquals(statsWithoutSegmentStats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
 
         // Verify the segment stats
-        assertEquals(statsWithSegmentStats.segmentsStats.segmentsSize, 1L);
-        assertEquals(statsWithSegmentStats.segmentsStats.unsealedAbortTxnIDSize, 2L);
-        assertEquals(statsWithSegmentStats.segmentsStats.currentSegmentCapacity, SEGMENT_SIZE);
-        assertTrue(statsWithSegmentStats.segmentsStats.lastTookSnapshotSegmentTimestamp >= testStartTime);
+        assertEquals(statsWithoutSegmentStats.segmentsStats.segmentsSize, 1L);
+        assertEquals(statsWithoutSegmentStats.segmentsStats.unsealedAbortTxnIDSize, 1L);
+        assertEquals(statsWithoutSegmentStats.segmentsStats.currentSegmentCapacity, SEGMENT_SIZE);
+        assertEquals(statsWithoutSegmentStats.totalAbortedTransactions, SEGMENT_SIZE + 1);
+        assertTrue(statsWithoutSegmentStats.segmentsStats.lastTookSnapshotSegmentTimestamp >= testStartTime);
+
+        // Get the transaction buffer stats with segment stats
+        TransactionBufferStats statsWithSegmentStats = transactions
+                .getTransactionBufferStats(topic, false, true);
+        assertNotNull(statsWithSegmentStats);
+        assertNotNull(statsWithSegmentStats.segmentsStats.segmentStats);
 
         // Verify if the segment stats are present when requested
         assertEquals(statsWithSegmentStats.segmentsStats.segmentStats.size(), 1);
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentStats.get(0).lastTxnID,
+                transaction.getTxnID().toString());
 
-        // Verify the totalAbortedTransactions field
-        assertEquals(statsWithSegmentStats.totalAbortedTransactions, SEGMENT_SIZE + 2);
+        // Verify multiple segments
+        for (int i = 0; i < SEGMENT_SIZE * 3; i++) {
+            transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+            producer.newMessage(transaction).send();
+            transaction.abort().get();
+        }
+        statsWithSegmentStats = transactions.getTransactionBufferStats(topic, false, true);
+
+        // Verify the segment stats
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentsSize, 4L);
+        assertEquals(statsWithSegmentStats.segmentsStats.unsealedAbortTxnIDSize, 1L);
+        assertEquals(statsWithSegmentStats.totalAbortedTransactions, SEGMENT_SIZE * 4 + 1);
+
+        // Reset the configuration
+        this.pulsarService.getConfig()
+                .setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() + SEGMENT_SIZE * 3);
     }
 
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {

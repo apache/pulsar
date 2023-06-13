@@ -117,7 +117,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         createTransactionCoordinatorAssign(numPartitionsOfTC);
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
+        admin.namespaces().createNamespace(NAMESPACE1, 4);
         if (topic != null) {
             if (numPartitions == 0) {
                 admin.topics().createNonPartitionedTopic(topic);
