@@ -34,8 +34,9 @@ class BcVersionSpecificCryptoUtilityFactory {
                             .newInstance();
                 case SecurityUtility.BC_FIPS:
                     return (BcVersionSpecificCryptoUtility) BcVersionSpecificCryptoUtility.class.getClassLoader()
-                            .loadClass("org.apache.pulsar.client.impl.bcfips.BCFipsSpecificUtility")
-                            .getConstructor().newInstance();
+                            .loadClass("org.apache.pulsar.client.impl.crypto.bcfips.BCFipsSpecificUtility")
+                            .getConstructor()
+                            .newInstance();
                 default:
                     throw new IllegalStateException(
                             "Provider not handled for BC Specific delegate creation: " + providerName);

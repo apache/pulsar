@@ -43,7 +43,7 @@ public interface BcVersionSpecificCryptoUtility {
             throws PulsarClientException.CryptoException;
 
     Optional<SecretKey> deCryptDataKey(String datakeyAlgorithm, String logCtx, String keyName, PrivateKey privateKey,
-                                       byte[] encryotedDataKey);
+                                       byte[] encryptedDataKey);
 
     PublicKey loadPublicKey(byte[] keyBytes);
 

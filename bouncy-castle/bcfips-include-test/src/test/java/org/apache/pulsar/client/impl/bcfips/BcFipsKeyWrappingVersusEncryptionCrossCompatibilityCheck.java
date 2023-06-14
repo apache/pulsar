@@ -28,10 +28,12 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.spec.InvalidKeySpecException;
+import org.apache.commons.codec.DecoderException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.BcVersionSpecificCryptoUtility;
 import org.apache.pulsar.client.impl.crypto.EncKeyReader;
 import org.apache.pulsar.client.impl.crypto.WrappingVersusEncryptionCrossCompatibilityTestBase;
+import org.apache.pulsar.client.impl.crypto.bcfips.BCFipsSpecificUtility;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -49,7 +51,8 @@ public class BcFipsKeyWrappingVersusEncryptionCrossCompatibilityCheck
     @DataProvider
     @Override
     public Object[][] badEncryptionInputs()
-            throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, NoSuchProviderException {
+            throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, NoSuchProviderException,
+            DecoderException {
         return new Object[][]{
                 {EncKeyReader.getKeyAsPEM(EncKeyReader.KeyType.PUBLIC, "rsa-256.pem", ImmutableMap.of()),
                         EncKeyReader.getKeyAsPEM(EncKeyReader.KeyType.PRIVATE, "rsa-256.pem", ImmutableMap.of()),

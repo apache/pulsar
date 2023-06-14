@@ -36,9 +36,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class EncryptionProducerConsumerTest extends TlsProducerConsumerBase {
+public class BcFipsEncryptionProducerConsumerTest extends TlsProducerConsumerBase {
 
-    private static final Logger log = LoggerFactory.getLogger(EncryptionProducerConsumerTest.class);
+    private static final Logger log = LoggerFactory.getLogger(BcFipsEncryptionProducerConsumerTest.class);
 
     @BeforeClass
     public static void setUp() {

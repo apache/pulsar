@@ -42,7 +42,6 @@ public class EncKeyReader implements CryptoKeyReader {
         String CERT_FILE_PATH = "../src/test/resources/certificate/" + keyType.id + "-key." + keyName;
         if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
             try {
-                EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
                 return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
             } catch (IOException e) {
                 Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
