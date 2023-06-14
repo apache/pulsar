@@ -367,7 +367,14 @@ public class NamespaceService implements AutoCloseable {
             // all pre-registered namespace is assumed to have bundles disabled
             nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
-            NamespaceEphemeralData otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            final NamespaceEphemeralData otherData;
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(this.loadManager.get());
+                otherData = loadManager.tryAcquiringOwnership(nsFullBundle).get();
+            } else {
+                otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            }
+
             if (StringUtils.equals(pulsar.getBrokerServiceUrl(), otherData.getNativeUrl())
                 || StringUtils.equals(pulsar.getBrokerServiceUrlTls(), otherData.getNativeUrlTls())) {
                 if (nsFullBundle != null) {
