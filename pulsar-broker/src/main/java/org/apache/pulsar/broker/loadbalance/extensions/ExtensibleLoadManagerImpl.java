@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadMana
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
+import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.getNamespaceBundle;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,16 +38,20 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -170,7 +175,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private final SplitCounter splitCounter = new SplitCounter();
 
     // record unload metrics
-    private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference();
+    private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
     // record split metrics
     private final AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
 
@@ -179,6 +184,24 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
     private final CountDownLatch initWaiter = new CountDownLatch(1);
+
+    /**
+     * Get all the bundles that are owned by this broker.
+     */
+    public Set<NamespaceBundle> getOwnedServiceUnits() {
+        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
+        String brokerId = brokerRegistry.getBrokerId();
+        return entrySet.stream()
+                .filter(entry -> {
+                    var stateData = entry.getValue();
+                    return stateData.state() == ServiceUnitState.Owned
+                            && StringUtils.isNotBlank(stateData.dstBroker())
+                            && stateData.dstBroker().equals(brokerId);
+                }).map(entry -> {
+                    var bundle = entry.getKey();
+                    return getNamespaceBundle(pulsar, bundle);
+                }).collect(Collectors.toSet());
+    }
 
     public enum Role {
         Leader,

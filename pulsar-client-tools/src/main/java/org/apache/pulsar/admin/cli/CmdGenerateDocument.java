@@ -108,7 +108,7 @@ public class CmdGenerateDocument extends CmdBase {
             sb.append("\n\n");
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
-                sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
+                sb.append("\n\n## ").append(subK).append("\n\n");
                 sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");
                 sb.append("**Command:**\n\n");
                 sb.append("```shell\n$ pulsar-admin ").append(module).append(" ")
