@@ -46,7 +46,6 @@ public class NamespaceBundles {
     public static final Long FULL_LOWER_BOUND = 0x00000000L;
     public static final Long FULL_UPPER_BOUND = 0xffffffffL;
     private final NamespaceBundle fullBundle;
-    private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
     private final Optional<Pair<LocalPolicies, Long>> localPolicies;
 
     public NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
@@ -66,7 +65,7 @@ public class NamespaceBundles {
         this.factory = Objects.requireNonNull(factory);
         this.localPolicies = localPolicies;
         checkArgument(partitions.length > 0, "Can't create bundles w/o partition boundaries");
-        this.topicBundleAssignmentStrategy = TopicBundleAssignmentFactory.create(factory.getPulsar());
+       
         // calculate bundles based on partition boundaries
         this.bundles = new ArrayList<>();
         fullBundle = new NamespaceBundle(nsname,
@@ -94,7 +93,7 @@ public class NamespaceBundles {
     }
 
     public NamespaceBundle findBundle(TopicName topicName) {
-        return topicBundleAssignmentStrategy.findBundle(topicName, this);
+        return factory.getTopicBundleAssignmentStrategy().findBundle(topicName, this);
     }
 
     public List<NamespaceBundle> getBundles() {
