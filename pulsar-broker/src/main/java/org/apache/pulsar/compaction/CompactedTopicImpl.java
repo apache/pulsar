@@ -59,8 +59,8 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     private final BookKeeper bk;
 
-    private PositionImpl compactionHorizon = null;
-    private CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
+    private volatile PositionImpl compactionHorizon = null;
+    CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
         this.bk = bk;
@@ -258,7 +258,7 @@ public class CompactedTopicImpl implements CompactedTopic {
         return promise;
     }
 
-    private static CompletableFuture<List<Entry>> readEntries(LedgerHandle lh, long from, long to) {
+     static CompletableFuture<List<Entry>> readEntries(LedgerHandle lh, long from, long to) {
         CompletableFuture<Enumeration<LedgerEntry>> promise = new CompletableFuture<>();
 
         lh.asyncReadEntries(from, to,
@@ -317,7 +317,7 @@ public class CompactedTopicImpl implements CompactedTopic {
             .compare(p.getEntryId(), m.getEntryId()).result();
     }
 
-    public synchronized Optional<Position> getCompactionHorizon() {
+    public Optional<PositionImpl> getCompactionHorizon() {
         return Optional.ofNullable(this.compactionHorizon);
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);

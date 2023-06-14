@@ -81,6 +81,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactedServiceFactory;
 import org.apache.zookeeper.CreateMode;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -1731,7 +1732,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .value(data)
                     .send();
         }
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactedServiceFactory)pulsar.getCompactedServiceFactory()).getCompactor();
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);

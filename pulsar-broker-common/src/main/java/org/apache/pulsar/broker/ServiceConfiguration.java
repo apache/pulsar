@@ -3153,6 +3153,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
 
+
+    private String compactedServiceFactoryClassName = "org.apache.pulsar.compaction.PulsarCompactedServiceFactory";
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
