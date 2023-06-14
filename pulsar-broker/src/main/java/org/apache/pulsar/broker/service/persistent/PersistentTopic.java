@@ -35,6 +35,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -166,11 +167,12 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.compaction.CompactedServiceFactory;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
-import org.apache.pulsar.compaction.PulsarCompacterService;
+import org.apache.pulsar.compaction.PulsarCompactedService;
 import org.apache.pulsar.compaction.TopicCompactedService;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -210,7 +212,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     protected final MessageDeduplication messageDeduplication;
 
-    private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
+    private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
 //    private final CompactedTopic compactedTopic;
     private TopicCompactedService compactedService;
@@ -297,7 +299,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         registerTopicPolicyListener();
 
-        this.compactedService = brokerService.pulsar().getCompactedServiceFactory().newCompacterService(topic);
+        CompactedServiceFactory compactedServiceFactory = brokerService.pulsar().getCompactedServiceFactory();
+        this.compactedService = compactedServiceFactory.newTopicCompactedService(topic);
 
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
@@ -407,7 +410,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
-        this.compactedService = brokerService.pulsar().getCompactedServiceFactory().newCompacterService(topic);
+        this.compactedService = brokerService.pulsar().getCompactedServiceFactory().newTopicCompactedService(topic);
 //        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
@@ -483,11 +486,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
-
-        compactedService = getTopicCompactedService();
-
-        if (isCompactionSubscription(subscriptionName) && compactedService instanceof PulsarCompacterService) {
-            CompactedTopicImpl compactedTopic = ((PulsarCompacterService) compactedService).getCompactedTopic();
+        Objects.requireNonNull(compactedService);
+        if (isCompactionSubscription(subscriptionName) && compactedService instanceof PulsarCompactedService) {
+            CompactedTopicImpl compactedTopic = ((PulsarCompactedService) compactedService).getCompactedTopic();
             return new PulsarCompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
             return new PersistentSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties);
@@ -2522,8 +2523,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public Optional<CompactedTopicContext> getCompactedTopicContext() {
         try {
-            if (compactedService instanceof  PulsarCompacterService pulsarCompacterService) {
-                return pulsarCompacterService.getCompactedTopic().getCompactedTopicContext();
+            if (compactedService instanceof  PulsarCompactedService pulsarCompactedService) {
+                return pulsarCompactedService.getCompactedTopic().getCompactedTopicContext();
             }
         } catch (ExecutionException | InterruptedException e) {
             log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
@@ -3195,7 +3196,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.RUNNING);
         } else {
             try {
-                if (current.join() == COMPACTION_NEVER_RUN) {
+                if (COMPACTION_NEVER_RUN.equals(current.join())) {
                     return LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.NOT_RUN);
                 } else {
                     return LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.SUCCESS);
@@ -3322,10 +3323,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 //        return compactedTopic;
 //    }
 
-    public synchronized TopicCompactedService getTopicCompactedService() {
-        if (this.compactedService == null) {
-            this.compactedService = brokerService.pulsar().getCompactedServiceFactory().newCompacterService(topic);
-        }
+    public TopicCompactedService getTopicCompactedService() {
         return this.compactedService;
     }
 

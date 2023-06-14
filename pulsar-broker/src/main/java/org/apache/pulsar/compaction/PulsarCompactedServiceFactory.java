@@ -50,8 +50,8 @@ public class PulsarCompactedServiceFactory implements CompactedServiceFactory {
     }
 
     @Override
-    public TopicCompactedService newCompacterService(String topic) {
-        return new PulsarCompacterService(topic, pulsarService.getBookKeeperClient(), () -> {
+    public TopicCompactedService newTopicCompactedService(String topic) {
+        return new PulsarCompactedService(topic, pulsarService.getBookKeeperClient(), () -> {
             try {
                 return this.getCompactor();
             } catch (PulsarServerException e) {

@@ -123,10 +123,8 @@ public class TwoPhaseCompactor extends Compactor {
         future.thenAcceptAsync(m -> {
             try (m) {
                 MessageId id = m.getMessageId();
-                boolean deletedMessage = false;
-                boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                deletedMessage = isDeletedMessage(reader, latestForKey, m, id, deletedMessage, replaceMessage);
+                boolean deletedMessage = isDeletedMessage(reader, latestForKey, m, id);
                 MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                 MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                 if (id.compareTo(lastMessageId) == 0) {
@@ -146,8 +144,10 @@ public class TwoPhaseCompactor extends Compactor {
         });
     }
 
-    protected boolean isDeletedMessage(RawReader reader, Map<String, MessageId> latestForKey, RawMessage m, MessageId id,
-                                       boolean deletedMessage, boolean replaceMessage) {
+    protected boolean isDeletedMessage(RawReader reader, Map<String, MessageId> latestForKey, RawMessage m,
+                                       MessageId id) {
+        boolean deletedMessage = false;
+        boolean replaceMessage = false;
         if (RawBatchConverter.isReadableBatch(m)) {
             try {
                 for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
@@ -238,9 +238,8 @@ public class TwoPhaseCompactor extends Compactor {
             }
             try {
                 MessageId id = m.getMessageId();
-                Optional<RawMessage> messageToAdd = Optional.empty();
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                messageToAdd = getRawMessage(latestForKey, promise, m, id, messageToAdd);
+                Optional<RawMessage> messageToAdd = getRawMessage(latestForKey, promise, m, id);
 
                 if (messageToAdd.isPresent()) {
                     RawMessage message = messageToAdd.get();
@@ -292,7 +291,8 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     protected Optional<RawMessage> getRawMessage(Map<String, MessageId> latestForKey, CompletableFuture<Void> promise,
-                                                 RawMessage m, MessageId id, Optional<RawMessage> messageToAdd) {
+                                                 RawMessage m, MessageId id) {
+        Optional<RawMessage> messageToAdd = Optional.empty();
         if (RawBatchConverter.isReadableBatch(m)) {
             try {
                 messageToAdd = RawBatchConverter.rebatchMessage(

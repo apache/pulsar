@@ -24,5 +24,5 @@ public interface CompactedServiceFactory {
 
     void initialize(PulsarService pulsarService);
 
-    TopicCompactedService newCompacterService(String topic);
+    TopicCompactedService newTopicCompactedService(String topic);
 }
