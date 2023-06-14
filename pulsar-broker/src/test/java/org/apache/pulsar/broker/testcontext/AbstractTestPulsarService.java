@@ -41,7 +41,6 @@ abstract class AbstractTestPulsarService extends PulsarService {
     protected final MetadataStoreExtended localMetadataStore;
     protected final MetadataStoreExtended configurationMetadataStore;
     protected final Compactor compactor;
-    protected final CompactedServiceFactory compactedServiceFactory;
     protected final BrokerInterceptor brokerInterceptor;
     protected final BookKeeperClientFactory bookKeeperClientFactory;
 
@@ -57,7 +56,7 @@ abstract class AbstractTestPulsarService extends PulsarService {
                 NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class);
         this.configurationMetadataStore =
                 NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class);
-        this.compactedServiceFactory = compactedServiceFactory;
+        super.compactedServiceFactory = compactedServiceFactory;
         this.compactor = compactor;
         this.brokerInterceptor = brokerInterceptor;
         this.bookKeeperClientFactory = bookKeeperClientFactory;
