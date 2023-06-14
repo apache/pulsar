@@ -132,7 +132,7 @@ An important aspect to consider is also multi-tenancy: Does the feature I'm addi
 If there is uncertainty for this section, please submit the PIP and request for feedback on the mailing list.
 -->
 
-# Backward & Forward Compatability
+# Backward & Forward Compatibility
 
 ## Revert
 

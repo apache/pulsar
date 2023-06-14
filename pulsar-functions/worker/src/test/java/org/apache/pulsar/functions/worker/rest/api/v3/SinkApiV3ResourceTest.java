@@ -18,21 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATLEAST_ONCE;
-import static org.apache.pulsar.functions.source.TopicSchema.DEFAULT_SERDE;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,6 +45,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -97,6 +83,23 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATLEAST_ONCE;
+import static org.apache.pulsar.functions.source.TopicSchema.DEFAULT_SERDE;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link SinksApiV3Resource}.
@@ -965,29 +968,7 @@ public class SinkApiV3ResourceTest {
             String className,
             Integer parallelism,
             String expectedError) throws Exception {
-        mockStatic(ConnectorUtils.class, ctx -> {
-            ctx.when(() -> ConnectorUtils.getIOSinkClass(any(NarClassLoader.class)))
-                    .thenReturn(CASSANDRA_STRING_SINK);
-        });
-
-        mockStatic(ClassLoaderUtils.class, ctx -> {
-        });
-
-        mockStatic(FunctionCommon.class, ctx -> {
-            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getSinkType(any())).thenReturn(String.class);
-            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mock(NarClassLoader.class));
-            ctx.when(() -> FunctionCommon
-                    .convertProcessingGuarantee(eq(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE)))
-                    .thenReturn(ATLEAST_ONCE);
-        });
-
-        this.mockedFunctionMetaData =
-                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(mockedFunctionMetaData);
-
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+        mockFunctionCommon(tenant, namespace, sink);
 
         SinkConfig sinkConfig = new SinkConfig();
         if (tenant != null) {
@@ -1024,6 +1005,32 @@ public class SinkApiV3ResourceTest {
                 sinkConfig,
                 null, null);
 
+    }
+
+    private void mockFunctionCommon(String tenant, String namespace, String sink) throws IOException {
+        mockStatic(ConnectorUtils.class, ctx -> {
+            ctx.when(() -> ConnectorUtils.getIOSinkClass(any(NarClassLoader.class)))
+                    .thenReturn(CASSANDRA_STRING_SINK);
+        });
+
+        mockStatic(ClassLoaderUtils.class, ctx -> {
+        });
+
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getSinkType(any())).thenReturn(String.class);
+            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mock(NarClassLoader.class));
+            ctx.when(() -> FunctionCommon
+                    .convertProcessingGuarantee(eq(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE)))
+                    .thenReturn(ATLEAST_ONCE);
+        });
+
+        this.mockedFunctionMetaData =
+                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(mockedFunctionMetaData);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
     }
 
     private void updateDefaultSink() throws Exception {
@@ -1847,5 +1854,73 @@ public class SinkApiV3ResourceTest {
                 Assert.assertEquals(e.getMessage(), injectedErrMsg);
             }
         }
+    }
+
+    @Test
+    public void testUpdateSinkWithNoChange() throws IOException {
+        mockWorkerUtils();
+
+        // No change on config,
+        SinkConfig sinkConfig = createDefaultSinkConfig();
+
+        mockStatic(SinkConfigUtils.class, ctx -> {
+            ctx.when(() -> SinkConfigUtils.convertFromDetails(any())).thenReturn(sinkConfig);
+            ctx.when(() -> SinkConfigUtils.convert(any(), any())).thenCallRealMethod();
+            ctx.when(() -> SinkConfigUtils.validateUpdate(any(), any())).thenCallRealMethod();
+            ctx.when(() -> SinkConfigUtils.clone(any())).thenCallRealMethod();
+            ctx.when(() -> SinkConfigUtils.collectAllInputTopics(any())).thenCallRealMethod();
+            ctx.when(() -> SinkConfigUtils.validateAndExtractDetails(any(),any(),any(),anyBoolean())).thenCallRealMethod();
+        });
+
+        mockFunctionCommon(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName());
+
+        // config has not changes and don't update auth, should fail
+        try {
+            resource.updateSink(
+                    sinkConfig.getTenant(),
+                    sinkConfig.getNamespace(),
+                    sinkConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    sinkConfig,
+                    null,
+                    null);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        try {
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+            updateOptions.setUpdateAuthData(false);
+            resource.updateSink(
+                    sinkConfig.getTenant(),
+                    sinkConfig.getNamespace(),
+                    sinkConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    sinkConfig,
+                    null,
+                    updateOptions);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        // no changes but set the auth-update flag to true, should not fail
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+        updateOptions.setUpdateAuthData(true);
+        resource.updateSink(
+                sinkConfig.getTenant(),
+                sinkConfig.getNamespace(),
+                sinkConfig.getName(),
+                null,
+                mockedFormData,
+                null,
+                sinkConfig,
+                null,
+                updateOptions);
     }
 }
