@@ -49,7 +49,7 @@ public abstract class AbstractReplicator {
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
     protected String replicatorId;
-    protected Topic localTopic;
+    protected final Topic localTopic;
 
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
