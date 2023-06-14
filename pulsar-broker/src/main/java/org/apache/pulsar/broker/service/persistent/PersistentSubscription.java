@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -74,6 +76,7 @@ import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -90,6 +93,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.compaction.TopicCompactedService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -774,10 +778,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             try {
                 boolean forceReset = false;
-                if (topic.getCompactedTopic() != null && topic.getCompactedTopic().getCompactionHorizon().isPresent()) {
-                    PositionImpl horizon = (PositionImpl) topic.getCompactedTopic().getCompactionHorizon().get();
+                if (topic.getTopicCompactedService() != null && topic.getTopicCompactedService()
+                        .getLastCompactedPosition().isPresent()) {
+                    PositionImpl lastCompactedPosition =
+                            (PositionImpl) topic.getTopicCompactedService().getLastCompactedPosition().get();
                     PositionImpl resetTo = (PositionImpl) finalPosition;
-                    if (horizon.compareTo(resetTo) >= 0) {
+                    if (lastCompactedPosition.compareTo(resetTo) >= 0) {
                         forceReset = true;
                     }
                 }
@@ -1349,5 +1355,46 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
+
+
+    static void readCompactedEntries(TopicCompactedService compactedService, ManagedCursor cursor,
+                                     int numberOfEntriesToRead, boolean isFirstRead,
+                                     AsyncCallbacks.ReadEntriesCallback callback, Consumer consumer) {
+        final PositionImpl cursorPosition;
+        if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
+            cursorPosition = PositionImpl.EARLIEST;
+        } else {
+            cursorPosition = (PositionImpl) cursor.getReadPosition();
+        }
+
+        PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
+                PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
+
+        Optional<PositionImpl> lastCompactedPosition = compactedService.getLastCompactedPosition();
+        if (lastCompactedPosition.isEmpty()
+                || lastCompactedPosition.get().compareTo(cursorPosition) < 0) {
+            cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
+            return;
+        }
+
+        compactedService.readCompactedEntries(cursorPosition, numberOfEntriesToRead).thenApply(entries -> {
+            Entry lastEntry = entries.get(entries.size() - 1);
+            cursor.seek(lastEntry.getPosition().getNext(), true);
+            callback.readEntriesComplete(entries, readEntriesCtx);
+            return null;
+        }).exceptionally((exception) -> {
+            if (exception.getCause() instanceof NoSuchElementException) {
+                PositionImpl seekToPosition = lastCompactedPosition.get().getNext();
+                if (cursorPosition.compareTo(seekToPosition) > 0) {
+                    seekToPosition = cursorPosition;
+                }
+                cursor.seek(seekToPosition);
+                callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+            } else {
+                callback.readEntriesFailed(new ManagedLedgerException(exception), readEntriesCtx);
+            }
+            return null;
+        });
+    }
 
 }

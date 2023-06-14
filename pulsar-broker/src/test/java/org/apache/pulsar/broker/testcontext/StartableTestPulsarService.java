@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.compaction.CompactedServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -41,12 +42,12 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
     public StartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                       MetadataStoreExtended localMetadataStore,
                                       MetadataStoreExtended configurationMetadataStore,
-                                      Compactor compactor,
+                                      Compactor compactor, CompactedServiceFactory compactedServiceFactory,
                                       BrokerInterceptor brokerInterceptor,
                                       BookKeeperClientFactory bookKeeperClientFactory,
                                       Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory);
+        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, compactedServiceFactory,
+                brokerInterceptor, bookKeeperClientFactory);
         this.brokerServiceCustomizer = brokerServiceCustomizer;
     }
 

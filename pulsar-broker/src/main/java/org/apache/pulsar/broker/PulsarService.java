@@ -147,9 +147,10 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.compaction.CompactedServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactedServiceFactory;
 import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -200,7 +201,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private WebSocketService webSocketService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
-    private Compactor compactor;
     private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
@@ -271,6 +271,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
+
+    private CompactedServiceFactory compactedServiceFactory;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -1470,7 +1472,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return bkClientFactory;
     }
 
-    protected synchronized ScheduledExecutorService getCompactorExecutor() {
+    public synchronized ScheduledExecutorService getCompactorExecutor() {
         if (this.compactorExecutor == null) {
             compactorExecutor = Executors.newSingleThreadScheduledExecutor(
                     new ExecutorProvider.ExtendedThreadFactory("compaction"));
@@ -1478,25 +1480,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.compactorExecutor;
     }
 
-    // only public so mockito can mock it
-    public Compactor newCompactor() throws PulsarServerException {
-        return new TwoPhaseCompactor(this.getConfiguration(),
-                getClient(), getBookKeeperClient(),
-                getCompactorExecutor());
-    }
-
-    public synchronized Compactor getCompactor() throws PulsarServerException {
-        if (this.compactor == null) {
-            this.compactor = newCompactor();
-        }
-        return this.compactor;
-    }
-
     // This method is used for metrics, which is allowed to as null
     // Because it's no operation on the compactor, so let's remove the  synchronized on this method
     // to avoid unnecessary lock competition.
     public Compactor getNullableCompactor() {
-        return this.compactor;
+        if (this.compactedServiceFactory instanceof PulsarCompactedServiceFactory pulsarCompactedServiceFactory) {
+            return pulsarCompactedServiceFactory.getNullableCompactor();
+        }
+        return null;
     }
 
     public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
@@ -1910,5 +1901,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return new BrokerService(pulsar, ioEventLoopGroup);
+    }
+
+    public synchronized CompactedServiceFactory getCompactedServiceFactory() {
+        if (this.compactedServiceFactory == null) {
+            String compactedServiceFactoryClassName = config.getCompactedServiceFactoryClassName();
+            var compactedServiceFactory =
+                    Reflections.createInstance(compactedServiceFactoryClassName, CompactedServiceFactory.class,
+                            Thread.currentThread().getContextClassLoader());
+            compactedServiceFactory.initialize(this);
+            this.compactedServiceFactory = compactedServiceFactory;
+        }
+        return this.compactedServiceFactory;
     }
 }

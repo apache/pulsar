@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
+import org.apache.pulsar.compaction.CompactedServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -40,12 +41,14 @@ abstract class AbstractTestPulsarService extends PulsarService {
     protected final MetadataStoreExtended localMetadataStore;
     protected final MetadataStoreExtended configurationMetadataStore;
     protected final Compactor compactor;
+    protected final CompactedServiceFactory compactedServiceFactory;
     protected final BrokerInterceptor brokerInterceptor;
     protected final BookKeeperClientFactory bookKeeperClientFactory;
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
                                      MetadataStoreExtended configurationMetadataStore, Compactor compactor,
+                                     CompactedServiceFactory compactedServiceFactory,
                                      BrokerInterceptor brokerInterceptor,
                                      BookKeeperClientFactory bookKeeperClientFactory) {
         super(config);
@@ -54,6 +57,7 @@ abstract class AbstractTestPulsarService extends PulsarService {
                 NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class);
         this.configurationMetadataStore =
                 NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class);
+        this.compactedServiceFactory = compactedServiceFactory;
         this.compactor = compactor;
         this.brokerInterceptor = brokerInterceptor;
         this.bookKeeperClientFactory = bookKeeperClientFactory;
@@ -78,11 +82,11 @@ abstract class AbstractTestPulsarService extends PulsarService {
     }
 
     @Override
-    public Compactor newCompactor() throws PulsarServerException {
-        if (compactor != null) {
-            return compactor;
+    public CompactedServiceFactory getCompactedServiceFactory() {
+        if (compactedServiceFactory != null) {
+            return compactedServiceFactory;
         } else {
-            return spyConfig.getCompactor().spy(super.newCompactor());
+            return super.getCompactedServiceFactory();
         }
     }
 
