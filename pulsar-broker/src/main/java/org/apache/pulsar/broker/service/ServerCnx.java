@@ -1784,6 +1784,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 return null;
             });
+        } else {
+            log.warn("Consumer future is not complete(not complete or error), but received command ack. so discard"
+                    + " this command. consumerId: {}, cnx: {}, messageIdCount: {}", ack.getConsumerId(),
+                    this.ctx().channel().toString(), ack.getMessageIdsCount());
         }
     }
 
