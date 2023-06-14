@@ -38,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -84,6 +85,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionS
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -365,56 +367,99 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         final String bundle = serviceUnit.toString();
 
-        CompletableFuture<Optional<BrokerLookupData>> future = lookupRequests.computeIfAbsent(bundle, k -> {
+        return dedupeLookupRequest(bundle, k -> {
             final CompletableFuture<Optional<String>> owner;
             // Assign the bundle to channel owner if is internal topic, to avoid circular references.
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
                 owner = serviceUnitStateChannel.getChannelOwnerAsync();
             } else {
-                owner = serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
-                    // If the bundle not assign yet, select and publish assign event to channel.
-                    if (broker.isEmpty()) {
-                        return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
-                            if (brokerOpt.isPresent()) {
-                                assignCounter.incrementSuccess();
-                                log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
-                                return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get())
-                                        .thenApply(Optional::of);
-                            } else {
-                                throw new IllegalStateException(
-                                        "Failed to select the new owner broker for bundle: " + bundle);
-                            }
-                        });
+                owner = getOwnerAsync(serviceUnit, bundle, false).thenApply(Optional::ofNullable);
+            }
+            return getBrokerLookupData(owner, bundle);
+        });
+    }
+
+    private CompletableFuture<String> getOwnerAsync(
+            ServiceUnitId serviceUnit, String bundle, boolean ownByLocalBrokerIfAbsent) {
+        return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
+            // If the bundle not assign yet, select and publish assign event to channel.
+            if (broker.isEmpty()) {
+                CompletableFuture<Optional<String>> selectedBroker;
+                if (ownByLocalBrokerIfAbsent) {
+                    String brokerId = this.brokerRegistry.getBrokerId();
+                    selectedBroker = CompletableFuture.completedFuture(Optional.of(brokerId));
+                } else {
+                    selectedBroker = this.selectAsync(serviceUnit);
+                }
+                return selectedBroker.thenCompose(brokerOpt -> {
+                    if (brokerOpt.isPresent()) {
+                        assignCounter.incrementSuccess();
+                        log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
+                        return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get());
                     }
-                    assignCounter.incrementSkip();
-                    // Already assigned, return it.
-                    return CompletableFuture.completedFuture(broker);
+                    throw new IllegalStateException(
+                            "Failed to select the new owner broker for bundle: " + bundle);
                 });
             }
-
-            return owner.thenCompose(broker -> {
-                if (broker.isEmpty()) {
-                    String errorMsg = String.format(
-                            "Failed to get or assign the owner for bundle:%s", bundle);
-                    log.error(errorMsg);
-                    throw new IllegalStateException(errorMsg);
-                }
-                return CompletableFuture.completedFuture(broker.get());
-            }).thenCompose(broker -> this.getBrokerRegistry().lookupAsync(broker).thenCompose(brokerLookupData -> {
-                if (brokerLookupData.isEmpty()) {
-                    String errorMsg = String.format(
-                            "Failed to look up a broker registry:%s for bundle:%s", broker, bundle);
-                    log.error(errorMsg);
-                    throw new IllegalStateException(errorMsg);
-                }
-                return CompletableFuture.completedFuture(brokerLookupData);
-            }));
+            assignCounter.incrementSkip();
+            // Already assigned, return it.
+            return CompletableFuture.completedFuture(broker.get());
         });
+    }
+
+    private CompletableFuture<Optional<BrokerLookupData>> getBrokerLookupData(
+            CompletableFuture<Optional<String>> owner,
+            String bundle) {
+        return owner.thenCompose(broker -> {
+            if (broker.isEmpty()) {
+                String errorMsg = String.format(
+                        "Failed to get or assign the owner for bundle:%s", bundle);
+                log.error(errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+            return CompletableFuture.completedFuture(broker.get());
+        }).thenCompose(broker -> this.getBrokerRegistry().lookupAsync(broker).thenCompose(brokerLookupData -> {
+            if (brokerLookupData.isEmpty()) {
+                String errorMsg = String.format(
+                        "Failed to look up a broker registry:%s for bundle:%s", broker, bundle);
+                log.error(errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+            return CompletableFuture.completedFuture(brokerLookupData);
+        }));
+    }
+
+    /**
+     * Method to get the current owner of the <code>NamespaceBundle</code>
+     * or set the local broker as the owner if absent.
+     *
+     * @param namespaceBundle the <code>NamespaceBundle</code>
+     * @return The ephemeral node data showing the current ownership info in <code>ServiceUnitStateChannel</code>
+     */
+    public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle namespaceBundle) {
+        log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
+        final String bundle = namespaceBundle.toString();
+        return dedupeLookupRequest(bundle, k -> {
+            final CompletableFuture<String> owner =
+                    this.getOwnerAsync(namespaceBundle, bundle, true);
+            return getBrokerLookupData(owner.thenApply(Optional::ofNullable), bundle);
+        }).thenApply(brokerLookupData -> {
+            if (brokerLookupData.isEmpty()) {
+                throw new IllegalStateException(
+                        "Failed to get the broker lookup data for bundle: " + bundle);
+            }
+            return brokerLookupData.get().toNamespaceEphemeralData();
+        });
+    }
+
+    private CompletableFuture<Optional<BrokerLookupData>> dedupeLookupRequest(
+            String key, Function<String, CompletableFuture<Optional<BrokerLookupData>>> provider) {
+        CompletableFuture<Optional<BrokerLookupData>> future = lookupRequests.computeIfAbsent(key, provider);
         future.whenComplete((r, t) -> {
                     if (t != null) {
                         assignCounter.incrementFailure();
                     }
-                    lookupRequests.remove(bundle);
+                    lookupRequests.remove(key);
                 }
         );
         return future;

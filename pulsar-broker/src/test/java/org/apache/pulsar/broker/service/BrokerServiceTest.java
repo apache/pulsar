@@ -74,6 +74,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -1579,7 +1580,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         });
     }
 
-
     // this test is disabled since it is flaky
     @Test(enabled = false)
     public void testBrokerStatsTopicLoadFailed() throws Exception {
@@ -1656,5 +1656,14 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             return flag.get();
         });
+    }
+
+    @Test
+    public void testIsSystemTopicAllowAutoTopicCreationAsync() throws Exception {
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertFalse(brokerService.isAllowAutoTopicCreationAsync(
+                ServiceUnitStateChannelImpl.TOPIC).get());
+        assertTrue(brokerService.isAllowAutoTopicCreationAsync(
+                "persistent://pulsar/system/my-system-topic").get());
     }
 }

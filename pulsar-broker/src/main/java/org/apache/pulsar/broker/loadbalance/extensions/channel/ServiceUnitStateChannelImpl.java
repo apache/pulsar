@@ -1192,6 +1192,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
+        String heartbeatNamespace =
+                NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
+                        .toString();
+        String heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfiguration()).toString();
 
         Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
         for (var etr : tableview.entrySet()) {
@@ -1202,6 +1207,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 if (isActiveState(state)) {
                     if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                         orphanSystemServiceUnits.put(serviceUnit, stateData);
+                    } else if (serviceUnit.startsWith(heartbeatNamespace)
+                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
+                        // Skip the heartbeat namespace
+                        log.info("Skip override heartbeat namespace bundle"
+                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
+                            if (e != null) {
+                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
+                                                + "stateData:{}, cleanupErrorCnt:{}.",
+                                        serviceUnit, stateData,
+                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                            }
+                        });
                     } else {
                         overrideOwnership(serviceUnit, stateData, broker);
                     }
