@@ -385,8 +385,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         return topic.getBrokerService().getPulsar().getPulsarResources().getTopicResources()
                 .listPersistentTopicsAsync(NamespaceName.get(TopicName.get(topic.getName()).getNamespace()))
                 .thenCompose(topics -> {
-                    if (!topics.contains(TopicDomain.persistent + "://" +
-                            TopicName.get(topic.getName()).getNamespace() + "/"
+                    if (!topics.contains(TopicDomain.persistent + "://"
+                            + TopicName.get(topic.getName()).getNamespace() + "/"
                             + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT)) {
                         return CompletableFuture.completedFuture(null);
                     } else {
