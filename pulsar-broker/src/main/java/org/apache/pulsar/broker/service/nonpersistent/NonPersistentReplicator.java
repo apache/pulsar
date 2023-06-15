@@ -50,7 +50,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
-        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService,
+        super(topic, topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService,
                 replicationClient);
 
         producerBuilder.blockIfQueueFull(false);
