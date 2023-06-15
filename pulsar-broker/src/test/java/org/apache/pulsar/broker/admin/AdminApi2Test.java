@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.mockito.Mockito.spy;
@@ -36,6 +37,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1895,6 +1897,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
             .subscribe();
 
+        long start1 = 0;
+        long start2 = 0;
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
             .topic(topic)
@@ -1902,6 +1906,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             .create();
 
         for (int i = 0; i < 10; i++) {
+            if (i == 0) {
+                start1 = Clock.systemUTC().millis();
+            }
+            if (i == 5) {
+                start2 = Clock.systemUTC().millis();
+            }
             if (i > 4) {
                 producer.newMessage()
                     .value("message-1".getBytes(StandardCharsets.UTF_8))
@@ -1912,22 +1922,26 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             }
         }
         // wait until the message add to delay queue.
+        long finalStart1 = start1;
         Awaitility.await().untilAsserted(() -> {
             TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true, true);
             assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
             assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
             assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
+            assertTrue(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() >= finalStart1);
         });
 
         for (int i = 0; i < 5; i++) {
             consumer.acknowledge(consumer.receive());
         }
         // Wait the ack send.
-        Awaitility.await().untilAsserted(() -> {
+        long finalStart2 = start2;
+        Awaitility.await().timeout(1, MINUTES).untilAsserted(() -> {
             TopicStats topicStats2 = admin.topics().getPartitionedStats(topic, false, true, true, true);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 5);
             assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 223);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
+            assertTrue(topicStats2.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() >= finalStart2);
         });
 
     }
