@@ -68,7 +68,7 @@ public class NamespaceBundles {
         checkArgument(partitions.length > 0, "Can't create bundles w/o partition boundaries");
 
         this.topicBundleAssignmentStrategy = TopicBundleAssignmentFactory.create(factory.getPulsar());
-        
+
         // calculate bundles based on partition boundaries
         this.bundles = new ArrayList<>();
         fullBundle = new NamespaceBundle(nsname,

@@ -43,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -70,7 +69,6 @@ public class NamespaceBundleFactory {
 
     private final PulsarService pulsar;
 
-  
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
