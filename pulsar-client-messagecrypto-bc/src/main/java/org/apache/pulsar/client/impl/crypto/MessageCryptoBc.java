@@ -82,7 +82,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     private static final SecureRandom secureRandom;
 
     private static final String providerName;
-    private static BcVersionSpecificCryptoUtility bcVersionSpecificCryptoUtilityDelegate;
+    private final BcVersionSpecificCryptoUtility bcVersionSpecificCryptoUtilityDelegate;
 
     static {
 
