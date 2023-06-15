@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import lombok.Synchronized;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.Reflections;
