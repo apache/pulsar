@@ -25,7 +25,7 @@ import org.apache.pulsar.common.util.Reflections;
 
 public class TopicBundleAssignmentFactory {
 
-    static TopicBundleAssignmentStrategy strategy;
+    private static volatile TopicBundleAssignmentStrategy strategy;
 
     public static TopicBundleAssignmentStrategy create(PulsarService pulsar) {
         if (strategy != null) {
