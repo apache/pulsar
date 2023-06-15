@@ -161,6 +161,13 @@ func (c *FunctionContext) NewOutputMessage(topicName string) pulsar.Producer {
 	return c.outputMessage(topicName)
 }
 
+// SetOutputProducer allows us to manually set an output producer on the function.
+func (c *FunctionContext) SetOutputProducer(producer pulsar.Producer) {
+	c.outputMessage = func(topic string) pulsar.Producer {
+		return producer
+	}
+}
+
 // SetCurrentRecord sets the current message into the function context called
 // for each message before executing a handler function
 func (c *FunctionContext) SetCurrentRecord(record pulsar.Message) {
