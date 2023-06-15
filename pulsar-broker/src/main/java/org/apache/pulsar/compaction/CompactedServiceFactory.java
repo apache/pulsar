@@ -20,7 +20,7 @@ package org.apache.pulsar.compaction;
 
 import org.apache.pulsar.broker.PulsarService;
 
-public interface CompactedServiceFactory {
+public interface CompactedServiceFactory extends AutoCloseable {
 
     void initialize(PulsarService pulsarService);
 

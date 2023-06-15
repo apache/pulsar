@@ -409,7 +409,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
-        this.topicCompactedService = brokerService.pulsar().getCompactedServiceFactory().newTopicCompactedService(topic);
+        this.topicCompactedService =
+                brokerService.pulsar().getCompactedServiceFactory().newTopicCompactedService(topic);
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
 

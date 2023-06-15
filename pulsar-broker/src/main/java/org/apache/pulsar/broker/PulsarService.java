@@ -455,6 +455,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             resetMetricsServlet();
 
+            if (this.compactedServiceFactory != null) {
+                try {
+                    this.compactedServiceFactory.close();
+                } catch (Exception e) {
+                    LOG.warn("CompactedServiceFactory closing failed {}", e.getMessage());
+                }
+                this.compactedServiceFactory = null;
+            }
+
             if (this.webSocketService != null) {
                 this.webSocketService.close();
             }

@@ -59,4 +59,9 @@ public class PulsarCompactedServiceFactory implements CompactedServiceFactory {
             }
         });
     }
+
+    @Override
+    public void close() throws Exception {
+        // noop
+    }
 }
