@@ -1360,11 +1360,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     static void readCompactedEntries(TopicCompactedService compactedService, ManagedCursor cursor,
                                      int numberOfEntriesToRead, boolean isFirstRead,
                                      AsyncCallbacks.ReadEntriesCallback callback, Consumer consumer) {
-        final PositionImpl cursorPosition;
+        final PositionImpl readPosition;
         if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
-            cursorPosition = PositionImpl.EARLIEST;
+            readPosition = PositionImpl.EARLIEST;
         } else {
-            cursorPosition = (PositionImpl) cursor.getReadPosition();
+            readPosition = (PositionImpl) cursor.getReadPosition();
         }
 
         PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
@@ -1372,26 +1372,42 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         Optional<PositionImpl> lastCompactedPosition = compactedService.getLastCompactedPosition();
         if (lastCompactedPosition.isEmpty()
-                || lastCompactedPosition.get().compareTo(cursorPosition) < 0) {
+                || lastCompactedPosition.get().compareTo(readPosition) < 0) {
             cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
             return;
         }
 
-        compactedService.readCompactedEntries(cursorPosition, numberOfEntriesToRead).thenApply(entries -> {
+        Runnable handleNoSuchElement = () -> {
+            PositionImpl seekToPosition = lastCompactedPosition.get().getNext();
+            if (readPosition.compareTo(seekToPosition) > 0) {
+                seekToPosition = readPosition;
+            }
+            cursor.seek(seekToPosition);
+            callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+        };
+
+        compactedService.readCompactedEntries(readPosition, numberOfEntriesToRead).thenApply(entries -> {
+            if (entries.isEmpty()) {
+                handleNoSuchElement.run();
+                return null;
+            }
+
             Entry lastEntry = entries.get(entries.size() - 1);
             cursor.seek(lastEntry.getPosition().getNext(), true);
             callback.readEntriesComplete(entries, readEntriesCtx);
             return null;
         }).exceptionally((exception) -> {
-            if (exception.getCause() instanceof NoSuchElementException) {
-                PositionImpl seekToPosition = lastCompactedPosition.get().getNext();
-                if (cursorPosition.compareTo(seekToPosition) > 0) {
-                    seekToPosition = cursorPosition;
-                }
-                cursor.seek(seekToPosition);
-                callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+            exception = FutureUtil.unwrapCompletionException(exception);
+            if (exception instanceof NoSuchElementException) {
+                handleNoSuchElement.run();
             } else {
-                callback.readEntriesFailed(new ManagedLedgerException(exception), readEntriesCtx);
+                ManagedLedgerException managedLedgerException;
+                if (exception instanceof ManagedLedgerException) {
+                    managedLedgerException = (ManagedLedgerException) exception;
+                } else {
+                    managedLedgerException = new ManagedLedgerException(exception);
+                }
+                callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
             }
             return null;
         });

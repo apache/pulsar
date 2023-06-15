@@ -60,7 +60,7 @@ public class CompactedTopicImpl implements CompactedTopic {
     private final BookKeeper bk;
 
     private volatile PositionImpl compactionHorizon = null;
-    CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
+    private volatile CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
         this.bk = bk;
@@ -320,6 +320,12 @@ public class CompactedTopicImpl implements CompactedTopic {
     public Optional<PositionImpl> getCompactionHorizon() {
         return Optional.ofNullable(this.compactionHorizon);
     }
+
+
+    public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
+        return compactedTopicContext;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
 

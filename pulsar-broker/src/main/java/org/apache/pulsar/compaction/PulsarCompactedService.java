@@ -51,10 +51,9 @@ public class PulsarCompactedService implements TopicCompactedService {
         return compactorSupplier.get().compact(topic).thenApply(x -> null);
     }
 
-
     @Override
     public CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition, int numberOfEntriesToRead) {
-        return compactedTopic.compactedTopicContext.thenCompose(
+        return compactedTopic.getCompactedTopicContextFuture().thenCompose(
                 (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
                         context.cache).thenCompose((startPoint) -> {
                     if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {

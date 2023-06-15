@@ -36,7 +36,7 @@ public interface TopicCompactedService {
      * @param numberOfEntriesToRead the number of entries to read.
      * @return a future that will be completed with the list of entries.
      *
-     * Note: If TopicCompactedService don't find any compacted entries from startPosition,
+     * Note: If TopicCompactedService don't find any valid compacted entries from compacted data,
      * it will return future with NoSuchElementException.
      */
     CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition, int numberOfEntriesToRead);

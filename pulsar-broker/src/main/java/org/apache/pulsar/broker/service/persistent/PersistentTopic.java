@@ -214,8 +214,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
-//    private final CompactedTopic compactedTopic;
-    private TopicCompactedService compactedService;
+    private final TopicCompactedService topicCompactedService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
     private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(
@@ -300,7 +299,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         registerTopicPolicyListener();
 
         CompactedServiceFactory compactedServiceFactory = brokerService.pulsar().getCompactedServiceFactory();
-        this.compactedService = compactedServiceFactory.newTopicCompactedService(topic);
+        this.topicCompactedService = compactedServiceFactory.newTopicCompactedService(topic);
 
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
@@ -410,8 +409,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
-        this.compactedService = brokerService.pulsar().getCompactedServiceFactory().newTopicCompactedService(topic);
-//        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
+        this.topicCompactedService = brokerService.pulsar().getCompactedServiceFactory().newTopicCompactedService(topic);
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
 
@@ -486,9 +484,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
-        Objects.requireNonNull(compactedService);
-        if (isCompactionSubscription(subscriptionName) && compactedService instanceof PulsarCompactedService) {
-            CompactedTopicImpl compactedTopic = ((PulsarCompactedService) compactedService).getCompactedTopic();
+        Objects.requireNonNull(topicCompactedService);
+        if (isCompactionSubscription(subscriptionName) && topicCompactedService instanceof PulsarCompactedService) {
+            CompactedTopicImpl compactedTopic = ((PulsarCompactedService) topicCompactedService).getCompactedTopic();
             return new PulsarCompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
             return new PersistentSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties);
@@ -2523,7 +2521,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public Optional<CompactedTopicContext> getCompactedTopicContext() {
         try {
-            if (compactedService instanceof  PulsarCompactedService pulsarCompactedService) {
+            if (topicCompactedService instanceof  PulsarCompactedService pulsarCompactedService) {
                 return pulsarCompactedService.getCompactedTopic().getCompactedTopicContext();
             }
         } catch (ExecutionException | InterruptedException e) {
@@ -3175,7 +3173,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 currentCompaction = brokerService.pulsar().getStrategicCompactor()
                         .compact(topic, strategicCompactionMap.get(topic));
             } else {
-                currentCompaction = compactedService.compact().thenApply(x -> null);
+                currentCompaction = topicCompactedService.compact().thenApply(x -> null);
             }
             currentCompaction.whenComplete((ignore, ex) -> {
                if (ex != null){
@@ -3324,7 +3322,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 //    }
 
     public TopicCompactedService getTopicCompactedService() {
-        return this.compactedService;
+        return this.topicCompactedService;
     }
 
     @Override
