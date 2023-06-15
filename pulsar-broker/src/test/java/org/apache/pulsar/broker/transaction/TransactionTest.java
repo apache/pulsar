@@ -138,8 +138,8 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.compaction.CompactedServiceFactory;
-import org.apache.pulsar.compaction.PulsarCompactedServiceFactory;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -1573,9 +1573,9 @@ public class TransactionTest extends TransactionTestBase {
         when(pulsar.getTransactionBufferSnapshotServiceFactory()).thenReturn(transactionBufferSnapshotServiceFactory);
         TopicTransactionBufferProvider topicTransactionBufferProvider = new TopicTransactionBufferProvider();
         when(pulsar.getTransactionBufferProvider()).thenReturn(topicTransactionBufferProvider);
-        CompactedServiceFactory compactedServiceFactory = new PulsarCompactedServiceFactory();
-        compactedServiceFactory.initialize(pulsar);
-        when(pulsar.getCompactedServiceFactory()).thenReturn(compactedServiceFactory);
+        CompactionServiceFactory compactionServiceFactory = new PulsarCompactionServiceFactory();
+        compactionServiceFactory.initialize(pulsar);
+        when(pulsar.getCompactionServiceFactory()).thenReturn(compactionServiceFactory);
         // Mock BacklogQuotaManager
         BacklogQuotaManager backlogQuotaManager = mock(BacklogQuotaManager.class);
         // Mock brokerService.

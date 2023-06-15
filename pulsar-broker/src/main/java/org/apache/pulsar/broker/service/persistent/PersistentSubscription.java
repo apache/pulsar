@@ -93,7 +93,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.compaction.TopicCompactedService;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -778,10 +778,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             try {
                 boolean forceReset = false;
-                if (topic.getTopicCompactedService() != null && topic.getTopicCompactedService()
-                        .getLastCompactedPosition().isPresent()) {
+                if (topic.getTopicCompactionService() != null && topic.getTopicCompactionService()
+                        .getCompactedLastPosition().isPresent()) {
                     PositionImpl lastCompactedPosition =
-                            (PositionImpl) topic.getTopicCompactedService().getLastCompactedPosition().get();
+                            (PositionImpl) topic.getTopicCompactionService().getCompactedLastPosition().get();
                     PositionImpl resetTo = (PositionImpl) finalPosition;
                     if (lastCompactedPosition.compareTo(resetTo) >= 0) {
                         forceReset = true;
@@ -1357,7 +1357,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 
 
-    static void readCompactedEntries(TopicCompactedService compactedService, ManagedCursor cursor,
+    static void readCompactedEntries(TopicCompactionService topicCompactionService, ManagedCursor cursor,
                                      int numberOfEntriesToRead, boolean isFirstRead,
                                      AsyncCallbacks.ReadEntriesCallback callback, Consumer consumer) {
         final PositionImpl readPosition;
@@ -1370,7 +1370,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
                 PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
 
-        Optional<PositionImpl> lastCompactedPosition = compactedService.getLastCompactedPosition();
+        Optional<PositionImpl> lastCompactedPosition = topicCompactionService.getCompactedLastPosition();
         if (lastCompactedPosition.isEmpty()
                 || lastCompactedPosition.get().compareTo(readPosition) < 0) {
             cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
@@ -1386,7 +1386,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
         };
 
-        compactedService.readCompactedEntries(readPosition, numberOfEntriesToRead).thenApply(entries -> {
+        topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead).thenApply(entries -> {
             if (entries.isEmpty()) {
                 handleNoSuchElement.run();
                 return null;

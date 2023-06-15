@@ -31,7 +31,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 
-public class PulsarCompactedService implements TopicCompactedService {
+public class PulsarTopicCompactionService implements TopicCompactionService {
 
     private final String topic;
 
@@ -39,8 +39,8 @@ public class PulsarCompactedService implements TopicCompactedService {
 
     private final Supplier<Compactor> compactorSupplier;
 
-    public PulsarCompactedService(String topic, BookKeeper bookKeeper,
-                                  Supplier<Compactor> compactorSupplier) {
+    public PulsarTopicCompactionService(String topic, BookKeeper bookKeeper,
+                                        Supplier<Compactor> compactorSupplier) {
         this.topic = topic;
         this.compactedTopic = new CompactedTopicImpl(bookKeeper);
         this.compactorSupplier = compactorSupplier;
@@ -71,7 +71,7 @@ public class PulsarCompactedService implements TopicCompactedService {
     }
 
     @Override
-    public Optional<PositionImpl> getLastCompactedPosition() {
+    public Optional<PositionImpl> getCompactedLastPosition() {
         return compactedTopic.getCompactionHorizon();
     }
 

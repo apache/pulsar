@@ -2071,7 +2071,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // If it's not pointing to a valid entry, respond messageId of the current position.
         // If the compaction cursor reach the end of the topic, respond messageId from compacted ledger
         Optional<PositionImpl> compactionHorizon =
-                persistentTopic.getTopicCompactedService().getLastCompactedPosition();
+                persistentTopic.getTopicCompactionService().getCompactedLastPosition();
         if (lastPosition.getEntryId() == -1 || (compactionHorizon.isPresent()
                         && lastPosition.compareTo((PositionImpl) compactionHorizon.get()) <= 0)) {
             handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
@@ -2128,7 +2128,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private void handleLastMessageIdFromCompactedLedger(PersistentTopic persistentTopic, long requestId,
             int partitionIndex, PositionImpl markDeletePosition) {
-        persistentTopic.getTopicCompactedService().readCompactedLastEntry().thenAccept(entry -> {
+        persistentTopic.getTopicCompactionService().readCompactedLastEntry().thenAccept(entry -> {
             if (entry != null) {
                 try {
                     // in this case, all the data has been compacted, so return the last position

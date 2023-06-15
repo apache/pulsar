@@ -16,27 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.testcontext;
+package org.apache.pulsar.compaction;
 
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.compaction.PulsarCompactedServiceFactory;
+import org.apache.pulsar.broker.PulsarService;
 
-public class MockPulsarCompactedServiceFactory extends PulsarCompactedServiceFactory {
-    private Compactor compactor;
-    private SpyConfig spyConfig;
+public interface CompactionServiceFactory extends AutoCloseable {
 
-    public MockPulsarCompactedServiceFactory(SpyConfig spyConfig, Compactor compactor) {
-        this.compactor = compactor;
-        this.spyConfig = spyConfig;
-    }
+    void initialize(PulsarService pulsarService);
 
-    @Override
-    protected Compactor newCompactor() throws PulsarServerException {
-        if (this.compactor != null) {
-            return this.compactor;
-        } else {
-            return spyConfig.getCompactor().spy(super.newCompactor());
-        }
-    }
+    TopicCompactionService newTopicCompactionService(String topic);
 }

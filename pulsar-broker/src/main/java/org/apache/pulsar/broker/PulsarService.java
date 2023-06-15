@@ -147,9 +147,9 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.pulsar.compaction.CompactedServiceFactory;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.compaction.PulsarCompactedServiceFactory;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -273,7 +273,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ExecutorProvider transactionExecutorProvider;
 
     @VisibleForTesting
-    protected CompactedServiceFactory compactedServiceFactory;
+    protected CompactionServiceFactory compactionServiceFactory;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -455,13 +455,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             resetMetricsServlet();
 
-            if (this.compactedServiceFactory != null) {
+            if (this.compactionServiceFactory != null) {
                 try {
-                    this.compactedServiceFactory.close();
+                    this.compactionServiceFactory.close();
                 } catch (Exception e) {
-                    LOG.warn("CompactedServiceFactory closing failed {}", e.getMessage());
+                    LOG.warn("CompactionServiceFactory closing failed {}", e.getMessage());
                 }
-                this.compactedServiceFactory = null;
+                this.compactionServiceFactory = null;
             }
 
             if (this.webSocketService != null) {
@@ -1494,7 +1494,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     // Because it's no operation on the compactor, so let's remove the  synchronized on this method
     // to avoid unnecessary lock competition.
     public Compactor getNullableCompactor() {
-        if (this.compactedServiceFactory instanceof PulsarCompactedServiceFactory pulsarCompactedServiceFactory) {
+        if (this.compactionServiceFactory instanceof PulsarCompactionServiceFactory pulsarCompactedServiceFactory) {
             return pulsarCompactedServiceFactory.getNullableCompactor();
         }
         return null;
@@ -1913,15 +1913,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new BrokerService(pulsar, ioEventLoopGroup);
     }
 
-    public synchronized CompactedServiceFactory getCompactedServiceFactory() {
-        if (this.compactedServiceFactory == null) {
-            String compactedServiceFactoryClassName = config.getCompactedServiceFactoryClassName();
-            var compactedServiceFactory =
-                    Reflections.createInstance(compactedServiceFactoryClassName, CompactedServiceFactory.class,
+    public synchronized CompactionServiceFactory getCompactionServiceFactory() {
+        if (this.compactionServiceFactory == null) {
+            String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
+            var compactionServiceFactory =
+                    Reflections.createInstance(compactionServiceFactoryClassName, CompactionServiceFactory.class,
                             Thread.currentThread().getContextClassLoader());
-            compactedServiceFactory.initialize(this);
-            this.compactedServiceFactory = compactedServiceFactory;
+            compactionServiceFactory.initialize(this);
+            this.compactionServiceFactory = compactionServiceFactory;
         }
-        return this.compactedServiceFactory;
+        return this.compactionServiceFactory;
     }
 }

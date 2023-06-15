@@ -424,7 +424,7 @@ public class TwoPhaseCompactor extends Compactor {
         }
     }
 
-    public long getPhaseOneLoopReadTimeoutInSeconds() {
+    protected long getPhaseOneLoopReadTimeoutInSeconds() {
         return phaseOneLoopReadTimeout.getSeconds();
     }
 }

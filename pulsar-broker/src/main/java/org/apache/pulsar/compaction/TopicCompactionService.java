@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
-public interface TopicCompactedService {
+public interface TopicCompactionService {
     /**
      * Compact the topic.
      * @return a future that will be completed when the compaction is done.
@@ -36,19 +36,19 @@ public interface TopicCompactedService {
      * @param numberOfEntriesToRead the number of entries to read.
      * @return a future that will be completed with the list of entries.
      *
-     * Note: If TopicCompactedService don't find any valid compacted entries from compacted data,
+     * Note: If TopicCompactionService don't find any valid compacted entries from compacted data,
      * it will return future with NoSuchElementException.
      */
     CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition, int numberOfEntriesToRead);
     /**
-     * Read the last compacted entry from the TopicCompactedService.
+     * Read the last compacted entry from the TopicCompactionService.
      * @return a future that will be completed with the last entry
      */
     CompletableFuture<Entry> readCompactedLastEntry();
     /**
-     * Get the last compacted position from the TopicCompactedService.
+     * Get the last compacted position from the TopicCompactionService.
      * @return a future that will be completed with the last compacted position
      */
-    Optional<PositionImpl> getLastCompactedPosition();
+    Optional<PositionImpl> getCompactedLastPosition();
 }
 

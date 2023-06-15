@@ -54,9 +54,9 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
-import org.apache.pulsar.compaction.CompactedServiceFactory;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.compaction.PulsarCompactedServiceFactory;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -137,7 +137,7 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final Compactor compactor;
 
-    private final CompactedServiceFactory compactedServiceFactory;
+    private final CompactionServiceFactory compactionServiceFactory;
 
     private final BrokerService brokerService;
 
@@ -663,18 +663,18 @@ public class PulsarTestContext implements AutoCloseable {
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
-            CompactedServiceFactory compactedServiceFactory = builder.compactedServiceFactory;
-            if (builder.compactedServiceFactory == null && builder.config.getCompactedServiceFactoryClassName().equals(
-                    PulsarCompactedServiceFactory.class.getName())) {
-                compactedServiceFactory = new MockPulsarCompactedServiceFactory(spyConfig, builder.compactor);
+            CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
+            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
+                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+                compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, builder.compactor, compactedServiceFactory,
+                            builder.configurationMetadataStore, builder.compactor, compactionServiceFactory,
                             builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.brokerServiceCustomizer);
-            if (compactedServiceFactory != null) {
-                compactedServiceFactory.initialize(pulsarService);
+            if (compactionServiceFactory != null) {
+                compactionServiceFactory.initialize(pulsarService);
             }
             registerCloseable(() -> {
                 pulsarService.close();
@@ -730,19 +730,19 @@ public class PulsarTestContext implements AutoCloseable {
             }
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
-            CompactedServiceFactory compactedServiceFactory = builder.compactedServiceFactory;
-            if (builder.compactedServiceFactory == null && builder.config.getCompactedServiceFactoryClassName().equals(
-                    PulsarCompactedServiceFactory.class.getName())) {
-                compactedServiceFactory = new MockPulsarCompactedServiceFactory(spyConfig, builder.compactor);
+            CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
+            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
+                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+                compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, builder.compactor, compactedServiceFactory,
+                            builder.configurationMetadataStore, builder.compactor, compactionServiceFactory,
                             builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.pulsarResources,
                             builder.managedLedgerClientFactory, builder.brokerServiceCustomizer);
-            if (compactedServiceFactory != null) {
-                compactedServiceFactory.initialize(pulsarService);
+            if (compactionServiceFactory != null) {
+                compactionServiceFactory.initialize(pulsarService);
             }
             registerCloseable(() -> {
                 pulsarService.close();

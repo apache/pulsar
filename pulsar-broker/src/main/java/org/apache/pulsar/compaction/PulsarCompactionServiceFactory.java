@@ -21,7 +21,7 @@ package org.apache.pulsar.compaction;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 
-public class PulsarCompactedServiceFactory implements CompactedServiceFactory {
+public class PulsarCompactionServiceFactory implements CompactionServiceFactory {
 
     private PulsarService pulsarService;
 
@@ -50,8 +50,8 @@ public class PulsarCompactedServiceFactory implements CompactedServiceFactory {
     }
 
     @Override
-    public TopicCompactedService newTopicCompactedService(String topic) {
-        return new PulsarCompactedService(topic, pulsarService.getBookKeeperClient(), () -> {
+    public TopicCompactionService newTopicCompactionService(String topic) {
+        return new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
             try {
                 return this.getCompactor();
             } catch (PulsarServerException e) {

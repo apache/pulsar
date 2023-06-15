@@ -348,7 +348,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
-                    readCompactedEntries(topic.getTopicCompactedService(), cursor, messagesToRead, isFirstRead,
+                    readCompactedEntries(topic.getTopicCompactionService(), cursor, messagesToRead, isFirstRead,
                             this, consumer);
                 } else {
                     ReadEntriesCtx readEntriesCtx =
