@@ -18,22 +18,35 @@
  */
 package org.apache.pulsar.common.naming;
 
+import lombok.Synchronized;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.Reflections;
 
 public class TopicBundleAssignmentFactory {
 
+    static TopicBundleAssignmentStrategy strategy;
+
     public static TopicBundleAssignmentStrategy create(PulsarService pulsar) {
-        ServiceConfiguration conf = pulsar.getConfiguration();
-        try {
-            TopicBundleAssignmentStrategy strategy = Reflections.createInstance(conf.getTopicBundleAssignmentStrategy(),
-                    TopicBundleAssignmentStrategy.class, Thread.currentThread().getContextClassLoader());
-            strategy.init(pulsar);
+        if (strategy != null) {
             return strategy;
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Could not load TopicBundleAssignmentStrategy:" + conf.getTopicBundleAssignmentStrategy(), e);
+        }
+        synchronized (TopicBundleAssignmentFactory.class) {
+            if (strategy != null) {
+                return strategy;
+            }
+            ServiceConfiguration conf = pulsar.getConfiguration();
+            try {
+                TopicBundleAssignmentStrategy tempStategy =
+                        Reflections.createInstance(conf.getTopicBundleAssignmentStrategy(),
+                                TopicBundleAssignmentStrategy.class, Thread.currentThread().getContextClassLoader());
+                tempStategy.init(pulsar);
+                strategy = tempStategy;
+                return strategy;
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        "Could not load TopicBundleAssignmentStrategy:" + conf.getTopicBundleAssignmentStrategy(), e);
+            }
         }
     }
 }

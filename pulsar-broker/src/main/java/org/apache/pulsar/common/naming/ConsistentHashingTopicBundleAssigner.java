@@ -23,11 +23,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 
 public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignmentStrategy {
-    private PulsarService pulsarService;
+    private NamespaceService namespaceService;
     @Override
     public NamespaceBundle findBundle(TopicName topicName, NamespaceBundles namespaceBundles) {
         checkArgument(namespaceBundles.getNsname().equals(topicName.getNamespaceObject()));
-        long hashCode = pulsarService.getNamespaceService().getNamespaceBundleFactory().getLongHashCode(topicName.toString());
+        long hashCode = namespaceService.getNamespaceBundleFactory().getLongHashCode(topicName.toString());
         NamespaceBundle bundle = namespaceBundles.getBundle(hashCode);
         if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
             bundle.setHasNonPersistentTopic(true);
@@ -37,7 +37,7 @@ public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignme
 
     @Override
     public void init(PulsarService pulsarService) {
-        this.pulsarService = pulsarService;
+        this.namespaceService = pulsarService.getNamespaceService();
     }
 
 }

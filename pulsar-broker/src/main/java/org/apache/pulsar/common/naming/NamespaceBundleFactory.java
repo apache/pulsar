@@ -70,8 +70,6 @@ public class NamespaceBundleFactory {
 
     private final PulsarService pulsar;
 
-    @Getter
-    private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
   
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
@@ -87,8 +85,6 @@ public class NamespaceBundleFactory {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
-
-        this.topicBundleAssignmentStrategy = TopicBundleAssignmentFactory.create(pulsar);
     }
 
     private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {

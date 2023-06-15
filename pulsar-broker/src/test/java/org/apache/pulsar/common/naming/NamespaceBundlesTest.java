@@ -107,9 +107,7 @@ public class NamespaceBundlesTest {
         when(resources.getNamespaceResources().getPoliciesAsync(any())).thenReturn(
                 CompletableFuture.completedFuture(Optional.empty()));
         NamespaceBundleFactory factory1 = NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
-        NamespaceService namespaceService =  mock(NamespaceService.class);
-        when(namespaceService.getNamespaceBundleFactory()).thenReturn(factory1);
-        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        when(pulsar.getNamespaceService().getNamespaceBundleFactory()).thenReturn(factory1);
         return factory1;
     }
 
