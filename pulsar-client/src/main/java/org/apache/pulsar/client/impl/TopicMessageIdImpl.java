@@ -18,15 +18,27 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.BitSet;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.TopicMessageId;
 
-public class TopicMessageIdImpl extends TopicMessageId.Impl {
+public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId {
 
-    private final String topicName;
+    private final String ownerTopic;
+    private final MessageIdAdv msgId;
+    private final String topicName; // it's never used
 
+    public TopicMessageIdImpl(String topic, MessageIdAdv msgId) {
+        this.ownerTopic = topic;
+        this.msgId = msgId;
+        this.topicName = "";
+    }
+
+    @Deprecated
     public TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
-        super(topicPartitionName, messageId);
+        this.msgId = (MessageIdAdv) messageId;
+        this.ownerTopic = topicPartitionName;
         this.topicName = topicName;
     }
 
@@ -50,16 +62,71 @@ public class TopicMessageIdImpl extends TopicMessageId.Impl {
 
     @Deprecated
     public MessageId getInnerMessageId() {
-        return new MessageIdImpl(getLedgerId(), getEntryId(), getPartitionIndex());
+        return msgId;
     }
 
     @Override
     public boolean equals(Object obj) {
-        return super.equals(obj);
+        return msgId.equals(obj);
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode();
+        return msgId.hashCode();
+    }
+
+    @Override
+    public int compareTo(MessageId o) {
+        return msgId.compareTo(o);
+    }
+
+    @Override
+    public byte[] toByteArray() {
+        return msgId.toByteArray();
+    }
+
+    @Override
+    public String getOwnerTopic() {
+        return ownerTopic;
+    }
+
+    @Override
+    public long getLedgerId() {
+        return msgId.getLedgerId();
+    }
+
+    @Override
+    public long getEntryId() {
+        return msgId.getEntryId();
+    }
+
+    @Override
+    public int getPartitionIndex() {
+        return msgId.getPartitionIndex();
+    }
+
+    @Override
+    public int getBatchIndex() {
+        return msgId.getBatchIndex();
+    }
+
+    @Override
+    public int getBatchSize() {
+        return msgId.getBatchSize();
+    }
+
+    @Override
+    public BitSet getAckSet() {
+        return msgId.getAckSet();
+    }
+
+    @Override
+    public MessageIdAdv getFirstChunkMessageId() {
+        return msgId.getFirstChunkMessageId();
+    }
+
+    @Override
+    public String toString() {
+        return msgId.toString();
     }
 }

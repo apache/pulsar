@@ -31,6 +31,8 @@ public interface TransportCnx {
 
     SocketAddress clientAddress();
 
+    String clientSourceAddressAndPort();
+
     BrokerService getBrokerService();
 
     PulsarCommandSender getCommandSender();

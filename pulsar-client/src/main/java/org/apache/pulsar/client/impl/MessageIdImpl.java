@@ -128,7 +128,7 @@ public class MessageIdImpl implements MessageIdAdv {
             throw new IOException(e);
         }
 
-        MessageId messageId;
+        MessageIdAdv messageId;
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
@@ -143,7 +143,7 @@ public class MessageIdImpl implements MessageIdAdv {
         }
         if (idData.getPartition() > -1 && topicName != null) {
             messageId = new TopicMessageIdImpl(
-                    topicName.getPartition(idData.getPartition()).toString(), topicName.toString(), messageId);
+                    topicName.getPartition(idData.getPartition()).toString(), messageId);
         }
 
         return messageId;

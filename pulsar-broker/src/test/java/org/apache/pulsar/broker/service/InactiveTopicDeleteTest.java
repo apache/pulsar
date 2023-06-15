@@ -307,7 +307,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         }
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertFalse(admin.topics().getList(namespace).contains(topic)));
-        Assert.assertFalse(admin.topics().getList(namespace3).contains(topic3));
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertFalse(admin.topics().getList(namespace3).contains(topic3)));
     }
 
     @Test

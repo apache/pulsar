@@ -1437,7 +1437,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
-            // to maintain backwards compatiblity but still have authorization
+            // to maintain backwards compatibility but still have authorization
             String[] tokens = path.split("/");
             if (tokens.length == 4) {
                 String tenant = tokens[0];

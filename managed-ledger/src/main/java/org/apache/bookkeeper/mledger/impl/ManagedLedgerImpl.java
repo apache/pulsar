@@ -1528,6 +1528,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx) {
+        if (STATE_UPDATER.get(this) == State.Closed) {
+            if (lh != null) {
+                log.warn("[{}] ledger create completed after the managed ledger is closed rc={} ledger={}, so just"
+                        + " close this ledger handle.", name, rc, lh != null ? lh.getId() : -1);
+                lh.closeAsync();
+            }
+            return;
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] createComplete rc={} ledger={}", name, rc, lh != null ? lh.getId() : -1);
         }
@@ -1741,6 +1750,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
+    public void skipNonRecoverableLedger(long ledgerId){
+        for (ManagedCursor managedCursor : cursors) {
+            managedCursor.skipNonRecoverableLedger(ledgerId);
+        }
+    }
+
     synchronized void createLedgerAfterClosed() {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
             log.info("[{}] Creating a new ledger after closed", name);
@@ -1775,15 +1791,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                   + "acked ledgerId %s", currentLedger.getId(), lh.getId());
 
                     if (rc == BKException.Code.OK) {
-                        log.debug("Successfully closed ledger {}", lh.getId());
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Successfully closed ledger {}, trigger by rollover full ledger",
+                                    name, lh.getId());
+                        }
                     } else {
-                        log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
+                        log.warn("[{}] Error when closing ledger {}, trigger by rollover full ledger, Status={}",
+                                name, lh.getId(), BKException.getMessage(rc));
                     }
 
                     ledgerClosed(lh);
                     createLedgerAfterClosed();
                 }
-            }, System.nanoTime());
+            }, null);
         }
     }
 
@@ -4353,7 +4373,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         long currentTimeMs = System.currentTimeMillis();
         if (inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
             log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
-            ledgerClosed(currentLedger);
+            if (STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
+                LedgerHandle currentLedger = this.currentLedger;
+                currentLedger.asyncClose((rc, lh, o) -> {
+                    checkArgument(currentLedger.getId() == lh.getId(), "ledgerId %s doesn't match with "
+                            + "acked ledgerId %s", currentLedger.getId(), lh.getId());
+
+                    if (rc == BKException.Code.OK) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Successfully closed ledger {}, trigger by inactive ledger check",
+                                    name, lh.getId());
+                        }
+                    } else {
+                        log.warn("[{}] Error when closing ledger {}, trigger by inactive ledger check, Status={}",
+                                name, lh.getId(), BKException.getMessage(rc));
+                    }
+
+                    ledgerClosed(lh);
+                    // we do not create ledger here, since topic is inactive for a long time.
+                }, null);
+            }
         }
     }
 

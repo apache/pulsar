@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -432,7 +433,8 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             LookupResult result = optionalResult.get();
-            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())) {
+            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())
+                    || result.getLookupData().getHttpUrlTls().equals(pulsar().getWebServiceAddressTls())) {
                 // Current broker owns the topic, add to owning topic.
                 if (log.isDebugEnabled()) {
                     log.debug("Complete topic look up for rest produce message request for topic {}, "
@@ -771,7 +773,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 isAuthorized = pulsar().getBrokerService().getAuthorizationService()
                         .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, authParams)
                         .get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-            } catch (InterruptedException e) {
+            } catch (TimeoutException e) {
                 log.warn("Time-out {} sec while checking authorization on {} ",
                         config().getMetadataStoreOperationTimeoutSeconds(), topicName);
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Time-out while checking authorization");

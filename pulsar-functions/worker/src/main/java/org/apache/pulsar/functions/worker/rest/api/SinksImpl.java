@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -294,7 +295,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null) {
+        if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null
+                && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sinkName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
@@ -378,8 +380,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(sinkPkgUrl) || uploadedInputStream != null) {
+                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
+                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
                             sinkPkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
                     log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),

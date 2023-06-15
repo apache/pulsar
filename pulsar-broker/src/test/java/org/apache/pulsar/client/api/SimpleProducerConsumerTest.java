@@ -3136,7 +3136,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     pulsarClient.newProducer().topic("persistent://my-property/my-ns/myenc-topic1")
                             .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader())
                             .create();
-            Assert.fail("Producer creation should not suceed if failing to read key");
+            Assert.fail("Producer creation should not succeed if failing to read key");
         } catch (Exception e) {
             // ok
         }
@@ -4096,6 +4096,35 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topicName).create();
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).receiverQueueSize(receiveQueueSize).subscriptionName(subName).subscribe();
+        Assert.assertNull(consumer.getStats().getMsgNumInSubReceiverQueue());
+        Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), 0);
+
+        for (int i = 0; i < receiveQueueSize; i++) {
+            producer.sendAsync("msg" + i);
+        }
+        //Give some time to consume
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+        consumer.close();
+        producer.close();
+    }
+    @Test(timeOut = 100000)
+    public void testMessageListenerGetStats() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetStats" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final int receiveQueueSize = 100;
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .messageListener((MessageListener<String>) (consumer1, msg) -> {
+                    try {
+                        TimeUnit.SECONDS.sleep(10);
+                    } catch (InterruptedException igr) {
+                    }
+                })
                 .topic(topicName).receiverQueueSize(receiveQueueSize).subscriptionName(subName).subscribe();
         Assert.assertNull(consumer.getStats().getMsgNumInSubReceiverQueue());
         Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), 0);

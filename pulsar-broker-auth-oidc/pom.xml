@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-auth-oidc</artifactId>
@@ -82,6 +82,18 @@
         <exclusion>
           <groupId>io.prometheus</groupId>
           <artifactId>simpleclient_httpserver</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcpkix-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcutil-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcprov-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
         </exclusion>
       </exclusions>
     </dependency>

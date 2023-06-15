@@ -115,11 +115,9 @@ public class CmdSinks extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -290,6 +288,10 @@ public class CmdSinks extends CmdBase {
 
         @Parameter(names = { "-t", "--sink-type" }, description = "The sinks's connector provider")
         protected String sinkType;
+
+        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
+                + "when sink is deleted")
+        protected Boolean cleanupSubscription;
 
         @Parameter(names = { "-i",
                 "--inputs" }, description = "The sink's input topic or topics "
@@ -467,6 +469,10 @@ public class CmdSinks extends CmdBase {
             }
             if (null != processingGuarantees) {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
+            }
+
+            if (null != cleanupSubscription) {
+                sinkConfig.setCleanupSubscription(cleanupSubscription);
             }
 
             if (retainOrdering != null) {
