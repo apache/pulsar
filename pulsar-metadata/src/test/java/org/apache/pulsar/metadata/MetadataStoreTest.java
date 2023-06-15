@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -50,8 +51,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -425,6 +428,73 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertFalse(store.exists(prefix).join());
     }
 
+    @DataProvider(name = "conditionOfSwitchThread")
+    public Object[][] conditionOfSwitchThread(){
+        return new Object[][]{
+            {false, false},
+            {false, true},
+            {true, false},
+            {true, true}
+        };
+    }
+
+    @Test(dataProvider = "conditionOfSwitchThread")
+    public void testThreadSwitchOfZkMetadataStore(boolean hasSynchronizer, boolean enabledBatch) throws Exception {
+        final String prefix = newKey();
+        final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
+        MetadataStoreConfig.MetadataStoreConfigBuilder builder =
+                MetadataStoreConfig.builder().metadataStoreName(metadataStoreName);
+        builder.fsyncEnable(false);
+        builder.batchingEnabled(enabledBatch);
+        if (!hasSynchronizer) {
+            builder.synchronizer(null);
+        }
+        MetadataStoreConfig config = builder.build();
+        @Cleanup
+        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
+
+        final Runnable verify = () -> {
+            String currentThreadName = Thread.currentThread().getName();
+            String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
+                    metadataStoreName, currentThreadName);
+            assertTrue(Thread.currentThread().getName().startsWith(metadataStoreName), errorMessage);
+        };
+
+        // put with node which has parent(but the parent node is not exists).
+        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L)).thenApply((ignore) -> {
+            verify.run();
+            return null;
+        }).join();
+        // put.
+        store.put(prefix + "/b1", "value".getBytes(), Optional.of(-1L)).thenApply((ignore) -> {
+            verify.run();
+            return null;
+        }).join();
+        // get.
+        store.get(prefix + "/b1").thenApply((ignore) -> {
+            verify.run();
+            return null;
+        }).join();
+        // get the node which is not exists.
+        store.get(prefix + "/non").thenApply((ignore) -> {
+            verify.run();
+            return null;
+        }).join();
+        // delete.
+        store.delete(prefix + "/b1", Optional.empty()).thenApply((ignore) -> {
+            verify.run();
+            return null;
+        }).join();
+        // delete the node which is not exists.
+        store.delete(prefix + "/non", Optional.empty()).thenApply((ignore) -> {
+            verify.run();
+            return null;
+        }).exceptionally(ex -> {
+            verify.run();
+            return null;
+        }).join();
+    }
+
     @Test(dataProvider = "impl")
     public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
         String metadataUrl = urlSupplier.get();
@@ -592,5 +662,57 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
         }
+    }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testGetChildrenDistributed(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String parent = newKey();
+        byte[] value = "value1".getBytes(StandardCharsets.UTF_8);
+        store1.put(parent, value, Optional.empty()).get();
+        store1.put(parent + "/a", value, Optional.empty()).get();
+        assertEquals(store1.getChildren(parent).get(), List.of("a"));
+        store1.delete(parent + "/a", Optional.empty()).get();
+        assertEquals(store1.getChildren(parent).get(), Collections.emptyList());
+        store1.delete(parent, Optional.empty()).get();
+        assertEquals(store1.getChildren(parent).get(), Collections.emptyList());
+        store2.put(parent + "/b", value, Optional.empty()).get();
+        // There is a chance watcher event is not triggered before the store1.getChildren() call.
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertEquals(store1.getChildren(parent).get(), List.of("b")));
+        store2.put(parent + "/c", value, Optional.empty()).get();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertEquals(store1.getChildren(parent).get(), List.of("b", "c")));
+    }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testExistsDistributed(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String parent = newKey();
+        byte[] value = "value1".getBytes(StandardCharsets.UTF_8);
+        assertFalse(store1.exists(parent).get());
+        store1.put(parent, value, Optional.empty()).get();
+        assertTrue(store1.exists(parent).get());
+        assertFalse(store1.exists(parent + "/a").get());
+        store2.put(parent + "/a", value, Optional.empty()).get();
+        assertTrue(store1.exists(parent + "/a").get());
+        // There is a chance watcher event is not triggered before the store1.exists() call.
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertFalse(store1.exists(parent + "/b").get()));
     }
 }

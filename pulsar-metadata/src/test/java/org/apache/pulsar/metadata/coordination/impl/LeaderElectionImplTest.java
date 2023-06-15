@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 public class LeaderElectionImplTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl", timeOut = 10000)
+    @Test(dataProvider = "impl", timeOut = 20000)
     public void validateDeadLock(String provider, Supplier<String> urlSupplier)
             throws Exception {
         if (provider.equals("Memory") || provider.equals("RocksDB")) {

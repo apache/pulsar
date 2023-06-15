@@ -53,6 +53,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -87,6 +88,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected final int maxReceiverQueueSize;
     private volatile int currentReceiverQueueSize;
+
+    protected static final AtomicIntegerFieldUpdater<ConsumerBase> MESSAGE_LISTENER_QUEUE_SIZE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "messageListenerQueueSize");
+    protected volatile int messageListenerQueueSize = 0;
+
     protected static final AtomicIntegerFieldUpdater<ConsumerBase> CURRENT_RECEIVER_QUEUE_SIZE_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "currentReceiverQueueSize");
     protected final Schema<T> schema;
@@ -730,6 +736,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public abstract CompletableFuture<Void> closeAsync();
 
 
+    @Deprecated
     @Override
     public MessageId getLastMessageId() throws PulsarClientException {
         try {
@@ -742,8 +749,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    @Deprecated
     @Override
     public abstract CompletableFuture<MessageId> getLastMessageIdAsync();
+
+    @Override
+    public List<TopicMessageId> getLastMessageIds() throws PulsarClientException {
+        try {
+            return getLastMessageIdsAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw PulsarClientException.unwrap(e);
+        } catch (ExecutionException e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
 
     private boolean isCumulativeAcknowledgementAllowed(SubscriptionType type) {
         return SubscriptionType.Shared != type && SubscriptionType.Key_Shared != type;
@@ -1090,6 +1110,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         // Trigger the notification on the message listener in a separate thread to avoid blocking the
                         // internal pinned executor thread while the message processing happens
                         final Message<T> finalMsg = msg;
+                        MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
                         if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
                             executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
                                     callMessageListener(finalMsg));
@@ -1133,6 +1154,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);
+        } finally {
+            MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.decrementAndGet(this);
         }
     }
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.testcontext;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.mock;
 import io.netty.channel.EventLoopGroup;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -39,6 +40,8 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -88,6 +91,20 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
             startNamespaceService();
         } catch (PulsarServerException e) {
             throw new RuntimeException(e);
+        }
+        if (config.isTransactionCoordinatorEnabled()) {
+            try {
+                setTransactionBufferProvider(TransactionBufferProvider
+                        .newProvider(config.getTransactionBufferProviderClassName()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            try {
+                setTransactionPendingAckStoreProvider(TransactionPendingAckStoreProvider
+                        .newProvider(config.getTransactionPendingAckStoreProviderClassName()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

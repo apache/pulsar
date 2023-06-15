@@ -775,14 +775,14 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      */
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitions of an existing partitioned topic.",
-            notes = "It only increments partitions of existing non-global partitioned-topic")
+            notes = "It increments partitions of existing partitioned-topic")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Update topic partition successful."),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
@@ -810,7 +810,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        validateTopicName(tenant, namespace, encodedTopic);
+        if (topicName.isPartitioned()) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Partitioned Topic Name should not contain '-partition-'");
+        }
         validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE)
                 .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopic, force))
                 .thenAccept(__ -> {
@@ -1286,7 +1290,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "If return the earliest time in backlog")
             @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
                     subscriptionBacklogSize, getEarliestTimeInBacklog);
         } catch (WebApplicationException wae) {

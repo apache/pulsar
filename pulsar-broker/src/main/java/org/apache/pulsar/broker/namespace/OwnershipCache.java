@@ -288,10 +288,10 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk.
-     *
-     * @param bundle
-     * @throws Exception
+     * @Deprecated This is a dangerous method  which is currently only used for test, it will occupy the ZK thread.
+     * Please switch to your own thread after calling this method.
      */
+    @Deprecated
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
         return updateBundleState(bundle, false)
                 .thenCompose(__ -> {

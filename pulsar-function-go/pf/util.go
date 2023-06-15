@@ -21,6 +21,8 @@ package pf
 
 import (
 	"fmt"
+
+	"github.com/apache/pulsar-client-go/pulsar"
 )
 
 func getProperties(fullyQualifiedName string, instanceID int) map[string]string {
@@ -38,4 +40,13 @@ func getDefaultSubscriptionName(tenant, namespace, name string) string {
 
 func getFullyQualifiedInstanceID(tenant, namespace, name string, instanceID int) string {
 	return fmt.Sprintf("%s/%s/%s:%d", tenant, namespace, name, instanceID)
+}
+
+func messageIDStr(msg pulsar.Message) string {
+	// <ledger ID>:<entry ID>:<partition index>:<batch index>
+	return fmt.Sprintf("%d:%d:%d:%d",
+		msg.ID().LedgerID(),
+		msg.ID().EntryID(),
+		msg.ID().PartitionIdx(),
+		msg.ID().BatchIdx())
 }

@@ -206,4 +206,9 @@ public interface ServiceUnitStateChannel extends Closeable {
      * Cancels the ownership monitor.
      */
     void cancelOwnershipMonitor();
+
+    /**
+     * Cleans the service unit ownerships from the current broker's channel.
+     */
+    void cleanOwnerships();
 }

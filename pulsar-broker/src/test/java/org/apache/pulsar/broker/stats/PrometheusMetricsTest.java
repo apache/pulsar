@@ -38,6 +38,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +59,7 @@ import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -79,11 +81,13 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.zookeeper.CreateMode;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -329,6 +333,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
+        cm = (List<Metric>) metrics.get("topic_load_failed_total");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+
         cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
@@ -540,6 +548,122 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("subscription"), "test");
     }
 
+    @DataProvider(name = "cacheEnable")
+    public static Object[][] cacheEnable() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+    @Test(dataProvider = "cacheEnable")
+    public void testStorageReadCacheMissesRate(boolean cacheEnable) throws Exception {
+        cleanup();
+        conf.setManagedLedgerStatsPeriodSeconds(Integer.MAX_VALUE);
+        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(Long.MAX_VALUE);
+        conf.setCacheEvictionByMarkDeletedPosition(true);
+        if (cacheEnable) {
+            conf.setManagedLedgerCacheSizeMB(1);
+        } else {
+            conf.setManagedLedgerCacheSizeMB(0);
+        }
+        setup();
+        String ns = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns);
+        String topic = "persistent://" + ns + "/testStorageReadCacheMissesRate" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().enableBatching(false).topic(topic).create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+        byte[] msg = new byte[2 * 1024 * 1024];
+        new Random().nextBytes(msg);
+        producer.send(msg);
+        consumer.receive();
+        // when cacheEnable, the second msg will read cache miss
+        producer.send(msg);
+        consumer.receive();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) persistentTopic.getManagedLedger());
+        managedLedger.getMbean().refreshStats(1, TimeUnit.SECONDS);
+
+        // includeTopicMetric true
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        metrics.entries().forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
+
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_read_cache_misses_rate");
+        assertEquals(cm.size(), 1);
+        if (cacheEnable) {
+            assertEquals(cm.get(0).value, 1.0);
+        } else {
+            assertEquals(cm.get(0).value, 2.0);
+        }
+
+        assertEquals(cm.get(0).tags.get("topic"), topic);
+        assertEquals(cm.get(0).tags.get("namespace"), ns);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+
+        List<Metric> brokerMetric = (List<Metric>) metrics.get("pulsar_broker_storage_read_cache_misses_rate");
+        assertEquals(brokerMetric.size(), 1);
+        if (cacheEnable) {
+            assertEquals(brokerMetric.get(0).value, 1.0);
+        } else {
+            assertEquals(brokerMetric.get(0).value, 2.0);
+        }
+
+        assertEquals(brokerMetric.get(0).tags.get("cluster"), "test");
+        assertNull(brokerMetric.get(0).tags.get("namespace"));
+        assertNull(brokerMetric.get(0).tags.get("topic"));
+
+        // includeTopicMetric false
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut2);
+        String metricsStr2 = statsOut2.toString();
+        Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
+
+        metrics2.entries().forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
+
+        List<Metric> cm2 = (List<Metric>) metrics2.get("pulsar_storage_read_cache_misses_rate");
+        assertEquals(cm2.size(), 1);
+        if (cacheEnable) {
+            assertEquals(cm2.get(0).value, 1.0);
+        } else {
+            assertEquals(cm2.get(0).value, 2.0);
+        }
+
+        assertNull(cm2.get(0).tags.get("topic"));
+        assertEquals(cm2.get(0).tags.get("namespace"), ns);
+        assertEquals(cm2.get(0).tags.get("cluster"), "test");
+
+        List<Metric> brokerMetric2 = (List<Metric>) metrics.get("pulsar_broker_storage_read_cache_misses_rate");
+        assertEquals(brokerMetric2.size(), 1);
+        if (cacheEnable) {
+            assertEquals(brokerMetric2.get(0).value, 1.0);
+        } else {
+            assertEquals(brokerMetric2.get(0).value, 2.0);
+        }
+        assertEquals(brokerMetric2.get(0).tags.get("cluster"), "test");
+        assertNull(brokerMetric2.get(0).tags.get("namespace"));
+        assertNull(brokerMetric2.get(0).tags.get("topic"));
+
+        // test ManagedLedgerMetrics
+        List<Metric> mlMetric = ((List<Metric>) metrics.get("pulsar_ml_ReadEntriesOpsCacheMissesRate"));
+        assertEquals(mlMetric.size(), 1);
+        if (cacheEnable) {
+            assertEquals(mlMetric.get(0).value, 1.0);
+        } else {
+            assertEquals(mlMetric.get(0).value, 2.0);
+        }
+        assertEquals(mlMetric.get(0).tags.get("cluster"), "test");
+        assertEquals(mlMetric.get(0).tags.get("namespace"), ns + "/persistent");
+    }
+
     @Test
     public void testPerTopicExpiredStat() throws Exception {
         String ns = "prop/ns-abc1";
@@ -654,6 +778,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             c1.acknowledge(c1.receive());
         }
 
+        // Mock another broker to make split task work.
+        String mockedBroker = "/loadbalance/brokers/127.0.0.1:0";
+        mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
+
         pulsar.getBrokerService().updateRates();
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
         ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
@@ -678,6 +806,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
+
+        // cleanup.
+        mockZooKeeper.delete(mockedBroker, 0);
     }
 
     @Test
@@ -1204,24 +1335,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        List<Metric> cm = (List<Metric>) metrics.get(keyNameBySubstrings(metrics,
-                "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_completed_tasks"));
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
-
-        cm = (List<Metric>) metrics.get(
-                keyNameBySubstrings(metrics,
-                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_queue"));
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
-
-        cm = (List<Metric>) metrics.get(
-                keyNameBySubstrings(metrics,
-                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_total_tasks"));
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
-
-        cm = (List<Metric>) metrics.get(
+        List<Metric> cm = (List<Metric>) metrics.get(
                 keyNameBySubstrings(metrics,
                         "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_threads"));
         assertEquals(cm.size(), 1);
@@ -1269,15 +1383,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setProperties(properties);
         provider.initialize(conf);
 
-        String authExceptionMessage = "";
-
         try {
             provider.authenticate(new AuthenticationDataSource() {
             });
             fail("Should have failed");
         } catch (AuthenticationException e) {
             // expected, no credential passed
-            authExceptionMessage = e.getMessage();
         }
 
         String token = AuthTokenUtils.createToken(secretKey, "subject", Optional.empty());
@@ -1314,7 +1425,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         boolean haveFailed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
-                    && Objects.equals(metric.tags.get("reason"), authExceptionMessage)
+                    && Objects.equals(metric.tags.get("reason"),
+                    AuthenticationProviderToken.ErrorCode.INVALID_AUTH_DATA.name())
                     && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
                 haveFailed = true;
             }
@@ -1843,6 +1955,32 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         public String toString() {
             return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
         }
+    }
+
+    @Test
+    public void testEscapeLabelValue() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1);
+        String topic = "persistent://" + ns1 + "/\"mytopic";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        final Consumer<?> consumer = pulsarClient.newConsumer()
+                .subscriptionName("sub")
+                .topic(topic)
+                .subscribe();
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false,
+                false, statsOut);
+        String metricsStr = statsOut.toString();
+        final List<String> subCountLines = metricsStr.lines()
+                .filter(line -> line.startsWith("pulsar_subscriptions_count"))
+                .collect(Collectors.toList());
+        System.out.println(subCountLines);
+        assertEquals(subCountLines.size(), 1);
+        assertEquals(subCountLines.get(0),
+                "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\",topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
     }
 
 }

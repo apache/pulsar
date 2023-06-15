@@ -190,6 +190,7 @@ public class NamespaceStatsAggregator {
 
             stats.managedLedgerStats.storageWriteRate = mlStats.getAddEntryMessagesRate();
             stats.managedLedgerStats.storageReadRate = mlStats.getReadEntriesRate();
+            stats.managedLedgerStats.storageReadCacheMissesRate = mlStats.getReadEntriesOpsCacheMissesRate();
         }
         TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize, false);
         stats.msgInCounter = tStatus.msgInCounter;
@@ -331,6 +332,8 @@ public class NamespaceStatsAggregator {
         writeMetric(stream, "pulsar_broker_storage_logical_size", brokerStats.storageLogicalSize, cluster);
         writeMetric(stream, "pulsar_broker_storage_write_rate", brokerStats.storageWriteRate, cluster);
         writeMetric(stream, "pulsar_broker_storage_read_rate", brokerStats.storageReadRate, cluster);
+        writeMetric(stream, "pulsar_broker_storage_read_cache_misses_rate",
+                brokerStats.storageReadCacheMissesRate, cluster);
         writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
     }
 
@@ -376,6 +379,8 @@ public class NamespaceStatsAggregator {
                 cluster, namespace);
         writeMetric(stream, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate,
                 cluster, namespace);
+        writeMetric(stream, "pulsar_storage_read_cache_misses_rate",
+                stats.managedLedgerStats.storageReadCacheMissesRate, cluster, namespace);
 
         writeMetric(stream, "pulsar_subscription_delayed", stats.msgDelayed, cluster, namespace);
 
