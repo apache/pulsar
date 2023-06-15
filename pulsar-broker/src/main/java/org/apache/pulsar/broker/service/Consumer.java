@@ -368,6 +368,8 @@ public class Consumer {
                                 + " or the topic is reloaded. Consumer: {}",
                         topicName, subscription, status.cause() == null ? "" : status.cause().getMessage(),
                         totalMessages, this.toString(), status.cause());
+                // If the health check fail, this connection will be closed.
+                cnx.healthCheckManually();
             }
         });
         return writeAndFlushPromise;
