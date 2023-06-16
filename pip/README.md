@@ -73,7 +73,7 @@ The process works in the following way:
 6. Update file with a link to the discussion on the mailing. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org).
 7. Based on the discussion and feedback, some changes might be applied by authors to the text of the proposal. They will be applied as extra commits, making it easier to track the changes.
 8. Once some consensus is reached, there will be a vote to formally approve the proposal. The vote will be held on the dev@pulsar.apache.org mailing list, by
-   sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}`.
+   sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}`. Make sure to include a link to the PIP PR in the body of the message.
    Make sure to update the PIP with a link to the vote. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org). 
    Everyone is welcome to vote on the proposal, though only the vote of the PMC members will be considered binding.
    It is required to have a lazy majority of at least 3 binding +1s votes.
