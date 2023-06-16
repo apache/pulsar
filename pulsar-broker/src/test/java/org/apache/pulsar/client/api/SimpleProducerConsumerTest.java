@@ -110,6 +110,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -348,12 +349,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String subscriptionName = "subscription1";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-
+        // Create producer and consumer.
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .receiverQueueSize(1000).topic(topicName).subscriptionName(subscriptionName).subscribe();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false)
                 .topic(topicName).create();
-
         int sendMessageCount = 10;
         for (int i = 0; i < sendMessageCount; i++){
             producer.send("msg- " + i);
@@ -361,18 +361,37 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(consumer.numMessagesInQueue(), sendMessageCount);
         });
+        printConsumerStats(topicName, subscriptionName);
 
+        // Do the second subscribe.
         consumer.connectionOpened(consumer.getClientCnx());
-        Awaitility.await().untilAsserted(() -> {
-            ConsumerStats consumerStats =
-                    admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName).getConsumers().get(0);
-            log.info("consumerStats: " + consumerStats.toString());
-            assertEquals(consumer.numMessagesInQueue(), sendMessageCount);
-        });
 
+        // Verify messages are not lost.
+        List<Message<String>> messages = new ArrayList<>();
+        while (true) {
+            Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            messages.add(message);
+        }
+        printConsumerStats(topicName, subscriptionName);
+        assertEquals(messages.size(), sendMessageCount);
+
+        // cleanup.
         consumer.close();
         producer.close();
         admin.topics().delete(topicName, false);
+    }
+
+    private void printConsumerStats(String topicName, String subscriptionName) throws Exception {
+        SubscriptionStats subscriptionStats =
+                admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName);
+        ConsumerStats consumerStats =
+                admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName).getConsumers().get(0);
+        log.info("msgBacklog: {}, msgOutCounter: {}, unackedMessages: {}, availablePermits: {}",
+                subscriptionStats.getMsgBacklog(), consumerStats.getMsgOutCounter(),
+                consumerStats.getUnackedMessages(), consumerStats.getAvailablePermits());
     }
 
     @Test(timeOut = 100000, dataProvider = "batch")
