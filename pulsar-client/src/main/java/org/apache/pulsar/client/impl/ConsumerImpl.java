@@ -764,7 +764,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public void connectionOpened(final ClientCnx cnx) {
         synchronized (this) {
             // Wait the previous subscribe done.
-            if (!inProgressSubscribeFuture.isDone()){
+            if (inProgressSubscribeFuture != null && !inProgressSubscribeFuture.isDone()){
                 return;
             }
             // If success.
