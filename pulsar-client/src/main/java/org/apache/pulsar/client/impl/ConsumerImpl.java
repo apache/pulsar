@@ -136,6 +136,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
+    protected volatile CompletableFuture<Void> inProgressSubscribeFuture;
 
     private final long lookupDeadline;
 
@@ -761,6 +762,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {
+        synchronized (this) {
+            // Wait the previous subscribe done.
+            if (!inProgressSubscribeFuture.isDone()){
+                return;
+            }
+            // If success.
+            if (getState() == State.Ready) {
+                return;
+            }
+            // Do subscribe if previous was failed.
+            inProgressSubscribeFuture = new CompletableFuture<>();
+        }
         previousExceptions.clear();
 
         if (getState() == State.Closing || getState() == State.Closed) {
@@ -906,6 +919,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     reconnectLater(e.getCause());
                 }
                 return null;
+            }).whenComplete((ignore, ex) -> {
+                if (ex == null) {
+                    inProgressSubscribeFuture.complete(null);
+                } else {
+                    inProgressSubscribeFuture.completeExceptionally(ex);
+                }
             });
         }
     }

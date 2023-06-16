@@ -84,6 +84,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -338,6 +339,32 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
         return new Object[][] { { 0 }, { 1000 } };
+    }
+
+    @Test
+    public void testConsumerReconnectTwice() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "subscription1";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .receiverQueueSize(1000).topic(topicName).subscriptionName(subscriptionName).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false)
+                .topic(topicName).create();
+
+        int sendMessageCount = 10;
+        for (int i = 0; i < sendMessageCount; i++){
+            producer.send("msg- " + i);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumer.numMessagesInQueue(), sendMessageCount);
+        });
+
+        consumer.connectionOpened(consumer.getClientCnx());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumer.numMessagesInQueue(), sendMessageCount);
+        });
     }
 
     @Test(timeOut = 100000, dataProvider = "batch")
