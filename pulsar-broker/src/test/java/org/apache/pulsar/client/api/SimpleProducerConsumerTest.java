@@ -108,6 +108,7 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -363,8 +364,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         consumer.connectionOpened(consumer.getClientCnx());
         Awaitility.await().untilAsserted(() -> {
+            ConsumerStats consumerStats =
+                    admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName).getConsumers().get(0);
+            log.info("consumerStats: " + consumerStats.toString());
             assertEquals(consumer.numMessagesInQueue(), sendMessageCount);
         });
+
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
     }
 
     @Test(timeOut = 100000, dataProvider = "batch")
