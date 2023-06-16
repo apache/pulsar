@@ -110,7 +110,7 @@ public class PersistentReplicator extends AbstractReplicator
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
                                 BrokerService brokerService, PulsarClientImpl replicationClient)
             throws PulsarServerException {
-        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService,
+        super(topic, topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService,
                 replicationClient);
         this.topic = topic;
         this.cursor = cursor;
