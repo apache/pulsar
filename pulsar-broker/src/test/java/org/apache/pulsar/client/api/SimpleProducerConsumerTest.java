@@ -193,6 +193,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         };
     }
 
+    @DataProvider(name = "subscriptionTypes")
+    public Object[][] subType() {
+        return new Object[][] {
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared},
+                {SubscriptionType.Exclusive},
+                {SubscriptionType.Failover}
+        };
+    }
+
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
@@ -343,15 +353,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    @Test
-    public void testConsumerReconnectTwice() throws Exception {
+    @Test(dataProvider = "subscriptionTypes")
+    public void testConsumerReconnectTwice(SubscriptionType subscriptionType) throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "subscription1";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         // Create producer and consumer.
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
-                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionType(subscriptionType)
                 .receiverQueueSize(1000).topic(topicName).subscriptionName(subscriptionName).subscribe();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false)
                 .topic(topicName).create();
