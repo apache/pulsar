@@ -250,6 +250,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(list.get(0), url2.toString().replace("http://", ""));
         //restore configuration
         pulsar1.getConfiguration().setAuthorizationEnabled(false);
+        final List<String> clusters = admin1.clusters().getClusters();
+        assertEquals(clusters.stream().filter(c -> c.contains("r1")).findFirst().get(), "r1(local)");
+        final List<String> clusters2 = admin2.clusters().getClusters();
+        assertEquals(clusters2.stream().filter(c -> c.contains("r2")).findFirst().get(), "r2(local)");
     }
 
     @SuppressWarnings("unchecked")

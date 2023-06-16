@@ -88,7 +88,9 @@ public class ClustersBase extends AdminResource {
                 .thenApply(clusters -> clusters.stream()
                         // Remove "global" cluster from returned list
                         .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
-                        .collect(Collectors.toSet()))
+                        .map(cluster -> pulsar().getConfig().getClusterName().equalsIgnoreCase(cluster)
+                                ? cluster + "(local)" : cluster
+                        ).collect(Collectors.toSet()))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get clusters {}", clientAppId(), ex);
