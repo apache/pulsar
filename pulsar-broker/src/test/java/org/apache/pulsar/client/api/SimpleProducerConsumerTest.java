@@ -351,6 +351,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         // Create producer and consumer.
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
                 .receiverQueueSize(1000).topic(topicName).subscriptionName(subscriptionName).subscribe();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false)
                 .topic(topicName).create();
