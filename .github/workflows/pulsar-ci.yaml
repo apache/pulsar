@@ -477,6 +477,10 @@ jobs:
           - name: Messaging
             group: MESSAGING
 
+          - name: LoadBalance
+            group: LOADBALANCE
+            no_coverage: true
+
           - name: Shade on Java 8
             group: SHADE_RUN
             runtime_jdk: 8
