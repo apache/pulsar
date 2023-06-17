@@ -18,7 +18,7 @@ Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #xyz
+Parent Issue: #xyz
 
 <!-- If the PR belongs to a PIP, please add the PIP link here -->
 
