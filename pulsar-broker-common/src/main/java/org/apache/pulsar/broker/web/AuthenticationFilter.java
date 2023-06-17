@@ -56,8 +56,9 @@ public class AuthenticationFilter implements Filter {
         final HttpServletRequest httpRequest = (HttpServletRequest) request;
         final HttpServletResponse httpResponse = (HttpServletResponse) response;
 
+        final boolean doFilter;
         try {
-            authenticationService.authenticateHttpRequest(httpRequest, httpResponse);
+            doFilter = authenticationService.authenticateHttpRequest(httpRequest, httpResponse);
         } catch (Exception e) {
             httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
             if (e instanceof AuthenticationException) {
@@ -68,7 +69,9 @@ public class AuthenticationFilter implements Filter {
             return;
         }
 
-        chain.doFilter(request, response);
+        if (doFilter) {
+            chain.doFilter(request, response);
+        }
     }
 
     @Override
