@@ -728,6 +728,40 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
+
+    @Test(timeOut = 30000)
+    public void testResetReplicatorSubscriptionPosition() throws Exception {
+        final TopicName dest = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/resetReplicatorSubscription"));
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+
+        @Cleanup
+        MessageConsumer consumer1 = new MessageConsumer(url3, dest);
+
+        // Produce from cluster1 and consume from the rest
+        for (int i = 0; i < 10; i++) {
+            producer1.produce(2);
+        }
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
+
+        Position lastPosition = topic.getLastPosition();
+
+        PersistentReplicator replicator = (PersistentReplicator) spy(
+                topic.getReplicators().get(topic.getReplicators().keys().get(0)));
+
+        // make replicator backoff readMessage.
+        replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
+
+        replicator.updateRates(); // for code-coverage
+
+        replicator.expireMessages(lastPosition); // for code-coverage
+        ReplicatorStats status = replicator.getStats();
+        assertEquals(status.getReplicationBacklog(), 0);
+    }
+
     @Test(timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
