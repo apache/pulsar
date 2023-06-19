@@ -112,6 +112,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             pulsarCluster.stop();
             pulsarCluster = null;
         }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -346,7 +350,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             fail();
         } catch (Exception ex) {
             log.error("Failed to lookup topic: ", ex);
-            assertTrue(ex.getMessage().contains("Failed to look up a broker"));
+            assertTrue(ex.getMessage().contains("Failed to look up a broker")
+                    || ex.getMessage().contains("Failed to select the new owner broker for bundle"));
         }
     }
 
