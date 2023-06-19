@@ -135,4 +135,5 @@ public class PrometheusTextFormatUtil {
                 .append(success.toString()).append("\"} ")
                 .append(Double.toString(opStat.getSum(success))).append('\n');
     }
+
 }

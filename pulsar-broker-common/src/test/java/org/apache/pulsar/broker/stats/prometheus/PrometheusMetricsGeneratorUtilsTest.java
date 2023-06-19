@@ -99,4 +99,26 @@ public class PrometheusMetricsGeneratorUtilsTest {
     private static String randomString(){
         return UUID.randomUUID().toString().replaceAll("-", "");
     }
+
+
+    @Test
+    public void testWriteEscapedLabelValue() throws Exception {
+        assertEquals(PrometheusMetricsGeneratorUtils.writeEscapedLabelValue(null), null);
+        assertEquals(PrometheusMetricsGeneratorUtils.writeEscapedLabelValue(""), "");
+        assertEquals(PrometheusMetricsGeneratorUtils.writeEscapedLabelValue("ok"), "ok");
+        assertEquals(PrometheusMetricsGeneratorUtils.writeEscapedLabelValue("ok_!234567890!£$%&/()"),
+                "ok_!234567890!£$%&/()");
+        assertEquals(PrometheusMetricsGeneratorUtils.writeEscapedLabelValue("repl\"\\\n"),
+                "repl\\\"\\\\\\n");
+    }
+    @Test
+    public void testWriteEscapedLabelValuePattern() throws Exception {
+        assertFalse(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape(""));
+        assertFalse(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape("ok"));
+        assertFalse(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape("ok_!234567890!£$%&/()"));
+        assertTrue(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape("repl\"\\\n"));
+        assertTrue(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape("repl\""));
+        assertTrue(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape("repl\\"));
+        assertTrue(PrometheusMetricsGeneratorUtils.labelValueNeedsEscape("\nrepl"));
+    }
 }

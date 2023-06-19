@@ -1966,6 +1966,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
     }
 
+    /**
+     * Test both subscription and topic name with special characters.
+     * @throws Exception
+     */
     @Test
     public void testEscapeLabelValue() throws Exception {
         String ns1 = "prop/ns-abc1";
@@ -1975,7 +1979,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         @Cleanup
         final Consumer<?> consumer = pulsarClient.newConsumer()
-                .subscriptionName("sub")
+                .subscriptionName("s\"ub\\")
                 .topic(topic)
                 .subscribe();
         @Cleanup
@@ -1984,12 +1988,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 false, statsOut);
         String metricsStr = statsOut.toString();
         final List<String> subCountLines = metricsStr.lines()
-                .filter(line -> line.startsWith("pulsar_subscriptions_count"))
+                .filter(line -> line.startsWith("pulsar_subscription_msg_drop_rate"))
                 .collect(Collectors.toList());
         System.out.println(subCountLines);
         assertEquals(subCountLines.size(), 1);
         assertEquals(subCountLines.get(0),
-                "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\",topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
+                "pulsar_subscription_msg_drop_rate{cluster=\"test\",namespace=\"prop/ns-abc1\","
+                        + "topic=\"persistent://prop/ns-abc1/\\\"mytopic\",subscription=\"s\\\"ub\\\\\"} 0.0");
     }
 
 }
