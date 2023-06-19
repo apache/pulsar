@@ -930,6 +930,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("messaging service is ready, bootstrap_seconds={}, {}, cluster={}, configs={}",
                     bootstrapTimeSeconds, bootstrapMessage, config.getClusterName(), config);
 
+            this.compactionServiceFactory = loadCompactionServiceFactory();
+
             state = State.Started;
         } catch (Exception e) {
             LOG.error("Failed to start Pulsar service: {}", e.getMessage(), e);
@@ -1913,15 +1915,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new BrokerService(pulsar, ioEventLoopGroup);
     }
 
-    public synchronized CompactionServiceFactory getCompactionServiceFactory() {
-        if (this.compactionServiceFactory == null) {
-            String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
-            var compactionServiceFactory =
-                    Reflections.createInstance(compactionServiceFactoryClassName, CompactionServiceFactory.class,
-                            Thread.currentThread().getContextClassLoader());
-            compactionServiceFactory.initialize(this);
-            this.compactionServiceFactory = compactionServiceFactory;
-        }
-        return this.compactionServiceFactory;
+    private CompactionServiceFactory loadCompactionServiceFactory() {
+        String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
+        var compactionServiceFactory =
+                Reflections.createInstance(compactionServiceFactoryClassName, CompactionServiceFactory.class,
+                        Thread.currentThread().getContextClassLoader());
+        compactionServiceFactory.initialize(this).join();
+        return compactionServiceFactory;
     }
 }

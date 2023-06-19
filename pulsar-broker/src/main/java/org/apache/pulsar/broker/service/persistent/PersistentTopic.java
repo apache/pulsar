@@ -214,7 +214,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
-    private TopicCompactionService topicCompactionService;
+    private volatile TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
     private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(

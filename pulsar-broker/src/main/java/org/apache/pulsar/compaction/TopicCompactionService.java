@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.Beta;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.classification.InterfaceAudience;
 
+@Beta
+@InterfaceAudience.Public
 public interface TopicCompactionService {
     /**
      * Compact the topic.
@@ -33,25 +36,28 @@ public interface TopicCompactionService {
      * @return a future that will be completed when the compaction is done.
      */
     CompletableFuture<Void> compact();
+
     /**
      * Read the compacted entries from the topic.
-     * @param startPosition the position to start reading from.
+     *
+     * @param startPosition         the position to start reading from.
      * @param numberOfEntriesToRead the number of entries to read.
-     * @return a future that will be completed with the list of entries.
+     * @return a future that will be completed with the list of entries, this list can is null.
      */
-    CompletableFuture<Optional<List<Entry>>> readCompactedEntries(PositionImpl startPosition,
-                                                                  int numberOfEntriesToRead);
+    CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition, int numberOfEntriesToRead);
+
     /**
      * Read the last compacted entry from the TopicCompactionService.
      *
-     * @return a future that will be completed with the last entry
+     * @return a future that will be completed with the compacted last entry, this entry can is null.
      */
-    CompletableFuture<Optional<Entry>> readCompactedLastEntry();
+    CompletableFuture<Entry> readCompactedLastEntry();
+
     /**
      * Get the last compacted position from the TopicCompactionService.
      *
-     * @return a future that will be completed with the last compacted position
+     * @return a future that will be completed with the last compacted position, this position can is null.
      */
-    CompletableFuture<Optional<PositionImpl>> getCompactedLastPosition();
+    CompletableFuture<PositionImpl> getCompactedLastPosition();
 }
 

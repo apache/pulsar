@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.Beta;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.classification.InterfaceAudience;
 
+@Beta
+@InterfaceAudience.Public
 public interface CompactionServiceFactory extends AutoCloseable {
 
     CompletableFuture<Void> initialize(PulsarService pulsarService);

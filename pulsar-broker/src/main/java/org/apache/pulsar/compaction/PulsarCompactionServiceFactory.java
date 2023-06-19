@@ -19,6 +19,7 @@
 package org.apache.pulsar.compaction;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 
@@ -58,7 +59,7 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
                     try {
                         return this.getCompactor();
                     } catch (PulsarServerException e) {
-                        throw new RuntimeException(e);
+                        throw new CompletionException(e);
                     }
                 });
         return CompletableFuture.completedFuture(pulsarTopicCompactionService);

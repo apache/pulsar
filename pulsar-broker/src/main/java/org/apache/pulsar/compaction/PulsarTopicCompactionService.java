@@ -21,10 +21,11 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.COMPACT_LEDGER_EMPTY;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.NEWER_THAN_COMPACTED;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.findStartPoint;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
@@ -48,25 +49,30 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
 
     @Override
     public CompletableFuture<Void> compact() {
-        return compactorSupplier.get().compact(topic).thenApply(x -> null);
+        Compactor compactor;
+        try {
+            compactor = compactorSupplier.get();
+        } catch (CompletionException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return compactor.compact(topic).thenApply(x -> null);
     }
 
     @Override
-    public CompletableFuture<Optional<List<Entry>>> readCompactedEntries(PositionImpl startPosition,
-                                                                         int numberOfEntriesToRead) {
-        CompletableFuture<Optional<List<Entry>>> resultFuture = new CompletableFuture<>();
+    public CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition,
+                                                               int numberOfEntriesToRead) {
+        CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
-        CompletableFuture<Optional<List<Entry>>> optionalCompletableFuture =
+        CompletableFuture<List<Entry>> optionalCompletableFuture =
                 compactedTopic.getCompactedTopicContextFuture().thenCompose(
                         (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
                                 context.cache).thenCompose((startPoint) -> {
                             if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
-                                return CompletableFuture.completedFuture(Optional.empty());
+                                return CompletableFuture.completedFuture(Collections.emptyList());
                             }
                             long endPoint =
                                     Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
-                            return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint)
-                                    .thenApply(Optional::of);
+                            return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
                         }));
 
         optionalCompletableFuture.whenComplete((result, ex) -> {
@@ -74,7 +80,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
                 resultFuture.complete(result);
             } else {
                 if (ex instanceof NoSuchElementException) {
-                    resultFuture.complete(Optional.empty());
+                    resultFuture.complete(Collections.emptyList());
                 } else {
                     resultFuture.completeExceptionally(ex);
                 }
@@ -85,13 +91,13 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<Optional<Entry>> readCompactedLastEntry() {
-        return compactedTopic.readLastEntryOfCompactedLedger().thenApply(Optional::ofNullable);
+    public CompletableFuture<Entry> readCompactedLastEntry() {
+        return compactedTopic.readLastEntryOfCompactedLedger();
     }
 
     @Override
-    public CompletableFuture<Optional<PositionImpl>> getCompactedLastPosition() {
-        return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon());
+    public CompletableFuture<PositionImpl> getCompactedLastPosition() {
+        return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
     }
 
     public CompactedTopicImpl getCompactedTopic() {

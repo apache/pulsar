@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -781,7 +782,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             } else {
                 topic.getTopicCompactionService().getCompactedLastPosition().thenAccept(lastCompactedPosition -> {
                     PositionImpl resetTo = (PositionImpl) finalPosition;
-                    if (lastCompactedPosition.isPresent() && lastCompactedPosition.get().compareTo(resetTo) >= 0) {
+                    if (lastCompactedPosition != null && lastCompactedPosition.compareTo(resetTo) >= 0) {
                         forceReset.complete(true);
                     } else {
                         forceReset.complete(false);
@@ -1377,20 +1378,20 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
                 PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
 
-        CompletableFuture<Optional<PositionImpl>> lastCompactedPositionFuture =
+        CompletableFuture<PositionImpl> lastCompactedPositionFuture =
                 topicCompactionService.getCompactedLastPosition();
 
         lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
-            if (lastCompactedPosition.isEmpty()
-                    || lastCompactedPosition.get().compareTo(readPosition) < 0) {
+            if (lastCompactedPosition == null
+                    || lastCompactedPosition.compareTo(readPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
                 return CompletableFuture.completedFuture(null);
             }
 
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
-                    .thenApply(entriesOptional -> {
-                if (entriesOptional.isEmpty()) {
-                    PositionImpl seekToPosition = lastCompactedPosition.get().getNext();
+                    .thenApply(entries -> {
+                if (CollectionUtils.isEmpty(entries)) {
+                    PositionImpl seekToPosition = lastCompactedPosition.getNext();
                     if (readPosition.compareTo(seekToPosition) > 0) {
                         seekToPosition = readPosition;
                     }
@@ -1399,7 +1400,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     return null;
                 }
 
-                List<Entry> entries = entriesOptional.get();
                 Entry lastEntry = entries.get(entries.size() - 1);
                 cursor.seek(lastEntry.getPosition().getNext(), true);
                 callback.readEntriesComplete(entries, readEntriesCtx);
