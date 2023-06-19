@@ -479,7 +479,7 @@ The Apache Software License, Version 2.0
   * Swagger
     - swagger-annotations-1.6.2.jar
   * Perfmark
-    - perfmark-api-0.19.0.jar
+    - perfmark-api-0.26.0.jar
   * RabbitMQ Java Client
     - amqp-client-5.5.3.jar
   * Stream Lib
