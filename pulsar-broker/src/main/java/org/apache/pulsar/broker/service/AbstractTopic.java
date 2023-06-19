@@ -987,7 +987,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
         if (existProducer != null) {
             tryOverwriteOldProducer(existProducer, producer);
-        } else {
+        } else if (!producer.isRemote()) {
             USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
         }
     }
@@ -1021,7 +1021,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         checkArgument(producer.getTopic() == this);
 
         if (producers.remove(producer.getProducerName(), producer)) {
-            USER_CREATED_PRODUCER_COUNTER_UPDATER.decrementAndGet(this);
+            if (!producer.isRemote()) {
+                USER_CREATED_PRODUCER_COUNTER_UPDATER.decrementAndGet(this);
+            }
             handleProducerRemoved(producer);
         }
     }
