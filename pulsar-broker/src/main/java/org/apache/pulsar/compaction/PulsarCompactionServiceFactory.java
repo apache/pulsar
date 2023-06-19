@@ -58,7 +58,7 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
                 new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
                     try {
                         return this.getCompactor();
-                    } catch (PulsarServerException e) {
+                    } catch (Exception e) {
                         throw new CompletionException(e);
                     }
                 });
