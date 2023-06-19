@@ -430,6 +430,8 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                         || Objects.equals(uri.getScheme(), "pulsar+ssl"),
                 "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
                         + "or pulsar://ats-proxy.example.com:4080");
+
+        warnIfUrlIsNotPresent();
     }
 
     public void warnIfUrlIsNotPresent() {
