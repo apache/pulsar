@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -48,6 +49,7 @@ public abstract class AbstractReplicator {
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
     protected String replicatorId;
+    protected final Topic localTopic;
 
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
@@ -68,11 +70,12 @@ public abstract class AbstractReplicator {
         Stopped, Starting, Started, Stopping
     }
 
-    public AbstractReplicator(String localCluster, String localTopicName, String remoteCluster, String remoteTopicName,
+    public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
                               String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
             throws PulsarServerException {
         this.brokerService = brokerService;
-        this.localTopicName = localTopicName;
+        this.localTopic = localTopic;
+        this.localTopicName = localTopic.getName();
         this.replicatorPrefix = replicatorPrefix;
         this.localCluster = StringInterner.intern(localCluster);
         this.remoteTopicName = remoteTopicName;
@@ -121,7 +124,8 @@ public abstract class AbstractReplicator {
                         replicatorId, waitTimeMs / 1000.0);
             }
             // BackOff before retrying
-            brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+            brokerService.executor().schedule(this::checkTopicActiveAndRetryStartProducer, waitTimeMs,
+                    TimeUnit.MILLISECONDS);
             return;
         }
         State state = STATE_UPDATER.get(this);
@@ -148,7 +152,8 @@ public abstract class AbstractReplicator {
                         replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
 
                 // BackOff before retrying
-                brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+                brokerService.executor().schedule(this::checkTopicActiveAndRetryStartProducer, waitTimeMs,
+                        TimeUnit.MILLISECONDS);
             } else {
                 log.warn("[{}] Failed to create remote producer. Replicator state: {}", replicatorId,
                         STATE_UPDATER.get(this), ex);
@@ -156,6 +161,31 @@ public abstract class AbstractReplicator {
             return null;
         });
 
+    }
+
+    protected void checkTopicActiveAndRetryStartProducer() {
+        isLocalTopicActive().thenAccept(isTopicActive -> {
+            if (isTopicActive) {
+                startProducer();
+            }
+        }).exceptionally(ex -> {
+            log.warn("[{}] Stop retry to create producer due to topic load fail. Replicator state: {}", replicatorId,
+                    STATE_UPDATER.get(this), ex);
+            return null;
+        });
+    }
+
+    protected CompletableFuture<Boolean> isLocalTopicActive() {
+        CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(localTopicName);
+        if (topicFuture == null){
+            return CompletableFuture.completedFuture(false);
+        }
+        return topicFuture.thenApplyAsync(optional -> {
+            if (optional.isEmpty()) {
+                return false;
+            }
+            return optional.get() == localTopic;
+        }, brokerService.executor());
     }
 
     protected synchronized CompletableFuture<Void> closeProducerAsync() {
