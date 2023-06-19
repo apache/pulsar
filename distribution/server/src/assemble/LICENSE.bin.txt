@@ -484,8 +484,8 @@ The Apache Software License, Version 2.0
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
-    - com.google.auto.value-auto-value-annotations-1.9.jar
-    - com.google.re2j-re2j-1.5.jar
+    - com.google.auto.value-auto-value-annotations-1.10.1.jar
+    - com.google.re2j-re2j-1.7.jar
   * Jetcd
     - io.etcd-jetcd-api-0.7.5.jar
     - io.etcd-jetcd-common-0.7.5.jar
