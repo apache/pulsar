@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -776,18 +775,25 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
                     topicName, subName);
 
-            try {
-                boolean forceReset = false;
-                if (topic.getTopicCompactionService() != null && topic.getTopicCompactionService()
-                        .getCompactedLastPosition().isPresent()) {
-                    PositionImpl lastCompactedPosition =
-                            (PositionImpl) topic.getTopicCompactionService().getCompactedLastPosition().get();
+            CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
+            if (topic.getTopicCompactionService() == null) {
+                forceReset.complete(false);
+            } else {
+                topic.getTopicCompactionService().getCompactedLastPosition().thenAccept(lastCompactedPosition -> {
                     PositionImpl resetTo = (PositionImpl) finalPosition;
-                    if (lastCompactedPosition.compareTo(resetTo) >= 0) {
-                        forceReset = true;
+                    if (lastCompactedPosition.isPresent() && lastCompactedPosition.get().compareTo(resetTo) >= 0) {
+                        forceReset.complete(true);
+                    } else {
+                        forceReset.complete(false);
                     }
-                }
-                cursor.asyncResetCursor(finalPosition, forceReset, new AsyncCallbacks.ResetCursorCallback() {
+                }).exceptionally(ex -> {
+                    forceReset.completeExceptionally(ex);
+                    return null;
+                });
+            }
+
+            forceReset.thenAccept(forceResetValue -> {
+                cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
@@ -817,11 +823,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                     }
                 });
-            } catch (Exception e) {
+            }).exceptionally((e) -> {
                 log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                 future.completeExceptionally(new BrokerServiceException(e));
-            }
+                return null;
+            });
         });
     }
 
@@ -1370,45 +1377,43 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
                 PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
 
-        Optional<PositionImpl> lastCompactedPosition = topicCompactionService.getCompactedLastPosition();
-        if (lastCompactedPosition.isEmpty()
-                || lastCompactedPosition.get().compareTo(readPosition) < 0) {
-            cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
-            return;
-        }
+        CompletableFuture<Optional<PositionImpl>> lastCompactedPositionFuture =
+                topicCompactionService.getCompactedLastPosition();
 
-        Runnable handleNoSuchElement = () -> {
-            PositionImpl seekToPosition = lastCompactedPosition.get().getNext();
-            if (readPosition.compareTo(seekToPosition) > 0) {
-                seekToPosition = readPosition;
+        lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
+            if (lastCompactedPosition.isEmpty()
+                    || lastCompactedPosition.get().compareTo(readPosition) < 0) {
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
+                return CompletableFuture.completedFuture(null);
             }
-            cursor.seek(seekToPosition);
-            callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
-        };
 
-        topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead).thenApply(entries -> {
-            if (entries.isEmpty()) {
-                handleNoSuchElement.run();
+            return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
+                    .thenApply(entriesOptional -> {
+                if (entriesOptional.isEmpty()) {
+                    PositionImpl seekToPosition = lastCompactedPosition.get().getNext();
+                    if (readPosition.compareTo(seekToPosition) > 0) {
+                        seekToPosition = readPosition;
+                    }
+                    cursor.seek(seekToPosition);
+                    callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+                    return null;
+                }
+
+                List<Entry> entries = entriesOptional.get();
+                Entry lastEntry = entries.get(entries.size() - 1);
+                cursor.seek(lastEntry.getPosition().getNext(), true);
+                callback.readEntriesComplete(entries, readEntriesCtx);
                 return null;
-            }
-
-            Entry lastEntry = entries.get(entries.size() - 1);
-            cursor.seek(lastEntry.getPosition().getNext(), true);
-            callback.readEntriesComplete(entries, readEntriesCtx);
-            return null;
+            });
         }).exceptionally((exception) -> {
             exception = FutureUtil.unwrapCompletionException(exception);
-            if (exception instanceof NoSuchElementException) {
-                handleNoSuchElement.run();
+            ManagedLedgerException managedLedgerException;
+            if (exception instanceof ManagedLedgerException) {
+                managedLedgerException = (ManagedLedgerException) exception;
             } else {
-                ManagedLedgerException managedLedgerException;
-                if (exception instanceof ManagedLedgerException) {
-                    managedLedgerException = (ManagedLedgerException) exception;
-                } else {
-                    managedLedgerException = new ManagedLedgerException(exception);
-                }
-                callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
+                managedLedgerException = new ManagedLedgerException(exception);
             }
+            callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
             return null;
         });
     }

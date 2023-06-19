@@ -272,7 +272,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
 
-    @VisibleForTesting
+
     protected CompactionServiceFactory compactionServiceFactory;
 
     public enum State {

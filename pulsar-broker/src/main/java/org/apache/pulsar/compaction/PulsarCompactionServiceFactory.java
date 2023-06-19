@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 
@@ -45,19 +46,22 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
     }
 
     @Override
-    public void initialize(PulsarService pulsarService) {
+    public CompletableFuture<Void> initialize(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public TopicCompactionService newTopicCompactionService(String topic) {
-        return new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
-            try {
-                return this.getCompactor();
-            } catch (PulsarServerException e) {
-                throw new RuntimeException(e);
-            }
-        });
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+        PulsarTopicCompactionService pulsarTopicCompactionService =
+                new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
+                    try {
+                        return this.getCompactor();
+                    } catch (PulsarServerException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+        return CompletableFuture.completedFuture(pulsarTopicCompactionService);
     }
 
     @Override

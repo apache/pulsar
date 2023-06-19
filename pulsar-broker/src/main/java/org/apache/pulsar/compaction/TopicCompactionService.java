@@ -27,6 +27,9 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 public interface TopicCompactionService {
     /**
      * Compact the topic.
+     * Topic Compaction is a key-based retention mechanism. it will keep the most recent value for a given key and
+     * user will read compacted data from TopicCompactionService.
+     *
      * @return a future that will be completed when the compaction is done.
      */
     CompletableFuture<Void> compact();
@@ -35,20 +38,20 @@ public interface TopicCompactionService {
      * @param startPosition the position to start reading from.
      * @param numberOfEntriesToRead the number of entries to read.
      * @return a future that will be completed with the list of entries.
-     *
-     * Note: If TopicCompactionService don't find any valid compacted entries from compacted data,
-     * it will return future with NoSuchElementException.
      */
-    CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition, int numberOfEntriesToRead);
+    CompletableFuture<Optional<List<Entry>>> readCompactedEntries(PositionImpl startPosition,
+                                                                  int numberOfEntriesToRead);
     /**
      * Read the last compacted entry from the TopicCompactionService.
+     *
      * @return a future that will be completed with the last entry
      */
-    CompletableFuture<Entry> readCompactedLastEntry();
+    CompletableFuture<Optional<Entry>> readCompactedLastEntry();
     /**
      * Get the last compacted position from the TopicCompactionService.
+     *
      * @return a future that will be completed with the last compacted position
      */
-    Optional<PositionImpl> getCompactedLastPosition();
+    CompletableFuture<Optional<PositionImpl>> getCompactedLastPosition();
 }
 

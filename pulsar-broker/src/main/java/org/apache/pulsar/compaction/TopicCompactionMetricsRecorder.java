@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.compaction;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.PulsarService;
+public interface TopicCompactionMetricsRecorder {
 
-public interface CompactionServiceFactory extends AutoCloseable {
+    void addCompactionRemovedEvent();
 
-    CompletableFuture<Void> initialize(PulsarService pulsarService);
+    void addCompactionReadOp(long readableBytes);
 
-    CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic);
+    void addCompactionWriteOp(long writeableBytes);
 }

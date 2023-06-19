@@ -214,7 +214,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
-    private final TopicCompactionService topicCompactionService;
+    private TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
     private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(
@@ -298,9 +298,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         registerTopicPolicyListener();
 
-        CompactionServiceFactory compactionServiceFactory = brokerService.pulsar().getCompactionServiceFactory();
-        this.topicCompactionService = compactionServiceFactory.newTopicCompactionService(topic);
-
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
                     || cursor.getName().startsWith(replicatorPrefix)) {
@@ -378,6 +375,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                 }, getOrderedExecutor())
                 .thenCompose(ignore -> initTopicPolicy())
+                .thenCompose(ignore -> newTopicCompactionService())
                 .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
@@ -409,8 +407,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
-        this.topicCompactionService =
-                brokerService.pulsar().getCompactionServiceFactory().newTopicCompactionService(topic);
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
 
@@ -3525,6 +3521,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     brokerService.getTopicOrderedExecutor());
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    protected CompletableFuture<Void> newTopicCompactionService() {
+        CompactionServiceFactory compactionServiceFactory = brokerService.pulsar().getCompactionServiceFactory();
+        return compactionServiceFactory.newTopicCompactionService(topic).thenAccept(service -> {
+            PersistentTopic.this.topicCompactionService = service;
+        });
     }
 
     @VisibleForTesting

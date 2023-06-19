@@ -18,12 +18,23 @@
  */
 package org.apache.pulsar.compaction;
 
+import io.netty.buffer.ByteBuf;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.PulsarService;
 
-public interface CompactionServiceFactory extends AutoCloseable {
 
-    CompletableFuture<Void> initialize(PulsarService pulsarService);
+interface CompactionHandle {
 
-    CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic);
+    CompletableFuture<Void> asyncAddEntry(ByteBuf msg);
+
+    CompletableFuture<Void> flush();
+
+    CompletableFuture<Void> close(Long storageId);
+
+}
+
+public interface CompactStorage {
+
+    CompletableFuture<CompactionHandle> createCompactionStorage();
+
+    void deleteCompactionStorage(CompactionHandle compactionHandle);
 }
