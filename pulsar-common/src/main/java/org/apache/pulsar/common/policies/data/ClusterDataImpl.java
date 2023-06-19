@@ -434,7 +434,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         warnIfUrlIsNotPresent();
     }
 
-    public void warnIfUrlIsNotPresent() {
+    private void warnIfUrlIsNotPresent() {
         if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
             log.warn("Service url not found, "
                     + "please provide either service url, example: http://pulsar.example.com:8080 "
