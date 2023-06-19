@@ -1058,6 +1058,14 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-servlet</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-servlet-jakarta</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
