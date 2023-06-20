@@ -1535,6 +1535,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setSubType(SubType.Failover);
 
         // 1. Subscribe with non partition topic
+        topic1.initialize().join();
         Future<Consumer> f1 = topic1.subscribe(getSubscriptionOption(cmd1));
         f1.get();
 
@@ -1550,6 +1551,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
+        topic2.initialize();
         Future<Consumer> f2 = topic2.subscribe(getSubscriptionOption(cmd2));
         f2.get();
 

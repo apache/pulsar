@@ -23,8 +23,8 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 
 public class MockPulsarCompactionServiceFactory extends PulsarCompactionServiceFactory {
-    private Compactor compactor;
-    private SpyConfig spyConfig;
+    private final Compactor compactor;
+    private final SpyConfig spyConfig;
 
     public MockPulsarCompactionServiceFactory(SpyConfig spyConfig, Compactor compactor) {
         this.compactor = compactor;

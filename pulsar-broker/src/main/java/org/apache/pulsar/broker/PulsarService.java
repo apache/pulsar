@@ -919,7 +919,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configMetadataSynchronizer.start();
             }
 
-            this.compactionServiceFactory = loadCompactionServiceFactory();
+            if (this.compactionServiceFactory == null) {
+                this.compactionServiceFactory = loadCompactionServiceFactory();
+            }
 
             long currentTimestamp = System.currentTimeMillis();
             final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);
