@@ -628,6 +628,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testSubscribeFail() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
 
         // Empty subscription name
         CommandSubscribe cmd = new CommandSubscribe()
@@ -664,6 +665,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testSubscribeUnsubscribe() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
 
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
@@ -1236,6 +1238,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testDeleteAndUnsubscribeTopic() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
                 .setTopic(successTopicName)
@@ -1345,6 +1348,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testDeleteTopicRaceConditions() throws Exception {
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        topic.initialize().join();
 
         // override ledger deletion callback to slow down deletion
         doAnswer(invocationOnMock -> {
@@ -2164,6 +2168,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             return null;
         }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any(), any());
         PersistentTopic topic = new PersistentTopic(successTopicName, mockLedger, brokerService);
+        topic.initialize().join();
 
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
