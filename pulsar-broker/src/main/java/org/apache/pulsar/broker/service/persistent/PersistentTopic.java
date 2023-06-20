@@ -298,27 +298,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         registerTopicPolicyListener();
 
-        for (ManagedCursor cursor : ledger.getCursors()) {
-            if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
-                    || cursor.getName().startsWith(replicatorPrefix)) {
-                // This is not a regular subscription, we are going to
-                // ignore it for now and let the message dedup logic to take care of it
-            } else {
-                final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
-                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
-                        cursor.getCursorProperties()));
-                // subscription-cursor gets activated by default: deactivate as there is no active subscription right
-                // now
-                subscriptions.get(subscriptionName).deactivateCursor();
-            }
-        }
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
         if (ledger.getProperties().containsKey(TOPIC_EPOCH_PROPERTY_NAME)) {
             topicEpoch = Optional.of(Long.parseLong(ledger.getProperties().get(TOPIC_EPOCH_PROPERTY_NAME)));
         }
 
-        checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName)) {
@@ -338,6 +322,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        futures.add(newTopicCompactionService());
+
+        futures.add(createPersistentSubscriptions());
+
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -375,7 +364,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                 }, getOrderedExecutor())
                 .thenCompose(ignore -> initTopicPolicy())
-                .thenCompose(ignore -> newTopicCompactionService())
                 .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
@@ -432,6 +420,30 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @VisibleForTesting
     public AtomicLong getPendingWriteOps() {
         return pendingWriteOps;
+    }
+
+    private CompletableFuture<Void> createPersistentSubscriptions() {
+        try {
+            for (ManagedCursor cursor : ledger.getCursors()) {
+                if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
+                        || cursor.getName().startsWith(replicatorPrefix)) {
+                    // This is not a regular subscription, we are going to
+                    // ignore it for now and let the message dedup logic to take care of it
+                } else {
+                    final String subscriptionName = Codec.decode(cursor.getName());
+                    subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
+                            PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
+                            cursor.getCursorProperties()));
+                    // subscription-cursor gets activated by default: deactivate as there is no active subscription
+                    // right now
+                    subscriptions.get(subscriptionName).deactivateCursor();
+                }
+            }
+            checkReplicatedSubscriptionControllerState();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -3525,8 +3537,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     protected CompletableFuture<Void> newTopicCompactionService() {
         CompactionServiceFactory compactionServiceFactory = brokerService.pulsar().getCompactionServiceFactory();
-        return compactionServiceFactory.newTopicCompactionService(topic).thenAccept(service -> {
-            PersistentTopic.this.topicCompactionService = service;
+        return compactionServiceFactory.newTopicCompactionService(topic).thenAccept(topicCompactionService -> {
+            PersistentTopic.this.topicCompactionService = topicCompactionService;
         });
     }
 

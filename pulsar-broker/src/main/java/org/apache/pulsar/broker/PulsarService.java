@@ -919,6 +919,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configMetadataSynchronizer.start();
             }
 
+            this.compactionServiceFactory = loadCompactionServiceFactory();
+
             long currentTimestamp = System.currentTimeMillis();
             final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);
 
@@ -929,8 +931,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     + (StringUtils.isNotEmpty(brokerServiceUrlTls) ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready, bootstrap_seconds={}, {}, cluster={}, configs={}",
                     bootstrapTimeSeconds, bootstrapMessage, config.getClusterName(), config);
-
-            this.compactionServiceFactory = loadCompactionServiceFactory();
 
             state = State.Started;
         } catch (Exception e) {
