@@ -600,7 +600,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
         }
 
-        //Remove not active bundle from loadData
+        // Remove not active bundle from loadData
         for (String bundle : bundleData.keySet()) {
             if (!activeBundles.contains(bundle)){
                 bundleData.remove(bundle);
