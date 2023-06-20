@@ -599,6 +599,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
             }
         }
+
+        //Remove not active bundle from loadData
+        for (String bundle : bundleData.keySet()) {
+            if (!activeBundles.contains(bundle)){
+                bundleData.remove(bundle);
+                if (pulsar.getLeaderElectionService().isLeader()){
+                    log.info("namespace bundle [{}] is not active in cluster, "
+                            + "remove bundleData from metadata store.", bundle);
+                    deleteBundleDataFromMetadataStore(bundle);
+                }
+            }
+        }
     }
 
     /**
@@ -1106,7 +1118,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
-        scanAndCleanupNonExistBundleData();
         updateBundleData();
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();

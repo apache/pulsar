@@ -45,6 +45,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -759,7 +760,9 @@ public class ModularLoadManagerImplTest {
 
 
     @Test
-    public void testRemoveNonExistBundleData() throws PulsarAdminException, InterruptedException, PulsarClientException, PulsarServerException, ExecutionException {
+    public void testRemoveNonExistBundleData()
+            throws PulsarAdminException, InterruptedException,
+            PulsarClientException, PulsarServerException, NoSuchFieldException, IllegalAccessException {
         final String cluster = "use";
         final String tenant = "my-tenant";
         final String namespace = "remove-non-exist-bundle-data-ns";
@@ -789,6 +792,10 @@ public class ModularLoadManagerImplTest {
         ModularLoadManagerWrapper loadManager2 = (ModularLoadManagerWrapper) pulsar2.getLoadManager().get();
         ModularLoadManagerImpl lm2 = (ModularLoadManagerImpl) loadManager2.getLoadManager();
 
+        Field executors = lm1.getClass().getDeclaredField("executors");
+        executors.setAccessible(true);
+        ExecutorService executorService = (ExecutorService) executors.get(lm1);
+
         assertEquals(lm1.getAvailableBrokers().size(), 2);
         assertTrue(lm1.isLeader());
 
@@ -797,18 +804,24 @@ public class ModularLoadManagerImplTest {
 
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
-        Thread.sleep(1000);
+
+        // wait for metadata store notification finish
+        CountDownLatch latch = new CountDownLatch(1);
+        executorService.submit(latch::countDown);
+        latch.await();
 
         loadManagerWrapper.writeResourceQuotasToZooKeeper();
-        Thread.sleep(1000);
 
         MetadataCache<BundleData> bundlesCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+
+        // trigger bundle split
+        String topicToFindBundle = topicName + 0;
+        NamespaceBundle bundleWillBeSplit = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
 
         String bundleDataPath = ModularLoadManagerImpl.BUNDLE_DATA_PATH + "/" + tenant + "/" + namespace;
         CompletableFuture<List<String>> children = bundlesCache.getChildren(bundleDataPath);
         List<String> bundles = children.join();
-        assertFalse(bundles.isEmpty());
-        assertEquals(bundleNumbers, bundles.size());
+        assertTrue(bundles.contains(bundleWillBeSplit.getBundleRange()));
 
         // after updateAll no namespace bundle data is deleted from metadata store.
         lm1.updateAll();
@@ -818,22 +831,16 @@ public class ModularLoadManagerImplTest {
         assertFalse(bundles.isEmpty());
         assertEquals(bundleNumbers, bundles.size());
 
-        String topicToFindBundle = topicName + 0;
-
-        // trigger bundle split
-        NamespaceBundle shouldBeDeletedBundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
-
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
         pulsar1.getAdminClient().namespaces().splitNamespaceBundle(tenant + "/" + namespace,
-                shouldBeDeletedBundle.getBundleRange(),
+                bundleWillBeSplit.getBundleRange(),
                 false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
 
         NamespaceBundles allBundlesAfterSplit =
                 pulsar1.getNamespaceService().getNamespaceBundleFactory()
                         .getBundles(namespaceName);
 
-        assertEquals(allBundlesAfterSplit.getBundles().size(), bundleNumbers + 1);
-        assertFalse(allBundlesAfterSplit.getBundles().contains(shouldBeDeletedBundle));
+        assertFalse(allBundlesAfterSplit.getBundles().contains(bundleWillBeSplit));
 
         // the bundle data should be deleted
 
@@ -842,10 +849,14 @@ public class ModularLoadManagerImplTest {
 
         lm1.writeBrokerDataOnZooKeeper(true);
         lm2.writeBrokerDataOnZooKeeper(true);
-        Thread.sleep(1000);
+
+        latch = new CountDownLatch(1);
+        // wait for metadata store notification finish
+        CountDownLatch finalLatch = latch;
+        executorService.submit(finalLatch::countDown);
+        latch.await();
 
         loadManagerWrapper.writeResourceQuotasToZooKeeper();
-        Thread.sleep(1000);
 
         lm1.updateAll();
 
@@ -856,7 +867,7 @@ public class ModularLoadManagerImplTest {
         CompletableFuture<List<String>> childrenAfterSplit = bundlesCache.getChildren(bundleDataPath);
         List<String> bundlesAfterSplit = childrenAfterSplit.join();
 
-        assertFalse(bundlesAfterSplit.contains(shouldBeDeletedBundle.getBundleRange()));
+        assertFalse(bundlesAfterSplit.contains(bundleWillBeSplit.getBundleRange()));
     }
 
 }
