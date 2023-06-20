@@ -703,6 +703,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
+            pulsar.getNamespaceService()
+                    .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
             lastOwnEventHandledAt = System.currentTimeMillis();
         } else if (data.force() && isTargetBroker(data.sourceBroker())) {
             closeServiceUnit(serviceUnit);
@@ -802,12 +804,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return broker.equals(lookupServiceAddress);
     }
 
-    private NamespaceBundle getNamespaceBundle(String bundle) {
-        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-        return pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
-    }
-
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
         return getOwnerRequests
                 .computeIfAbsent(serviceUnit, k -> {
@@ -828,7 +824,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private CompletableFuture<Integer> closeServiceUnit(String serviceUnit) {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
-        NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
+        NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
                         true,
@@ -841,6 +837,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .whenComplete((__, ex) -> {
                     // clean up topics that failed to unload from the broker ownership cache
                     pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    pulsar.getNamespaceService().onNamespaceBundleUnload(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));
                     if (ex != null) {
@@ -858,7 +855,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         long startTime = System.nanoTime();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
-        NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
+        NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
         Map<String, Optional<String>> bundleToDestBroker = data.splitServiceUnitToDestBroker();
         List<Long> boundaries = null;
@@ -912,6 +909,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
                     log.info("Successfully split {} parent namespace-bundle to {} in {} ms",
                             parentBundle, childBundles, splitBundleTime);
+                    namespaceService.onNamespaceBundleSplit(parentBundle);
                     completionFuture.complete(null);
                 })
                 .exceptionally(ex -> {
@@ -1194,6 +1192,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
+        String heartbeatNamespace =
+                NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
+                        .toString();
+        String heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfiguration()).toString();
 
         Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
         for (var etr : tableview.entrySet()) {
@@ -1204,6 +1207,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 if (isActiveState(state)) {
                     if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                         orphanSystemServiceUnits.put(serviceUnit, stateData);
+                    } else if (serviceUnit.startsWith(heartbeatNamespace)
+                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
+                        // Skip the heartbeat namespace
+                        log.info("Skip override heartbeat namespace bundle"
+                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
+                            if (e != null) {
+                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
+                                                + "stateData:{}, cleanupErrorCnt:{}.",
+                                        serviceUnit, stateData,
+                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                            }
+                        });
                     } else {
                         overrideOwnership(serviceUnit, stateData, broker);
                     }
@@ -1272,7 +1288,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
         try {
-            return loadManager.selectAsync(getNamespaceBundle(serviceUnit), Set.of(inactiveBroker))
+            return loadManager.selectAsync(
+                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit), Set.of(inactiveBroker))
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
