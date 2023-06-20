@@ -353,6 +353,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
+
+        this.compactionServiceFactory = loadCompactionServiceFactory();
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
@@ -917,10 +919,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             if (configMetadataSynchronizer != null) {
                 configMetadataSynchronizer.start();
-            }
-
-            if (this.compactionServiceFactory == null) {
-                this.compactionServiceFactory = loadCompactionServiceFactory();
             }
 
             long currentTimestamp = System.currentTimeMillis();
