@@ -487,7 +487,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
         this.knownBrokers.clear();
         this.knownBrokers.addAll(activeBrokers);
-        if (isLeader()) {
+        if (pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
             for (LoadSheddingStrategy loadSheddingStrategy : loadSheddingPipeline) {
                 loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
@@ -530,12 +531,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
         }
     }
-
-    public boolean isLeader() {
-        return pulsar.getLeaderElectionService() != null
-                && pulsar.getLeaderElectionService().isLeader();
-    }
-
 
     // As the leader broker, use the local broker data saved on metadata store to update the bundle stats so that better
     // load management decisions may be made.
@@ -605,8 +600,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             if (!activeBundles.contains(bundle)){
                 bundleData.remove(bundle);
                 if (pulsar.getLeaderElectionService().isLeader()){
-                    log.info("namespace bundle [{}] is not active in cluster, "
-                            + "remove bundleData from metadata store.", bundle);
                     deleteBundleDataFromMetadataStore(bundle);
                 }
             }
@@ -749,7 +742,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void checkNamespaceBundleSplit() {
 
-        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || !isLeader() || knownBrokers.size() <= 1) {
+        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
+                || !pulsar.getLeaderElectionService().isLeader() || knownBrokers.size() <= 1) {
             return;
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
