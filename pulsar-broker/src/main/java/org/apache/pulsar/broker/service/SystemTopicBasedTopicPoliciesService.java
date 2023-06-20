@@ -362,13 +362,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
                 // replay policy message
-                policiesCache.forEach(((topicName, topicPolicies) -> {
-                    if (listeners.get(topicName) != null) {
-                        for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                            listener.onUpdate(topicPolicies);
+                try {
+                    policiesCache.forEach(((topicName, topicPolicies) -> {
+                        if (listeners.get(topicName) != null) {
+                            for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                                listener.onUpdate(topicPolicies);
+                            }
                         }
-                    }
-                }));
+                    }));
+                } catch (Exception e) {
+                    log.error("[{}] Failed to replay policy message.", reader.getSystemTopic().getTopicName(), e);
+                    future.completeExceptionally(e);
+                    cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
+                    return;
+                }
                 future.complete(null);
             }
         });
