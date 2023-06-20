@@ -74,14 +74,14 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     )
     private String proxyServiceUrl;
     @ApiModelProperty(
-            name = "authenticationPlugin",
-            value = "Authentication plugin when client would like to connect to cluster.",
-            example = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+        name = "authenticationPlugin",
+        value = "Authentication plugin when client would like to connect to cluster.",
+        example = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
     )
     private String authenticationPlugin;
     @ApiModelProperty(
-            name = "authenticationParameters",
-            value = "Authentication parameters when client would like to connect to cluster."
+        name = "authenticationParameters",
+        value = "Authentication parameters when client would like to connect to cluster."
     )
     private String authenticationParameters;
     @ApiModelProperty(
@@ -100,40 +100,40 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     private LinkedHashSet<String> peerClusterNames;
 
     @ApiModelProperty(
-            name = "brokerClientTlsEnabled",
-            value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
-                    + " or different clusters (replication)"
+        name = "brokerClientTlsEnabled",
+        value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
+                + " or different clusters (replication)"
     )
     private boolean brokerClientTlsEnabled;
     @ApiModelProperty(
-            name = "tlsAllowInsecureConnection",
-            value = "Allow TLS connections to servers whose certificate cannot be"
-                    + " be verified to have been signed by a trusted certificate"
-                    + " authority."
+        name = "tlsAllowInsecureConnection",
+        value = "Allow TLS connections to servers whose certificate cannot be"
+                + " be verified to have been signed by a trusted certificate"
+                + " authority."
     )
     private boolean tlsAllowInsecureConnection;
     @ApiModelProperty(
-            name = "brokerClientTlsEnabledWithKeyStore",
-            value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
+        name = "brokerClientTlsEnabledWithKeyStore",
+        value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
     )
     private boolean brokerClientTlsEnabledWithKeyStore;
     @ApiModelProperty(
-            name = "brokerClientTlsTrustStoreType",
-            value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
-                    + " used by the internal client to authenticate with Pulsar brokers",
-            example = "JKS"
+        name = "brokerClientTlsTrustStoreType",
+        value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
+                + " used by the internal client to authenticate with Pulsar brokers",
+        example = "JKS"
     )
     private String brokerClientTlsTrustStoreType;
     @ApiModelProperty(
-            name = "brokerClientTlsTrustStore",
-            value = "TLS TrustStore path for internal client"
-                    + " used by the internal client to authenticate with Pulsar brokers"
+        name = "brokerClientTlsTrustStore",
+        value = "TLS TrustStore path for internal client"
+                + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStore;
     @ApiModelProperty(
-            name = "brokerClientTlsTrustStorePassword",
-            value = "TLS TrustStore password for internal client"
-                    + " used by the internal client to authenticate with Pulsar brokers"
+        name = "brokerClientTlsTrustStorePassword",
+        value = "TLS TrustStore password for internal client"
+                + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStorePassword;
     @ApiModelProperty(
