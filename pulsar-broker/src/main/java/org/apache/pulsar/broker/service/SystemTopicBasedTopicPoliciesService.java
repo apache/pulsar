@@ -370,7 +370,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             }
                         }
                     }));
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     log.error("[{}] Failed to replay policy message.", reader.getSystemTopic().getTopicName(), e);
                     future.completeExceptionally(e);
                     cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
