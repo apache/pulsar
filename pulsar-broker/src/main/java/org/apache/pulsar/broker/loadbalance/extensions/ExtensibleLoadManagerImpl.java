@@ -191,6 +191,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      * Get all the bundles that are owned by this broker.
      */
     public Set<NamespaceBundle> getOwnedServiceUnits() {
+        if (!started) {
+            log.warn("Failed to get owned service units, load manager is not started.");
+            return Collections.emptySet();
+        }
         Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
         String brokerId = brokerRegistry.getBrokerId();
         return entrySet.stream()
