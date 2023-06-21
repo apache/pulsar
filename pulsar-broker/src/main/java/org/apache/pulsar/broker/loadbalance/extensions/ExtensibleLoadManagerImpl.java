@@ -169,7 +169,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private SplitManager splitManager;
 
-    private boolean started = false;
+    private volatile boolean started = false;
 
     private final AssignCounter assignCounter = new AssignCounter();
     @Getter
