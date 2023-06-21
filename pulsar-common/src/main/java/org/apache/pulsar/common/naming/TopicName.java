@@ -246,18 +246,35 @@ public class TopicName implements ServiceUnitId {
         return partitionIndex;
     }
 
+    /**
+     * Note: Pulsar uses a unique approach in the context of partitioned topics (or topic partitions)
+     * compared to other messaging systems. For better understanding of this concept in Pulsar,
+     * refer to the <a href="https://pulsar.apache.org/docs/concepts-messaging#partitioned-topics">
+     * documentation</a>.
+     * <p>
+     * @return whether the completeTopicName (topic) is
+     * <a href="https://pulsar.apache.org/docs/concepts-messaging#partitioned-topics">partitioned</a>.
+     */
     public boolean isPartitioned() {
         return partitionIndex != -1;
     }
 
     /**
-     * For partitions in a topic, return the base partitioned topic name.
-     * Eg:
-     * <ul>
-     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> -->
-     *  <code>persistent://prop/cluster/ns/my-topic</code>
-     *  <li><code>persistent://prop/cluster/ns/my-topic</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
-     * </ul>
+     * Note: Pulsar uses a unique approach in the context of partitioned topics (or topic partitions)
+     * compared to other messaging systems. For better understanding of this concept in Pulsar,
+     * refer to the <a href="https://pulsar.apache.org/docs/concepts-messaging#partitioned-topics">
+     * documentation</a>.
+     *
+     * <p><strong>Example:</strong>
+     * <pre>
+     *  String result1 = getPartitionedTopicName("persistent://prop/cluster/ns/my-topic-partition-1");
+     *  // result1 now holds "persistent://prop/cluster/ns/my-topic"
+     *
+     *  String result2 = getPartitionedTopicName("persistent://prop/cluster/ns/my-topic");
+     *  // result2 now holds "persistent://prop/cluster/ns/my-topic"
+     * </pre>
+     *
+     * @return The base topic name. For partitions in a topic, by parsing the current {@link #completeTopicName}.
      */
     public String getPartitionedTopicName() {
         if (isPartitioned()) {
