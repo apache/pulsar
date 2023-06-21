@@ -18,21 +18,15 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
-import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeId;
 import io.trino.spi.type.TypeManager;
-import io.trino.spi.type.TypeOperators;
-import io.trino.spi.type.TypeSignature;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class TestPulsarConnectorConfig {
 
