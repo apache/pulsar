@@ -1116,6 +1116,14 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    public void testGetOwnedServiceUnitsWhenLoadManagerNotStart() {
+        ExtensibleLoadManagerImpl loadManager = new ExtensibleLoadManagerImpl();
+        Set<NamespaceBundle> ownedServiceUnits = loadManager.getOwnedServiceUnits();
+        assertNotNull(ownedServiceUnits);
+        assertTrue(ownedServiceUnits.isEmpty());
+    }
+
+    @Test(timeOut = 30 * 1000)
     public void testTryAcquiringOwnership()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         final String namespace = "public/testTryAcquiringOwnership";
