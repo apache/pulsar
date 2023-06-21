@@ -27,6 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -59,7 +60,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<List<Entry>> readCompactedEntries(PositionImpl startPosition,
+    public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull PositionImpl startPosition,
                                                                int numberOfEntriesToRead) {
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
