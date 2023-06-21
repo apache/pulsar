@@ -1195,7 +1195,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         deprecated = true,
         doc = "Number of worker threads to serve non-persistent topic.\n"
-                + "@deprecated - use numWorkerThreadsForPersistentTopic instead.")
+                + "@deprecated - use topicOrderedExecutorThreadNum instead.")
     private int numWorkerThreadsForNonPersistentTopic = -1;
     @FieldContext(
             category = CATEGORY_SERVER,
