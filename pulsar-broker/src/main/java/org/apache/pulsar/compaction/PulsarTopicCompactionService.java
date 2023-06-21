@@ -30,6 +30,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 
@@ -60,7 +61,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull PositionImpl startPosition,
+    public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition,
                                                                int numberOfEntriesToRead) {
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
@@ -97,7 +98,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<PositionImpl> getCompactedLastPosition() {
+    public CompletableFuture<Position> getCompactedLastPosition() {
         return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
     }
 

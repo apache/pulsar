@@ -782,7 +782,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             } else {
                 topic.getTopicCompactionService().getCompactedLastPosition().thenAccept(lastCompactedPosition -> {
                     PositionImpl resetTo = (PositionImpl) finalPosition;
-                    if (lastCompactedPosition != null && lastCompactedPosition.compareTo(resetTo) >= 0) {
+                    if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
+                            lastCompactedPosition.getEntryId()) <= 0) {
                         forceReset.complete(true);
                     } else {
                         forceReset.complete(false);
@@ -1378,12 +1379,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
                 PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
 
-        CompletableFuture<PositionImpl> lastCompactedPositionFuture =
-                topicCompactionService.getCompactedLastPosition();
+        CompletableFuture<Position> lastCompactedPositionFuture = topicCompactionService.getCompactedLastPosition();
 
         lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
             if (lastCompactedPosition == null
-                    || lastCompactedPosition.compareTo(readPosition) < 0) {
+                    || readPosition.compareTo(
+                            lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId()) > 0) {
                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
                 return CompletableFuture.completedFuture(null);
             }
@@ -1391,8 +1392,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
                     .thenApply(entries -> {
                 if (CollectionUtils.isEmpty(entries)) {
-                    PositionImpl seekToPosition = lastCompactedPosition.getNext();
-                    if (readPosition.compareTo(seekToPosition) > 0) {
+                    Position seekToPosition = lastCompactedPosition.getNext();
+                    if (readPosition.compareTo(seekToPosition.getLedgerId(), seekToPosition.getEntryId()) > 0) {
                         seekToPosition = readPosition;
                     }
                     cursor.seek(seekToPosition);

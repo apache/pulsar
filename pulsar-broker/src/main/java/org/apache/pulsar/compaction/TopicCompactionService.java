@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 
 @Beta
@@ -45,7 +45,7 @@ public interface TopicCompactionService {
      * @param numberOfEntriesToRead the number of entries to read.
      * @return a future that will be completed with the list of entries, this list can is null.
      */
-    CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull PositionImpl startPosition, int numberOfEntriesToRead);
+    CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition, int numberOfEntriesToRead);
 
     /**
      * Read the last compacted entry from the TopicCompactionService.
@@ -59,6 +59,6 @@ public interface TopicCompactionService {
      *
      * @return a future that will be completed with the last compacted position, this position can is null.
      */
-    CompletableFuture<PositionImpl> getCompactedLastPosition();
+    CompletableFuture<Position> getCompactedLastPosition();
 }
 

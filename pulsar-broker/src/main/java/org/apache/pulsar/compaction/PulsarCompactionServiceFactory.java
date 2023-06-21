@@ -20,6 +20,7 @@ package org.apache.pulsar.compaction;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import javax.annotation.Nullable;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 
@@ -36,6 +37,7 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
         return compactor;
     }
 
+    @Nullable
     public Compactor getNullableCompactor() {
         return compactor;
     }
