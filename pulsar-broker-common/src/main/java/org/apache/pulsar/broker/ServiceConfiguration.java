@@ -1190,6 +1190,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Max concurrent non-persistent message can be processed per connection")
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
