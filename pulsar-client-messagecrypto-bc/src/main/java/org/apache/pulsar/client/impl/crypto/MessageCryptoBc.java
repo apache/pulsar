@@ -352,13 +352,12 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
         encryptedDataKeyMap.put(keyName, eki);
     }
-
-    // required since Bouncycastle 1.72 when using ECIES
-    // automatic generation of nonces with IED is disabled and they have to be passed in using an IESParameterSpec
+    
+    // required since Bouncycastle 1.72 when using ECIES, it is required to pass in an IESParameterSpec
     private IESParameterSpec createIESParameterSpec() {
-        byte[] nonce = new byte[16];
-        secureRandom.nextBytes(nonce);
-        return new IESParameterSpec(null, null, 128, 256, nonce);
+        // the IESParameterSpec to use was discovered by debugging BouncyCastle 1.69 and running the
+        // test org.apache.pulsar.client.api.SimpleProducerConsumerTest#testCryptoWithChunking
+        return new IESParameterSpec(null, null, 128);
     }
 
     /*
