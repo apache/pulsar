@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.impl.BrokersBase.internalRunHealthCheck;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
@@ -143,6 +144,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -223,6 +225,7 @@ public class BrokerService implements Closeable {
 
     private AuthorizationService authorizationService;
     private final ScheduledExecutorService statsUpdater;
+
     @Getter
     private final ScheduledExecutorService backlogQuotaChecker;
 
@@ -324,6 +327,7 @@ public class BrokerService implements Closeable {
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
                 pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
         this.workerGroup = eventLoopGroup;
+
         this.statsUpdater = OrderedScheduler.newSchedulerBuilder()
                 .name("pulsar-stats-updater")
                 .numThreads(1)
@@ -557,6 +561,7 @@ public class BrokerService implements Closeable {
         this.startStatsUpdater(
                 serviceConfig.getStatsUpdateInitialDelayInSecs(),
                 serviceConfig.getStatsUpdateFrequencyInSecs());
+        this.initializeHealthChecker();
         this.startInactivityMonitor();
         this.startMessageExpiryMonitor();
         this.startCompactionMonitor();
@@ -574,6 +579,24 @@ public class BrokerService implements Closeable {
 
         // Ensure the broker starts up with initial stats
         updateRates();
+    }
+
+    protected void initializeHealthChecker() {
+        ServiceConfiguration config = pulsar().getConfiguration();
+        if (config.getHealthCheckMetricsUpdateTimeInSeconds() > 0) {
+            int interval = config.getHealthCheckMetricsUpdateTimeInSeconds();
+            statsUpdater.scheduleAtFixedRate(this::checkHealth,
+                    interval, interval, TimeUnit.SECONDS);
+        }
+    }
+
+    public CompletableFuture<Void> checkHealth() {
+        return internalRunHealthCheck(TopicVersion.V2, pulsar(), null).thenAccept(__ -> {
+            this.pulsarStats.getBrokerOperabilityMetrics().recordHealthCheckStatusSuccess();
+        }).exceptionally(ex -> {
+            this.pulsarStats.getBrokerOperabilityMetrics().recordHealthCheckStatusFail();
+            return null;
+        });
     }
 
     protected void startDeduplicationSnapshotMonitor() {

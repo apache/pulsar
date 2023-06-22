@@ -40,6 +40,7 @@ public class BrokerOperabilityMetrics {
     private final LongAdder connectionCreateFailCount;
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
+    private volatile int healthCheckStatus; // 1=success, 0=failure, -1=unknown
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
@@ -51,6 +52,7 @@ public class BrokerOperabilityMetrics {
         this.connectionCreateFailCount = new LongAdder();
         this.connectionTotalClosedCount = new LongAdder();
         this.connectionActive = new LongAdder();
+        this.healthCheckStatus = -1;
     }
 
     public List<Metrics> getMetrics() {
@@ -74,6 +76,7 @@ public class BrokerOperabilityMetrics {
         rMetrics.put("brk_connection_create_fail_count", connectionCreateFailCount.longValue());
         rMetrics.put("brk_connection_closed_total_count", connectionTotalClosedCount.longValue());
         rMetrics.put("brk_active_connections", connectionActive.longValue());
+        rMetrics.put("brk_health", healthCheckStatus);
         return rMetrics;
     }
 
@@ -136,5 +139,13 @@ public class BrokerOperabilityMetrics {
 
     public void recordConnectionCreateFail() {
         this.connectionCreateFailCount.increment();
+    }
+
+    public void recordHealthCheckStatusSuccess() {
+        this.healthCheckStatus = 1;
+    }
+
+    public void recordHealthCheckStatusFail() {
+        this.healthCheckStatus = 0;
     }
 }
