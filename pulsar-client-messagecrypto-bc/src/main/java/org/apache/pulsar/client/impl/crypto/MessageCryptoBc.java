@@ -352,7 +352,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
         encryptedDataKeyMap.put(keyName, eki);
     }
-    
+
     // required since Bouncycastle 1.72 when using ECIES, it is required to pass in an IESParameterSpec
     private IESParameterSpec createIESParameterSpec() {
         // the IESParameterSpec to use was discovered by debugging BouncyCastle 1.69 and running the
