@@ -2205,6 +2205,24 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void testSourceCreateMissingSourceConfigFileFaileWithExitCode1() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        assertFalse(tool.run("sources create --source-config-file doesnotexist.yaml".split(" ")));
+    }
+
+    @Test
+    public void testSourceUpdateMissingSourceConfigFileFaileWithExitCode1() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        assertFalse(tool.run("sources update --source-config-file doesnotexist.yaml".split(" ")));
+    }
+
+    @Test
     public void testAuthTlsWithJsonParam() throws Exception {
 
         Properties properties = new Properties();
@@ -2359,6 +2377,11 @@ public class PulsarAdminToolTest {
         cmdSchemas.run(split("upload -f " + schemaFile + " persistent://tn1/ns1/tp1"));
         PostSchemaPayload input = new ObjectMapper().readValue(new File(schemaFile), PostSchemaPayload.class);
         verify(schemas).createSchema("persistent://tn1/ns1/tp1", input);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("compatibility -f " + schemaFile + " persistent://tn1/ns1/tp1"));
+        input = new ObjectMapper().readValue(new File(schemaFile), PostSchemaPayload.class);
+        verify(schemas).testCompatibility("persistent://tn1/ns1/tp1", input);
 
         cmdSchemas = new CmdSchemas(() -> admin);
         String jarFile = PulsarAdminToolTest.class.getClassLoader()

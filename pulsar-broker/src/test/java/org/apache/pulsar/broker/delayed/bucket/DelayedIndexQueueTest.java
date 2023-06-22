@@ -23,8 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -35,27 +35,19 @@ public class DelayedIndexQueueTest {
     @Test
     public void testCompare() {
         DelayedIndex delayedIndex =
-                DelayedIndex.newBuilder().setTimestamp(1).setLedgerId(1L).setEntryId(1L)
-                        .build();
+                new DelayedIndex().setTimestamp(1).setLedgerId(1L).setEntryId(1L);
         DelayedIndex delayedIndex2 =
-                DelayedIndex.newBuilder().setTimestamp(2).setLedgerId(2L).setEntryId(2L)
-                        .build();
+                new DelayedIndex().setTimestamp(2).setLedgerId(2L).setEntryId(2L);
         Assert.assertTrue(COMPARATOR.compare(delayedIndex, delayedIndex2) < 0);
 
         delayedIndex =
-                DelayedIndex.newBuilder().setTimestamp(1).setLedgerId(1L).setEntryId(1L)
-                        .build();
+                new DelayedIndex().setTimestamp(1).setLedgerId(1L).setEntryId(1L);
         delayedIndex2 =
-                DelayedIndex.newBuilder().setTimestamp(1).setLedgerId(2L).setEntryId(2L)
-                        .build();
+                new DelayedIndex().setTimestamp(1).setLedgerId(2L).setEntryId(2L);
         Assert.assertTrue(COMPARATOR.compare(delayedIndex, delayedIndex2) < 0);
 
-        delayedIndex =
-                DelayedIndex.newBuilder().setTimestamp(1).setLedgerId(1L).setEntryId(1L)
-                        .build();
-        delayedIndex2 =
-                DelayedIndex.newBuilder().setTimestamp(1).setLedgerId(1L).setEntryId(2L)
-                        .build();
+        delayedIndex = new DelayedIndex().setTimestamp(1).setLedgerId(1L).setEntryId(1L);
+        delayedIndex2 = new DelayedIndex().setTimestamp(1).setLedgerId(1L).setEntryId(2L);
         Assert.assertTrue(COMPARATOR.compare(delayedIndex, delayedIndex2) < 0);
     }
 
@@ -63,21 +55,19 @@ public class DelayedIndexQueueTest {
     public void testCombinedSegmentDelayedIndexQueue() {
         List<DelayedIndex> listA = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            DelayedIndex delayedIndex =
-                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(1L).setEntryId(1L)
-                            .build();
+            DelayedIndex delayedIndex = new DelayedIndex().setTimestamp(i).setLedgerId(1L).setEntryId(1L);
             listA.add(delayedIndex);
         }
-        SnapshotSegment snapshotSegmentA1 = SnapshotSegment.newBuilder().addAllIndexes(listA).build();
+        SnapshotSegment snapshotSegmentA1 = new SnapshotSegment();
+        snapshotSegmentA1.addAllIndexes(listA);
 
         List<DelayedIndex> listA2 = new ArrayList<>();
         for (int i = 10; i < 20; i++) {
-            DelayedIndex delayedIndex =
-                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(1L).setEntryId(1L)
-                            .build();
+            DelayedIndex delayedIndex = new DelayedIndex().setTimestamp(i).setLedgerId(1L).setEntryId(1L);
             listA2.add(delayedIndex);
         }
-        SnapshotSegment snapshotSegmentA2 = SnapshotSegment.newBuilder().addAllIndexes(listA2).build();
+        SnapshotSegment snapshotSegmentA2 = new SnapshotSegment();
+        snapshotSegmentA2.addAllIndexes(listA2);
 
         List<SnapshotSegment> segmentListA = new ArrayList<>();
         segmentListA.add(snapshotSegmentA1);
@@ -85,36 +75,32 @@ public class DelayedIndexQueueTest {
 
         List<DelayedIndex> listB = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
-            DelayedIndex delayedIndex =
-                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(2L).setEntryId(1L)
-                            .build();
+            DelayedIndex delayedIndex = new DelayedIndex().setTimestamp(i).setLedgerId(2L).setEntryId(1L);
 
-            DelayedIndex delayedIndex2 =
-                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(2L).setEntryId(2L)
-                            .build();
+            DelayedIndex delayedIndex2 = new DelayedIndex().setTimestamp(i).setLedgerId(2L).setEntryId(2L);
             listB.add(delayedIndex);
             listB.add(delayedIndex2);
         }
 
-        SnapshotSegment snapshotSegmentB = SnapshotSegment.newBuilder().addAllIndexes(listB).build();
+        SnapshotSegment snapshotSegmentB = new SnapshotSegment();
+        snapshotSegmentB.addAllIndexes(listB);
         List<SnapshotSegment> segmentListB = new ArrayList<>();
         segmentListB.add(snapshotSegmentB);
-        segmentListB.add(SnapshotSegment.newBuilder().build());
+        segmentListB.add(new SnapshotSegment());
 
         List<DelayedIndex> listC = new ArrayList<>();
         for (int i = 10; i < 30; i+=2) {
             DelayedIndex delayedIndex =
-                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(2L).setEntryId(1L)
-                            .build();
+                    new DelayedIndex().setTimestamp(i).setLedgerId(2L).setEntryId(1L);
 
             DelayedIndex delayedIndex2 =
-                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(2L).setEntryId(2L)
-                            .build();
+                    new DelayedIndex().setTimestamp(i).setLedgerId(2L).setEntryId(2L);
             listC.add(delayedIndex);
             listC.add(delayedIndex2);
         }
 
-        SnapshotSegment snapshotSegmentC = SnapshotSegment.newBuilder().addAllIndexes(listC).build();
+        SnapshotSegment snapshotSegmentC = new SnapshotSegment();
+        snapshotSegmentC.addAllIndexes(listC);
         List<SnapshotSegment> segmentListC = new ArrayList<>();
         segmentListC.add(snapshotSegmentC);
 
@@ -123,11 +109,14 @@ public class DelayedIndexQueueTest {
 
         int count = 0;
         while (!delayedIndexQueue.isEmpty()) {
-            DelayedIndex pop = delayedIndexQueue.pop();
+            DelayedIndex pop = new DelayedIndex();
+            delayedIndexQueue.popToObject(pop);
             log.info("{} , {}, {}", pop.getTimestamp(), pop.getLedgerId(), pop.getEntryId());
             count++;
             if (!delayedIndexQueue.isEmpty()) {
                 DelayedIndex peek = delayedIndexQueue.peek();
+                long timestamp = delayedIndexQueue.peekTimestamp();
+                Assert.assertEquals(timestamp, peek.getTimestamp());
                 Assert.assertTrue(COMPARATOR.compare(peek, pop) >= 0);
             }
         }
@@ -147,10 +136,13 @@ public class DelayedIndexQueueTest {
 
         int count = 0;
         while (!delayedIndexQueue.isEmpty()) {
-            DelayedIndex pop = delayedIndexQueue.pop();
+            DelayedIndex pop = new DelayedIndex();
+            delayedIndexQueue.popToObject(pop);
             count++;
             if (!delayedIndexQueue.isEmpty()) {
                 DelayedIndex peek = delayedIndexQueue.peek();
+                long timestamp = delayedIndexQueue.peekTimestamp();
+                Assert.assertEquals(timestamp, peek.getTimestamp());
                 Assert.assertTrue(COMPARATOR.compare(peek, pop) >= 0);
             }
         }

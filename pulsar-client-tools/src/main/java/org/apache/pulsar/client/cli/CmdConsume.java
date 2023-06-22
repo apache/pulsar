@@ -109,6 +109,9 @@ public class CmdConsume extends AbstractCmdConsume {
     @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
     private boolean poolMessages = true;
 
+    @Parameter(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+    private boolean replicateSubscriptionState = false;
+
     public CmdConsume() {
         // Do nothing
         super();
@@ -156,7 +159,8 @@ public class CmdConsume extends AbstractCmdConsume {
                     .subscriptionType(subscriptionType)
                     .subscriptionMode(subscriptionMode)
                     .subscriptionInitialPosition(subscriptionInitialPosition)
-                    .poolMessages(poolMessages);
+                    .poolMessages(poolMessages)
+                    .replicateSubscriptionState(replicateSubscriptionState);
 
             if (isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));

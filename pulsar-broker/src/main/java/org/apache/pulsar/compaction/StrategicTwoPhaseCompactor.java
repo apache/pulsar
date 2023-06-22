@@ -379,7 +379,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                             });
                 })
                 .thenCompose(v -> {
-                    log.info("Acking ledger id {}", phaseOneResult.firstId);
+                    log.info("Acking ledger id {}", phaseOneResult.lastId);
                     return ((CompactionReaderImpl<T>) reader)
                             .acknowledgeCumulativeAsync(
                                     phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY,

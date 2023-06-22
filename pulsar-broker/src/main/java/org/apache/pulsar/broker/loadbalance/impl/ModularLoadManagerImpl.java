@@ -195,7 +195,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private long unloadBundleCount = 0;
 
     private final Lock lock = new ReentrantLock();
-    private Set<String> knownBrokers = ConcurrentHashMap.newKeySet();
+    private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
 
     /**
@@ -480,13 +480,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         checkNamespaceBundleSplit();
     }
 
-    private void cleanupDeadBrokersData() {
+    private synchronized void cleanupDeadBrokersData() {
         final Set<String> activeBrokers = getAvailableBrokers();
-        final Set<String> knownBrokersCopy = new HashSet<>(this.knownBrokers);
-        Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokersCopy);
-        this.knownBrokers.addAll(newBrokers);
-        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokersCopy, activeBrokers);
-        this.knownBrokers.removeAll(deadBrokers);
+        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
+        this.knownBrokers.clear();
+        this.knownBrokers.addAll(activeBrokers);
         if (pulsar.getLeaderElectionService() != null
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
@@ -744,7 +742,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     public void checkNamespaceBundleSplit() {
 
         if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
-                || !pulsar.getLeaderElectionService().isLeader()) {
+                || !pulsar.getLeaderElectionService().isLeader() || knownBrokers.size() <= 1) {
             return;
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();

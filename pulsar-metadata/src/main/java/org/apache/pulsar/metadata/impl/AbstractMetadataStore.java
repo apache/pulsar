@@ -41,7 +41,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -118,16 +118,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
                     @Override
                     public CompletableFuture<Boolean> asyncLoad(String key, Executor executor) {
-                        // force jump to forkJoinThread to avoid callback execute on the metadataThread
-                        return existsFromStore(key).thenApplyAsync(Function.identity());
+                        return existsFromStore(key);
                     }
 
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
                         if (isConnected) {
-                            // force jump to forkJoinThread to avoid callback execute on the metadataThread
-                            return existsFromStore(key).thenApplyAsync(Function.identity());
+                            return existsFromStore(key);
                         } else {
                             // Do not refresh if we're not connected
                             return CompletableFuture.completedFuture(oldValue);
@@ -331,6 +329,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         if (type == NotificationType.Created || type == NotificationType.Deleted) {
             existsCache.synchronous().invalidate(path);
+            childrenCache.synchronous().invalidate(path);
             String parent = parent(path);
             if (parent != null) {
                 childrenCache.synchronous().invalidate(parent);
@@ -388,6 +387,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         // Ensure caches are invalidated before the operation is confirmed
         return storeDelete(path, expectedVersion).thenRun(() -> {
             existsCache.synchronous().invalidate(path);
+            childrenCache.synchronous().invalidate(path);
             String parent = parent(path);
             if (parent != null) {
                 childrenCache.synchronous().invalidate(parent);
@@ -532,6 +532,18 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             executor.execute(task);
         } catch (Throwable t) {
             future.completeExceptionally(t);
+        }
+    }
+
+    /**
+     * Run the task in the executor thread and fail the future if the executor is shutting down.
+     */
+    @VisibleForTesting
+    public void execute(Runnable task, Supplier<List<CompletableFuture<?>>> futures) {
+        try {
+            executor.execute(task);
+        } catch (final Throwable t) {
+            futures.get().forEach(f -> f.completeExceptionally(t));
         }
     }
 

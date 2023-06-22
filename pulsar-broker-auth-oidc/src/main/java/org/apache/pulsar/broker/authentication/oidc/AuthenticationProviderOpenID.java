@@ -133,6 +133,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     static final int CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT = 18 * 60 * 60;
     static final String CACHE_EXPIRATION_SECONDS = "openIDCacheExpirationSeconds";
     static final int CACHE_EXPIRATION_SECONDS_DEFAULT = 24 * 60 * 60;
+    static final String KEY_ID_CACHE_MISS_REFRESH_SECONDS = "openIDKeyIdCacheMissRefreshSeconds";
+    static final int KEY_ID_CACHE_MISS_REFRESH_SECONDS_DEFAULT = 5 * 60;
     static final String HTTP_CONNECTION_TIMEOUT_MILLIS = "openIDHttpConnectionTimeoutMillis";
     static final int HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT = 10_000;
     static final String HTTP_READ_TIMEOUT_MILLIS = "openIDHttpReadTimeoutMillis";
@@ -447,7 +449,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     }
 
     static void incrementFailureMetric(AuthenticationExceptionCode code) {
-        AuthenticationMetrics.authenticateFailure(SIMPLE_NAME, "token", code.toString());
+        AuthenticationMetrics.authenticateFailure(SIMPLE_NAME, AUTH_METHOD_NAME, code);
     }
 
     /**

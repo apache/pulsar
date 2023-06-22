@@ -59,7 +59,7 @@ public class ClientToolTest extends TopicMessagingBase {
     private void testProduceConsume(String serviceUrl, String topicName) throws Exception {
         List<String> data = randomStrings();
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
-        ZKContainer<?> clientToolContainer = pulsarCluster.getZooKeeper();
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         produce(clientToolContainer, serviceUrl, topicName, data);
         List<String> consumed = consume(clientToolContainer, serviceUrl, topicName);
         assertEquals(consumed, data);

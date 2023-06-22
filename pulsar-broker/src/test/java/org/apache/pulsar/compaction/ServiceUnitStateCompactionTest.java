@@ -27,6 +27,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MSG_COMPRESSION_TYPE;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -49,6 +52,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang.reflect.FieldUtils;
@@ -69,6 +73,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -626,6 +631,80 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         fastTV.close();
         pulsar2.close();
 
+    }
+
+    @Test
+    public void testSlowReceiveTableviewAfterCompaction() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String strategyClassName = "topicCompactionStrategyClassName";
+
+        pulsarClient.newConsumer(schema)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscribe().close();
+
+        var tv = pulsar.getClient().newTableViewBuilder(schema)
+                .topic(topic)
+                .subscriptionName("slowTV")
+                .loadConf(Map.of(
+                        strategyClassName,
+                        ServiceUnitStateCompactionStrategy.class.getName()))
+                .create();
+
+        // Configure retention to ensue data is retained for reader
+        admin.namespaces().setRetention("my-property/use/my-ns",
+                new RetentionPolicies(-1, -1));
+
+        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
+                .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
+                .enableBatching(true)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        StrategicTwoPhaseCompactor compactor
+                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+
+        var reader = ((CompletableFuture<ReaderImpl<ServiceUnitStateData>>) FieldUtils
+                .readDeclaredField(tv, "reader", true)).get();
+        var consumer = spy(reader.getConsumer());
+        FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
+        String bundle = "bundle1";
+        final AtomicInteger versionId = new AtomicInteger(0);
+        final AtomicInteger cnt = new AtomicInteger(1);
+        int msgAddCount = 1000; // has to be big enough to cover compacted cursor fast-forward.
+        doAnswer(invocationOnMock -> {
+            if (cnt.decrementAndGet() == 0) {
+                var msg = consumer.receiveAsync();
+                for (int i = 0; i < msgAddCount; i++) {
+                    producer.newMessage().key(bundle).value(
+                            new ServiceUnitStateData(Owned, "broker" + versionId.incrementAndGet(), true,
+                                    versionId.get())).send();
+                }
+                compactor.compact(topic, strategy).join();
+                return msg;
+            }
+            // Call the real method
+            reset(consumer);
+            return consumer.receiveAsync();
+        }).when(consumer).receiveAsync();
+        producer.newMessage().key(bundle).value(
+                new ServiceUnitStateData(Owned, "broker", true,
+                        versionId.incrementAndGet())).send();
+        producer.newMessage().key(bundle).value(
+                new ServiceUnitStateData(Owned, "broker" + versionId.incrementAndGet(), true,
+                        versionId.get())).send();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                () -> {
+                    var val = tv.get(bundle);
+                    assertNotNull(val);
+                    assertEquals(val.dstBroker(), "broker" + versionId.get());
+                }
+        );
+
+        producer.close();
+        tv.close();
     }
 
     @Test
