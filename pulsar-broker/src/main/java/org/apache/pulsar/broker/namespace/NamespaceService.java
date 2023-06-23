@@ -367,7 +367,14 @@ public class NamespaceService implements AutoCloseable {
             // all pre-registered namespace is assumed to have bundles disabled
             nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
-            NamespaceEphemeralData otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            final NamespaceEphemeralData otherData;
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(this.loadManager.get());
+                otherData = loadManager.tryAcquiringOwnership(nsFullBundle).get();
+            } else {
+                otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            }
+
             if (StringUtils.equals(pulsar.getBrokerServiceUrl(), otherData.getNativeUrl())
                 || StringUtils.equals(pulsar.getBrokerServiceUrlTls(), otherData.getNativeUrlTls())) {
                 if (nsFullBundle != null) {
@@ -757,21 +764,42 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, Optional<String> destinationBroker) {
+
+        // unload namespace bundle
+        return unloadNamespaceBundle(bundle, destinationBroker,
+                config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle,
+                                                         Optional<String> destinationBroker,
+                                                         long timeout,
+                                                         TimeUnit timeoutUnit) {
+        return unloadNamespaceBundle(bundle, destinationBroker, timeout, timeoutUnit, true);
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle,
+                                                         long timeout,
+                                                         TimeUnit timeoutUnit) {
+        return unloadNamespaceBundle(bundle, Optional.empty(), timeout, timeoutUnit, true);
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle,
+                                                         long timeout,
+                                                         TimeUnit timeoutUnit,
+                                                         boolean closeWithoutWaitingClientDisconnect) {
+        return unloadNamespaceBundle(bundle, Optional.empty(), timeout,
+                timeoutUnit, closeWithoutWaitingClientDisconnect);
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle,
+                                                         Optional<String> destinationBroker,
+                                                         long timeout,
+                                                         TimeUnit timeoutUnit,
+                                                         boolean closeWithoutWaitingClientDisconnect) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
                     .unloadNamespaceBundleAsync(bundle, destinationBroker);
         }
-        // unload namespace bundle
-        return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
-    }
-
-    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
-        return unloadNamespaceBundle(bundle, timeout, timeoutUnit, true);
-    }
-
-    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout,
-                                                         TimeUnit timeoutUnit,
-                                                         boolean closeWithoutWaitingClientDisconnect) {
         // unload namespace bundle
         OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
         if (ob == null) {
@@ -790,13 +818,23 @@ public class NamespaceService implements AutoCloseable {
                .getIsolationDataPoliciesAsync(pulsar.getConfiguration().getClusterName())
                .thenApply(nsIsolationPoliciesOpt -> nsIsolationPoliciesOpt.orElseGet(NamespaceIsolationPolicies::new))
                .thenCompose(namespaceIsolationPolicies -> {
+                   if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                       ExtensibleLoadManagerImpl extensibleLoadManager =
+                               ExtensibleLoadManagerImpl.get(loadManager.get());
+                       var statusMap = extensibleLoadManager.getOwnedServiceUnits().stream()
+                               .collect(Collectors.toMap(NamespaceBundle::toString,
+                                       bundle -> getNamespaceOwnershipStatus(true,
+                                               namespaceIsolationPolicies.getPolicyByNamespace(
+                                                       bundle.getNamespaceObject()))));
+                       return CompletableFuture.completedFuture(statusMap);
+                   }
                     Collection<CompletableFuture<OwnedBundle>> futures =
                             ownershipCache.getOwnedBundlesAsync().values();
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> futures.stream()
                                     .map(CompletableFuture::join)
                                     .collect(Collectors.toMap(bundle -> bundle.getNamespaceBundle().toString(),
-                                            bundle -> getNamespaceOwnershipStatus(bundle,
+                                            bundle -> getNamespaceOwnershipStatus(bundle.isActive(),
                                                     namespaceIsolationPolicies.getPolicyByNamespace(
                                                             bundle.getNamespaceBundle().getNamespaceObject()))
                                     ))
@@ -804,10 +842,10 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
-    private NamespaceOwnershipStatus getNamespaceOwnershipStatus(OwnedBundle nsObj,
+    private NamespaceOwnershipStatus getNamespaceOwnershipStatus(boolean isActive,
             NamespaceIsolationPolicy nsIsolationPolicy) {
         NamespaceOwnershipStatus nsOwnedStatus = new NamespaceOwnershipStatus(BrokerAssignment.shared, false,
-                nsObj.isActive());
+                isActive);
         if (nsIsolationPolicy == null) {
             // no matching policy found, this namespace must be an uncontrolled one and using shared broker
             return nsOwnedStatus;
@@ -1103,6 +1141,10 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public Set<NamespaceBundle> getOwnedServiceUnits() {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
+            return extensibleLoadManager.getOwnedServiceUnits();
+        }
         return ownershipCache.getOwnedBundles().values().stream().map(OwnedBundle::getNamespaceBundle)
                 .collect(Collectors.toSet());
     }
