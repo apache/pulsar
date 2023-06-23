@@ -38,11 +38,13 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -53,6 +55,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -78,6 +81,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     private List<String> brokerUrls = null;
     private String hosts;
     private PulsarAdmin admin;
+    private final List<PulsarAdmin> admins = new ArrayList<>();
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
@@ -89,6 +93,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
+        brokerEnvs.put("topicLevelPoliciesEnabled", "false");
         brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
@@ -96,10 +101,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         brokerUrls = brokerUrls();
 
         hosts = pulsarCluster.getAllBrokersHttpServiceUrl();
+        // Set the default admin.
         admin = PulsarAdmin.builder().serviceHttpUrl(hosts).build();
-        // all brokers alive
-        assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), NUM_BROKERS);
-
         admin.tenants().createTenant(DEFAULT_TENANT,
                 new TenantInfoImpl(new HashSet<>(), Set.of(pulsarCluster.getClusterName())));
         admin.namespaces().createNamespace(DEFAULT_NAMESPACE, 100);
@@ -119,7 +122,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void startBroker() {
+    public void startBroker() throws PulsarClientException {
         if (pulsarCluster != null) {
             pulsarCluster.getBrokers().forEach(brokerContainer -> {
                 if (!brokerContainer.isRunning()) {
@@ -127,6 +130,20 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 }
             });
         }
+        admins.forEach(PulsarAdmin::close);
+        admins.clear();
+        for (int i = 0; i < NUM_BROKERS; i++) {
+            PulsarAdmin admin = PulsarAdmin.builder()
+                    .serviceHttpUrl(pulsarCluster.getBroker(i).getHttpServiceUrl()).build();
+            admins.add(admin);
+            // all brokers alive
+            Awaitility.await().during(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), NUM_BROKERS));
+        }
+        admin.close();
+        hosts = pulsarCluster.getAllBrokersHttpServiceUrl();
+        // Set the default admin.
+        admin = PulsarAdmin.builder().serviceHttpUrl(hosts).build();
     }
 
     @Test(timeOut = 40 * 1000)
@@ -256,13 +273,18 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        String broker1 = admin.lookups().lookupTopic(topicName);
+        int next = (idx + 1) % NUM_BROKERS;
+        log.info("Current stopped broker is : {}, The next broker is: {}", idx, next);
+        Awaitility.await().untilAsserted(() -> {
+            // Use other admin client, since the connection might not able to connect.
+            String broker1 = admins.get(next).lookups().lookupTopic(topicName);
 
-        assertNotEquals(broker1, broker);
+            assertNotEquals(broker1, broker);
+        });
     }
 
     // TODO: This test is very flaky and it's disabled for now to unblock CI
-    @Test(timeOut = 40 * 1000, enabled = false)
+    @Test(timeOut = 40 * 1000)
     public void testAntiaffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
         final String antiAffinityEnabledNameSpace = DEFAULT_TENANT + "/my-ns-filter" + nsSuffix;
@@ -336,9 +358,14 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         assertEquals(extractBrokerIndex(broker), 0);
 
-        broker = admin.lookups().lookupTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            try {
+                String broker1 = admins.get(1).lookups().lookupTopic(topic);
+                assertEquals(extractBrokerIndex(broker1), 1);
+            } catch (Exception ex) {
 
-        assertEquals(extractBrokerIndex(broker), 1);
+            }
+        });
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
@@ -347,7 +374,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
         try {
-            admin.lookups().lookupTopic(topic);
+            admins.get(2).lookups().lookupTopic(topic);
             fail();
         } catch (Exception ex) {
             log.error("Failed to lookup topic: ", ex);

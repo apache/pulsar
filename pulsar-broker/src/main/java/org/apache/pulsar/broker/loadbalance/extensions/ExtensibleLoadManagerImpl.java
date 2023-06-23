@@ -477,7 +477,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                                                            Set<String> excludeBrokerSet) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
-                .thenCompose(availableBrokers -> {
+                .thenComposeAsync(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);

@@ -338,7 +338,7 @@ public class LoadManagerShared {
             filterAntiAffinityGroupOwnedBrokers(pulsar, candidates, brokerToDomainMap,
                     brokerToAntiAffinityNamespaceCount);
         } catch (Exception e) {
-            LOG.error("Failed to filter anti-affinity group namespace {}", e.getMessage());
+            LOG.error("Failed to filter anti-affinity group namespace.", e);
         }
     }
 
@@ -404,7 +404,7 @@ public class LoadManagerShared {
             filterAntiAffinityGroupOwnedBrokers(pulsar, candidates, brokerToDomainMap,
                     brokerToAntiAffinityNamespaceCount);
         } catch (Exception e) {
-            LOG.error("Failed to filter anti-affinity group namespace {}", e.getMessage());
+            LOG.error("Failed to filter anti-affinity group namespace.", e);
         }
     }
 
