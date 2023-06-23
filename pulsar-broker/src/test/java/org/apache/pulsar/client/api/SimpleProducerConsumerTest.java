@@ -139,6 +139,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     public void rest() throws Exception {
+        if (pulsar == null) {
+            return;
+        }
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
