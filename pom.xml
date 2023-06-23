@@ -152,7 +152,7 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.18.0</log4j2.version>
-    <bouncycastle.version>1.69</bouncycastle.version>
+    <bouncycastle.version>1.75</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
     <jackson.version>2.14.2</jackson.version>
@@ -824,9 +824,15 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-         <groupId>com.github.docker-java</groupId>
-         <artifactId>docker-java-core</artifactId>
-         <version>${docker-java.version}</version>
+        <groupId>com.github.docker-java</groupId>
+        <artifactId>docker-java-core</artifactId>
+        <version>${docker-java.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.github.docker-java</groupId>
@@ -892,7 +898,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
+        <artifactId>bcpkix-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
 
@@ -924,6 +930,24 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-cert-refresher</artifactId>
         <version>${athenz.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-auth-core</artifactId>
+        <version>${athenz.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1064,6 +1088,18 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-xds</artifactId>
+        <version>${grpc.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
       </dependency>

@@ -52,6 +52,16 @@
       <groupId>com.aerospike</groupId>
       <artifactId>aerospike-client-bc</artifactId>
       <version>${aerospike-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
 
   </dependencies>
