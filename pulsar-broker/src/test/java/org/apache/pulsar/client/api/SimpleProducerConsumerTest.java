@@ -139,25 +139,24 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     public void rest() throws Exception {
-        if (pulsar == null) {
-            return;
-        }
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        if (pulsar != null) {
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true);
+            for (String tenant : admin.tenants().getTenants()) {
+                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                    deleteNamespaceWithRetry(namespace, true);
+                }
+                admin.tenants().deleteTenant(tenant, true);
             }
-            admin.tenants().deleteTenant(tenant, true);
-        }
 
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
-        }
+            for (String cluster : admin.clusters().getClusters()) {
+                admin.clusters().deleteCluster(cluster);
+            }
 
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+        }
 
         super.producerBaseSetup();
     }
