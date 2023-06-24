@@ -21,10 +21,13 @@ package org.apache.pulsar.metadata.bookkeeper;
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
+import static org.apache.pulsar.common.util.FutureUtil.Sequencer;
+import static org.apache.pulsar.common.util.FutureUtil.waitForAll;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +48,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.NotificationType;
 
 @Slf4j
 public class PulsarRegistrationClient implements RegistrationClient {
@@ -56,19 +58,26 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private final String bookieRegistrationPath;
     private final String bookieAllRegistrationPath;
     private final String bookieReadonlyRegistrationPath;
-
-    private final ConcurrentHashMap<BookieId, Versioned<BookieServiceInfo>> bookieServiceInfoCache =
-                                                                                    new ConcurrentHashMap();
     private final Set<RegistrationListener> writableBookiesWatchers = new CopyOnWriteArraySet<>();
     private final Set<RegistrationListener> readOnlyBookiesWatchers = new CopyOnWriteArraySet<>();
     private final MetadataCache<BookieServiceInfo> bookieServiceInfoMetadataCache;
     private final ScheduledExecutorService executor;
+    private final Map<BookieMode, Map<BookieId, Versioned<BookieServiceInfo>>> bookieInfoCache =
+            new ConcurrentHashMap<>();
+    private final FutureUtil.Sequencer<Void> sequencer;
+
+
+    enum BookieMode {
+        READ_ONLY,
+        READ_WRITE,
+    }
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
         this.store = store;
         this.ledgersRootPath = ledgersRootPath;
         this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
+        this.sequencer = Sequencer.create();
 
         // Following Bookie Network Address Changes is an expensive operation
         // as it requires additional ZooKeeper watches
@@ -91,38 +100,49 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     @Override
     public CompletableFuture<Versioned<Set<BookieId>>> getWritableBookies() {
-        return getChildren(bookieRegistrationPath);
+        return getBookiesThenFreshCache(bookieRegistrationPath);
     }
 
     @Override
     public CompletableFuture<Versioned<Set<BookieId>>> getAllBookies() {
         // this method is meant to return all the known bookies, even the bookies
         // that are not in a running state
-        return getChildren(bookieAllRegistrationPath);
+        return getBookiesThenFreshCache(bookieAllRegistrationPath);
     }
 
     @Override
     public CompletableFuture<Versioned<Set<BookieId>>> getReadOnlyBookies() {
-        return getChildren(bookieReadonlyRegistrationPath);
+        return getBookiesThenFreshCache(bookieReadonlyRegistrationPath);
     }
 
-    private CompletableFuture<Versioned<Set<BookieId>>> getChildren(String path) {
+    /**
+     * @throws IllegalArgumentException if parameter path is null or empty.
+     */
+    private CompletableFuture<Versioned<Set<BookieId>>> getBookiesThenFreshCache(String path) {
+        if (path == null || path.isEmpty()) {
+            return CompletableFuture.failedFuture(
+                    new IllegalArgumentException(String.format("parameter [path] can not be null or empty.")));
+        }
         return store.getChildren(path)
                 .thenComposeAsync(children -> {
-                    Set<BookieId> bookieIds = PulsarRegistrationClient.convertToBookieAddresses(children);
-                    List<CompletableFuture<?>> bookieInfoUpdated =
-                            new ArrayList<>(bookieIds.size());
+                    final Set<BookieId> bookieIds = PulsarRegistrationClient.convertToBookieAddresses(children);
+                    final List<CompletableFuture<?>> bookieInfoUpdated = new ArrayList<>(bookieIds.size());
                     for (BookieId id : bookieIds) {
                         // update the cache for new bookies
-                        if (!bookieServiceInfoCache.containsKey(id)) {
+                        if (path.equals(bookieRegistrationPath)) {
                             bookieInfoUpdated.add(readBookieServiceInfoAsync(id));
+                        }
+                        if (path.equals(bookieReadonlyRegistrationPath)) {
+                            bookieInfoUpdated.add(readBookieInfoAsReadonlyBookie(id));
+                        }
+                        if (path.equals(bookieAllRegistrationPath)) {
+                            // do nothing
                         }
                     }
                     if (bookieInfoUpdated.isEmpty()) {
                         return CompletableFuture.completedFuture(bookieIds);
                     } else {
-                        return FutureUtil
-                                .waitForAll(bookieInfoUpdated)
+                        return waitForAll(bookieInfoUpdated)
                                 .thenApply(___ -> bookieIds);
                     }
                 })
@@ -153,42 +173,56 @@ public class PulsarRegistrationClient implements RegistrationClient {
         readOnlyBookiesWatchers.remove(registrationListener);
     }
 
-    private void handleDeletedBookieNode(Notification n) {
-        if (n.getType() == NotificationType.Deleted) {
-            BookieId bookieId = stripBookieIdFromPath(n.getPath());
-            if (bookieId != null) {
-                log.info("Bookie {} disappeared", bookieId);
-                bookieServiceInfoCache.remove(bookieId);
-            }
-        }
-    }
-
-    private void handleUpdatedBookieNode(Notification n) {
-        BookieId bookieId = stripBookieIdFromPath(n.getPath());
-        if (bookieId != null) {
-            log.info("Bookie {} info updated", bookieId);
-            readBookieServiceInfoAsync(bookieId);
-        }
-    }
-
     private void updatedBookies(Notification n) {
-        if (n.getType() == NotificationType.Created || n.getType() == NotificationType.Deleted) {
-            if (n.getPath().startsWith(bookieReadonlyRegistrationPath)) {
-                getReadOnlyBookies().thenAccept(bookies -> {
-                    readOnlyBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies)));
-                });
-                handleDeletedBookieNode(n);
-            } else if (n.getPath().startsWith(bookieRegistrationPath)) {
-                  getWritableBookies().thenAccept(bookies ->
-                        writableBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
-                handleDeletedBookieNode(n);
-            }
-        } else if (n.getType() == NotificationType.Modified) {
-            if (n.getPath().startsWith(bookieReadonlyRegistrationPath)
-                || n.getPath().startsWith(bookieRegistrationPath)) {
-                handleUpdatedBookieNode(n);
-            }
+        final BookieMode mode;
+        if (n.getPath().startsWith(bookieReadonlyRegistrationPath)) {
+            mode = BookieMode.READ_ONLY;
+        } else if (n.getPath().startsWith(bookieRegistrationPath)) {
+            mode = BookieMode.READ_WRITE;
+        } else {
+            // unknown notification
+            return;
         }
+        // make the callback run sequential in background.
+        sequencer.sequential(() -> {
+            final BookieId bookieId = stripBookieIdFromPath(n.getPath());
+            switch (n.getType()) {
+                case Created:
+                    log.info("Bookie {} created. mode: {}", bookieId, mode);
+                    return handleBookieCreated(mode);
+                case Modified:
+                    if (bookieId != null) {
+                        log.info("Bookie {} modified. mode: {}", bookieId, mode);
+                        return handleBookieModified(mode, bookieId);
+                    }
+                    break;
+                case Deleted:
+                    if (bookieId != null) {
+                        log.info("Bookie {} disappeared. mode: {}", bookieId, mode);
+                        bookieInfoCache.computeIfAbsent(mode, __ -> new ConcurrentHashMap<>())
+                                .remove(bookieId);
+                    }
+                    break;
+                default:
+            }
+            return CompletableFuture.completedFuture(null);
+        });
+    }
+
+    private CompletableFuture<Void> handleBookieModified(BookieMode mode, BookieId id) {
+        if (mode == BookieMode.READ_ONLY) {
+            return readBookieInfoAsReadonlyBookie(id);
+        }
+        return readBookieServiceInfoAsync(id);
+    }
+
+    private CompletableFuture<Void> handleBookieCreated(BookieMode mode) {
+        if (mode == BookieMode.READ_ONLY) {
+            return getReadOnlyBookies().thenAccept(bookies ->
+                    readOnlyBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
+        }
+        return getWritableBookies().thenAccept(bookies ->
+                writableBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
     }
 
     private static BookieId stripBookieIdFromPath(String path) {
@@ -227,12 +261,18 @@ public class PulsarRegistrationClient implements RegistrationClient {
         // this is because there are a few cases in which some operations on the main thread
         // wait for the result. This is due to the fact that resolving the address of a bookie
         // is needed in many code paths.
-        Versioned<BookieServiceInfo> resultFromCache = bookieServiceInfoCache.get(bookieId);
-        if (log.isDebugEnabled()) {
-            log.debug("getBookieServiceInfo {} -> {}", bookieId, resultFromCache);
+        Versioned<BookieServiceInfo> result = null;
+        for (BookieMode bookieMode : bookieInfoCache.keySet()) {
+            if ((result = bookieInfoCache.computeIfAbsent(bookieMode,
+                    __ -> new ConcurrentHashMap<>()).get(bookieId)) != null) {
+                break;
+            }
         }
-        if (resultFromCache != null) {
-            return CompletableFuture.completedFuture(resultFromCache);
+        if (log.isDebugEnabled()) {
+            log.debug("getBookieServiceInfo {} -> {}", bookieId, result);
+        }
+        if (result != null) {
+            return CompletableFuture.completedFuture(result);
         } else {
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
@@ -241,32 +281,31 @@ public class PulsarRegistrationClient implements RegistrationClient {
     public CompletableFuture<Void> readBookieServiceInfoAsync(BookieId bookieId) {
         String asWritable = bookieRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.get(asWritable)
-                .thenCompose((Optional<BookieServiceInfo> getResult) -> {
-                    if (getResult.isPresent()) {
-                        Versioned<BookieServiceInfo> res =
-                                new Versioned<>(getResult.get(), new LongVersion(-1));
-                        log.info("Update BookieInfoCache (writable bookie) {} -> {}", bookieId, getResult.get());
-                        bookieServiceInfoCache.put(bookieId, res);
-                        return CompletableFuture.completedFuture(null);
-                    } else {
-                        return readBookieInfoAsReadonlyBookie(bookieId);
-                    }
-                }
-        );
+                .thenAccept((Optional<BookieServiceInfo> getResult) -> {
+                            if (getResult.isPresent()) {
+                                Versioned<BookieServiceInfo> res =
+                                        new Versioned<>(getResult.get(), new LongVersion(-1));
+                                log.info("Update BookieInfoCache (writable bookie) {} -> {}",
+                                        bookieId, getResult.get());
+                                bookieInfoCache.computeIfAbsent(BookieMode.READ_WRITE,
+                                                __ -> new ConcurrentHashMap<>()).put(bookieId, res);
+                            }
+                        }
+                );
     }
 
     final CompletableFuture<Void> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
         String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.get(asReadonly)
-                .thenApply((Optional<BookieServiceInfo> getResultAsReadOnly) -> {
+                .thenAccept((Optional<BookieServiceInfo> getResultAsReadOnly) -> {
                     if (getResultAsReadOnly.isPresent()) {
                         Versioned<BookieServiceInfo> res =
                                 new Versioned<>(getResultAsReadOnly.get(), new LongVersion(-1));
                         log.info("Update BookieInfoCache (readonly bookie) {} -> {}", bookieId,
                                 getResultAsReadOnly.get());
-                        bookieServiceInfoCache.put(bookieId, res);
+                        bookieInfoCache.computeIfAbsent(BookieMode.READ_ONLY, __ -> new ConcurrentHashMap<>())
+                                .put(bookieId, res);
                     }
-                    return null;
                 });
     }
 }

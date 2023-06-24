@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
@@ -51,6 +52,7 @@ import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -247,6 +249,32 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
                 compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
             }
         });
+
+    }
+
+    @Test(dataProvider = "impl")
+    @SneakyThrows
+    public void testGetBkInfoWithModeTransition(String provider, Supplier<String> urlSupplier) {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
+
+        @Cleanup
+        RegistrationClient rc1 = new PulsarRegistrationClient(store, ledgersRoot);
+
+        @Cleanup
+        RegistrationClient rc2 = new PulsarRegistrationClient(store, ledgersRoot);
+
+        List<BookieId> addresses = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            addresses.add(BookieId.parse("BOOKIE-" + i));
+        }
+
 
     }
 
