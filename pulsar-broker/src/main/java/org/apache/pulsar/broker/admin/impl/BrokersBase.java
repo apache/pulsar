@@ -536,7 +536,7 @@ public class BrokersBase extends AdminResource {
     @POST
     @Path("/shutdown")
     @ApiOperation(value =
-            "Trigger the current broker to graceful-shutdown asynchronously")
+            "Shutdown broker gracefully.")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Execute shutdown command successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
