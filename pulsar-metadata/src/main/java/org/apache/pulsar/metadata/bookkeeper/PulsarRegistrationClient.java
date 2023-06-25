@@ -23,9 +23,7 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.apache.pulsar.common.util.FutureUtil.Sequencer;
 import static org.apache.pulsar.common.util.FutureUtil.waitForAll;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
