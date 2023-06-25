@@ -27,7 +27,21 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 @InterfaceAudience.Public
 public interface CompactionServiceFactory extends AutoCloseable {
 
+    /**
+     * Initialize the compaction service factory.
+     *
+     * @param pulsarService
+     *            the pulsar service instance
+     * @return a future represents the initialization result
+     */
     CompletableFuture<Void> initialize(PulsarService pulsarService);
 
+    /**
+     * Create a new topic compaction service for topic.
+     *
+     * @param topic
+     *            the topic name
+     * @return a future represents the topic compaction service
+     */
     CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic);
 }
