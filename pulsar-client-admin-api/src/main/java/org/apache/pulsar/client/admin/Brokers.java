@@ -326,13 +326,14 @@ public interface Brokers {
     CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion);
 
     /**
-     * Shutdown current broker gracefully.
-     * @param maxConcurrentUnloadPerSec
-     * @param forcedTerminateTopic
-     * @return
+     * Trigger the current broker to graceful-shutdown asynchronously.
+     *
+     * @param maxConcurrentUnloadPerSec the maximum number of topics to unload per second.
+     *                                  This helps control the speed of the unload operation during shutdown.
+     * @param forcedTerminateTopic if true, topics will be forcefully terminated during the shutdown process.
      */
-    CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                                     boolean forcedTerminateTopic);
+    void shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
+                                  boolean forcedTerminateTopic) throws PulsarAdminException;
 
     /**
      * Get version of broker.
