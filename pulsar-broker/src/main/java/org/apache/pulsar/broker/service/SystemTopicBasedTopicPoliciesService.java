@@ -337,7 +337,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 log.error("[{}] Failed to check the move events for the system topic",
                         reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
-                cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                 return;
             }
             if (hasMore) {
@@ -352,7 +351,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     log.error("[{}] Failed to read event from the system topic.",
                             reader.getSystemTopic().getTopicName(), e);
                     future.completeExceptionally(e);
-                    cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                     return null;
                 });
             } else {
