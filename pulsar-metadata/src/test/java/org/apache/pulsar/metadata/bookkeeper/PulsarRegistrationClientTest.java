@@ -252,32 +252,6 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
     }
 
-    @Test(dataProvider = "impl")
-    @SneakyThrows
-    public void testGetBkInfoWithModeTransition(String provider, Supplier<String> urlSupplier) {
-        @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().fsyncEnable(false).build());
-
-        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
-
-        @Cleanup
-        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
-
-        @Cleanup
-        RegistrationClient rc1 = new PulsarRegistrationClient(store, ledgersRoot);
-
-        @Cleanup
-        RegistrationClient rc2 = new PulsarRegistrationClient(store, ledgersRoot);
-
-        List<BookieId> addresses = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            addresses.add(BookieId.parse("BOOKIE-" + i));
-        }
-
-
-    }
-
     private static void getAndVerifyAllBookies(RegistrationClient rc, List<BookieId> addresses)
             throws InterruptedException, ExecutionException {
         Set<BookieId> all = rc.getAllBookies().get().getValue();
