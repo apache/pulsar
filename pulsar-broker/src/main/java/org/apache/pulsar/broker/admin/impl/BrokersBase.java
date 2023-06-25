@@ -65,6 +65,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.naming.DynamicConfigScope;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
@@ -301,11 +302,11 @@ public class BrokersBase extends AdminResource {
      */
     private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
             String configName, String configValue, String scope) {
-        if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
+        if (!pulsar().getBrokerService().validateDynamicConfiguration(configName, configValue)) {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
         }
-        if (BrokerService.isDynamicConfiguration(configName)) {
+        if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             if (DYNAMIC_CONFIGURATIONS_DEFAULT_SCOPE.equals(scope)) {
                 return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
                     Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
@@ -546,14 +547,8 @@ public class BrokersBase extends AdminResource {
                 });
     }
 
-<<<<<<< HEAD
-    private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
-        if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
-=======
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String scope, String configName) {
-
-        if (!BrokerService.isDynamicConfiguration(configName)) {
->>>>>>> 60a45fd13a1 (Support broker level Dynamic configuration)
+        if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
         } else if (DYNAMIC_CONFIGURATIONS_DEFAULT_SCOPE.equals(scope)) {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {

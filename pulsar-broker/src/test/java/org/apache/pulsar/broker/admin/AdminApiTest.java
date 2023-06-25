@@ -578,7 +578,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf.getLoadBalancerSheddingGracePeriodMinutes(), 20);
 
         //Get broker level props contains both `loadBalancerSheddingGracePeriodMinutes` and
-        // `loadBalancerSheddingGracePeriodMinutes`
+        // `loadBalancerSheddingIntervalMinutes`
         Map<String, String> brokerLevelProps =
                 admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
         assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
@@ -600,7 +600,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(props.containsKey("loadBalancerSheddingGracePeriodMinutes"));
 
         //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
-        // loadBalancerSheddingGracePeriodMinutes
+        // loadBalancerSheddingIntervalMinutes
         brokerLevelProps =
                 admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
         assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
@@ -618,7 +618,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
 
         //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
-        // loadBalancerSheddingGracePeriodMinutes
+        // loadBalancerSheddingIntervalMinutes
         brokerLevelProps =
                 admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
         assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
@@ -635,7 +635,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
 
         //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
-        // loadBalancerSheddingGracePeriodMinutes
+        // loadBalancerSheddingIntervalMinutes
         brokerLevelProps =
                 admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
         assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
@@ -651,7 +651,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
 
         //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
-        // loadBalancerSheddingGracePeriodMinutes
+        // loadBalancerSheddingIntervalMinutes
         brokerLevelProps =
                 admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
         assertFalse(brokerLevelProps.containsKey("loadBalancerSheddingIntervalMinutes"));
