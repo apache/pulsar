@@ -258,7 +258,7 @@ public class CompactedTopicImpl implements CompactedTopic {
         return promise;
     }
 
-    private static CompletableFuture<List<Entry>> readEntries(LedgerHandle lh, long from, long to) {
+    static CompletableFuture<List<Entry>> readEntries(LedgerHandle lh, long from, long to) {
         CompletableFuture<Enumeration<LedgerEntry>> promise = new CompletableFuture<>();
 
         lh.asyncReadEntries(from, to,
@@ -319,6 +319,10 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     public synchronized Optional<Position> getCompactionHorizon() {
         return Optional.ofNullable(this.compactionHorizon);
+    }
+
+    public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
+        return compactedTopicContext;
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }

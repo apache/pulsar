@@ -1470,7 +1470,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return bkClientFactory;
     }
 
-    protected synchronized ScheduledExecutorService getCompactorExecutor() {
+    public synchronized ScheduledExecutorService getCompactorExecutor() {
         if (this.compactorExecutor == null) {
             compactorExecutor = Executors.newSingleThreadScheduledExecutor(
                     new ExecutorProvider.ExtendedThreadFactory("compaction"));
