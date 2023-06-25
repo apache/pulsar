@@ -29,8 +29,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+/**
+ * Different with {@link org.apache.pulsar.client.api.SimpleProducerConsumerTest}, this class can visit the variables
+ * of {@link ConsumerImpl} which are modified `protected`.
+ */
 @Test(groups = "broker-api")
-public class SimpleProducerConsumerTest extends ProducerConsumerBase {
+public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
     @Override
