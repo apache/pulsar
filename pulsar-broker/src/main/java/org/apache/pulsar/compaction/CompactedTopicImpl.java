@@ -59,8 +59,8 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     private final BookKeeper bk;
 
-    private PositionImpl compactionHorizon = null;
-    private CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
+    private volatile PositionImpl compactionHorizon = null;
+    private volatile CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
         this.bk = bk;
@@ -317,7 +317,7 @@ public class CompactedTopicImpl implements CompactedTopic {
             .compare(p.getEntryId(), m.getEntryId()).result();
     }
 
-    public synchronized Optional<Position> getCompactionHorizon() {
+    public Optional<Position> getCompactionHorizon() {
         return Optional.ofNullable(this.compactionHorizon);
     }
 
