@@ -137,7 +137,7 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Shutdown broker gracefully.")
+    @Parameters(commandDescription = "Trigger the current broker to graceful-shutdown asynchronously")
     private class ShutDownBrokerGracefully extends CliCommand {
 
         @Parameter(names = {"--max-concurrent-unload-per-sec", "-m"},
@@ -151,7 +151,7 @@ public class CmdBrokers extends CmdBase {
         @Override
         void run() throws Exception {
             getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-            System.out.println("Successfully trigger broker shutdown gracefully");
+            System.out.println("Successfully triggered broker to shutdown gracefully");
         }
 
     }
