@@ -1190,10 +1190,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Max concurrent non-persistent message can be processed per connection")
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
+
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Number of worker threads to serve non-persistent topic")
-    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
+        deprecated = true,
+        doc = "Number of worker threads to serve non-persistent topic.\n"
+                + "@deprecated - use topicOrderedExecutorThreadNum instead.")
+    private int numWorkerThreadsForNonPersistentTopic = -1;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of worker threads to serve topic ordered executor")
+    private int topicOrderedExecutorThreadNum = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -3473,5 +3481,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                         Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
                                    MIN_ML_CACHE_EVICTION_FREQUENCY))
                 : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
+    }
+
+    public int getTopicOrderedExecutorThreadNum() {
+        return numWorkerThreadsForNonPersistentTopic > 0
+                ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
     }
 }
