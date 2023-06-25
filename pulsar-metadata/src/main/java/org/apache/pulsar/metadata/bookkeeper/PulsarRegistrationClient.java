@@ -266,18 +266,18 @@ public class PulsarRegistrationClient implements RegistrationClient {
         // this is because there are a few cases in which some operations on the main thread
         // wait for the result. This is due to the fact that resolving the address of a bookie
         // is needed in many code paths.
-        Versioned<BookieServiceInfo> result = null;
+        Versioned<BookieServiceInfo> info = null;
         for (BookieMode bookieMode : bookieInfoCache.keySet()) {
-            if ((result = bookieInfoCache.computeIfAbsent(bookieMode,
+            if ((info = bookieInfoCache.computeIfAbsent(bookieMode,
                     __ -> new ConcurrentHashMap<>()).get(bookieId)) != null) {
                 break;
             }
         }
         if (log.isDebugEnabled()) {
-            log.debug("getBookieServiceInfo {} -> {}", bookieId, result);
+            log.debug("getBookieServiceInfo {} -> {}", bookieId, info);
         }
-        if (result != null) {
-            return CompletableFuture.completedFuture(result);
+        if (info != null) {
+            return CompletableFuture.completedFuture(info);
         } else {
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
