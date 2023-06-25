@@ -180,10 +180,10 @@ public class PulsarRegistrationClient implements RegistrationClient {
         } else if (n.getPath().startsWith(bookieRegistrationPath)) {
             mode = BookieMode.READ_WRITE;
         } else {
-            // unknown notification
+            // unknown notification, should not happen.
             return;
         }
-        // make the callback run sequential in background.
+        // make the notification callback run sequential in background.
         sequencer.sequential(() -> {
             final BookieId bookieId = stripBookieIdFromPath(n.getPath());
             switch (n.getType()) {
@@ -205,6 +205,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     break;
                 default:
             }
+            // fallback to completed future
             return CompletableFuture.completedFuture(null);
         });
     }
