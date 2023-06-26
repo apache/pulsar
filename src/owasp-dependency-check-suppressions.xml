@@ -433,5 +433,11 @@
        ]]></notes>
         <cve>CVE-2020-8908</cve>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+       This is a false positive in jackson-databind.
+       See https://github.com/FasterXML/jackson-databind/issues/3972#issuecomment-1596604021
+       ]]></notes>
+        <cve>CVE-2023-35116</cve>
+    </suppress>
 </suppressions>
