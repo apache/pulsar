@@ -244,6 +244,43 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    void testPersistentMessageFinderWhenLastMessageDelete() throws Exception {
+        final String ledgerAndCursorName = "testPersistentMessageFinderWhenLastMessageDelete";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(10);
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(1, TimeUnit.HOURS);
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+
+        ledger.addEntry(createMessageWrittenToLedger("msg1"));
+        Thread.sleep(100);
+        ledger.addEntry(createMessageWrittenToLedger("msg2"));
+        Thread.sleep(100);
+        ledger.addEntry(createMessageWrittenToLedger("msg3"));
+        Thread.sleep(100);
+        Position lastPosition = ledger.addEntry(createMessageWrittenToLedger("last-message"));
+
+        Thread.sleep(1000);
+        long endTimestamp = System.currentTimeMillis();
+
+        Result result = new Result();
+        // delete last position message
+        cursor.delete(lastPosition);
+        CompletableFuture<Void> future = findMessage(result, cursor, endTimestamp);
+        future.get();
+        assertNull(result.exception);
+        assertNotEquals(result.position, null);
+        assertEquals(result.position, lastPosition);
+
+        result.reset();
+        cursor.close();
+        ledger.close();
+        factory.shutdown();
+    }
+
+    @Test
     void testPersistentMessageFinderWithBrokerTimestampForMessage() throws Exception {
 
         final String ledgerAndCursorName = "publishTime";

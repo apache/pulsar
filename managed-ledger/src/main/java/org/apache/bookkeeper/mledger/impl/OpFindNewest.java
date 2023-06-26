@@ -142,7 +142,7 @@ class OpFindNewest implements ReadEntryCallback {
     }
 
     public void find() {
-        if (ledger.hasMoreEntries(searchPosition)) {
+        if (cursor != null ? cursor.hasMoreEntries(searchPosition) : ledger.hasMoreEntries(searchPosition)) {
             ledger.asyncReadEntry(searchPosition, this, null);
         } else {
             callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
