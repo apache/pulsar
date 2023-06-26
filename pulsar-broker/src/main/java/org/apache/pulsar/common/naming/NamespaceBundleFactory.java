@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -69,6 +70,9 @@ public class NamespaceBundleFactory {
 
     private final PulsarService pulsar;
 
+    @Getter
+    private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
+
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
@@ -83,6 +87,8 @@ public class NamespaceBundleFactory {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
+
+        topicBundleAssignmentStrategy = TopicBundleAssignmentFactory.create(pulsar);
     }
 
     private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
@@ -376,10 +382,6 @@ public class NamespaceBundleFactory {
     public boolean canSplitBundle(NamespaceBundle bundle) {
         Range<Long> range = bundle.getKeyRange();
         return range.upperEndpoint() - range.lowerEndpoint() > 1;
-    }
-
-    public PulsarService getPulsar() {
-        return pulsar;
     }
 
     public static void validateFullRange(SortedSet<String> partitions) {

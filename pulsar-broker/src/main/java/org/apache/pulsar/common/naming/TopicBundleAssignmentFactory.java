@@ -36,11 +36,11 @@ public class TopicBundleAssignmentFactory {
             }
             ServiceConfiguration conf = pulsar.getConfiguration();
             try {
-                TopicBundleAssignmentStrategy tempStategy =
+                TopicBundleAssignmentStrategy tempStrategy =
                         Reflections.createInstance(conf.getTopicBundleAssignmentStrategy(),
                                 TopicBundleAssignmentStrategy.class, Thread.currentThread().getContextClassLoader());
-                tempStategy.init(pulsar);
-                strategy = tempStategy;
+                tempStrategy.init(pulsar);
+                strategy = tempStrategy;
                 return strategy;
             } catch (Exception e) {
                 throw new RuntimeException(
