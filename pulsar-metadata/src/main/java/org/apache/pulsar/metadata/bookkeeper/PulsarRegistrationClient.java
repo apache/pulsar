@@ -188,7 +188,9 @@ public class PulsarRegistrationClient implements RegistrationClient {
             return;
         }
         final BookieId bookieId = stripBookieIdFromPath(n.getPath());
-        log.info("Bookie {} do {}. path: {}", bookieId, n.getType(), n.getPath());
+        if (bookieId != null) {
+            log.info("Bookie {} do {}. path: {}", bookieId, n.getType(), n.getPath());
+        }
         sequencer.sequential(() -> {
             switch (n.getType()) {
                 case Created:
