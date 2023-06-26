@@ -22,6 +22,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -64,6 +65,26 @@ public class IsolationPoliciesHelper {
                     }
                 });
         return brokerCandidateCache;
+    }
+
+    public CompletableFuture<Set<String>> applyIsolationPoliciesAsync(Map<String, BrokerLookupData> availableBrokers,
+                                                                      ServiceUnitId serviceUnit) {
+        Set<String> brokerCandidateCache = new HashSet<>();
+        return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies, brokerCandidateCache,
+                availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
+                    @Override
+                    public boolean isEnablePersistentTopics(String brokerUrl) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                        return lookupData != null && lookupData.persistentTopicsEnabled();
+                    }
+
+                    @Override
+                    public boolean isEnableNonPersistentTopics(String brokerUrl) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                        return lookupData != null && lookupData.nonPersistentTopicsEnabled();
+                    }
+                }).thenApply(__ -> brokerCandidateCache);
+
     }
 
     public boolean hasIsolationPolicy(NamespaceName namespaceName) {

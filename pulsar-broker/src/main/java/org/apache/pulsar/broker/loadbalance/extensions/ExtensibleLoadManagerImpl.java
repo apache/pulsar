@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -46,7 +47,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -480,7 +480,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 .thenCompose(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
-                    Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
+                    Map<String, BrokerLookupData> availableBrokerCandidates = new ConcurrentHashMap<>(availableBrokers);
                     if (!excludeBrokerSet.isEmpty()) {
                         for (String exclude : excludeBrokerSet) {
                             availableBrokerCandidates.remove(exclude);
@@ -489,24 +489,31 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
                     // Filter out brokers that do not meet the rules.
                     List<BrokerFilter> filterPipeline = getBrokerFilterPipeline();
+                    ArrayList<CompletableFuture<Map<String, BrokerLookupData>>> futures =
+                            new ArrayList<>(filterPipeline.size());
                     for (final BrokerFilter filter : filterPipeline) {
-                        try {
-                            filter.filter(availableBrokerCandidates, bundle, context);
-                            // Preserve the filter successes result.
-                            availableBrokers.keySet().retainAll(availableBrokerCandidates.keySet());
-                        } catch (BrokerFilterException e) {
-                            // TODO: We may need to revisit this error case.
-                            log.error("Failed to filter out brokers.", e);
-                            availableBrokerCandidates = new HashMap<>(availableBrokers);
+                        CompletableFuture<Map<String, BrokerLookupData>> future =
+                                filter.filter(availableBrokerCandidates, bundle, context);
+                        futures.add(future);
+//                        try {
+//                            filter.filter(availableBrokerCandidates, bundle, context);
+//                            // Preserve the filter successes result.
+//                            availableBrokers.keySet().retainAll(availableBrokerCandidates.keySet());
+//                        } catch (BrokerFilterException e) {
+//                            // TODO: We may need to revisit this error case.
+//                            log.error("Failed to filter out brokers.", e);
+//                            availableBrokerCandidates = new HashMap<>(availableBrokers);
+//                        }
+                    }
+                    return FutureUtil.waitForAll(futures).thenCompose(__ -> {
+                        if (availableBrokerCandidates.isEmpty()) {
+                            return CompletableFuture.completedFuture(Optional.empty());
                         }
-                    }
-                    if (availableBrokerCandidates.isEmpty()) {
-                        return CompletableFuture.completedFuture(Optional.empty());
-                    }
-                    Set<String> candidateBrokers = availableBrokerCandidates.keySet();
+                        Set<String> candidateBrokers = availableBrokerCandidates.keySet();
 
-                    return CompletableFuture.completedFuture(
-                            getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
+                        return CompletableFuture.completedFuture(
+                                getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
+                    });
                 });
     }
 

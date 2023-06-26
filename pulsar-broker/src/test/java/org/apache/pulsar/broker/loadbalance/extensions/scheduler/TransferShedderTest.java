@@ -761,10 +761,10 @@ public class TransferShedderTest {
             }
 
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                throw new BrokerFilterException("test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
+                                                                           ServiceUnitId serviceUnit,
+                                                                           LoadManagerContext context) {
+                return FutureUtil.failedFuture(new BrokerFilterException("test"));
             }
         };
         filters.add(filter);

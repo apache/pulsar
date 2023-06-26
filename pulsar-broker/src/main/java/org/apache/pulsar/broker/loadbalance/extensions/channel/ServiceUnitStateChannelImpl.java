@@ -619,7 +619,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handle(String serviceUnit, ServiceUnitStateData data) {
         long totalHandledRequests = getHandlerTotalCounter(data).incrementAndGet();
-        if (log.isDebugEnabled()) {
+        if (debug()) {
             log.info("{} received a handle request for serviceUnit:{}, data:{}. totalHandledRequests:{}",
                     lookupServiceAddress, serviceUnit, data, totalHandledRequests);
         }
