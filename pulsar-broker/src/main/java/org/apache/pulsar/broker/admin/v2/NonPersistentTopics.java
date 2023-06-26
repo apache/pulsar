@@ -473,7 +473,12 @@ public class NonPersistentTopics extends PersistentTopics {
                                 asyncResponse.resume(new RestException(e));
                             }
                         }).exceptionally(ex -> {
-                            asyncResponse.resume(ex);
+                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            if (realCause instanceof WebApplicationException) {
+                                asyncResponse.resume(realCause);
+                            } else {
+                                asyncResponse.resume(new RestException(realCause));
+                            }
                             return null;
                         });
             }

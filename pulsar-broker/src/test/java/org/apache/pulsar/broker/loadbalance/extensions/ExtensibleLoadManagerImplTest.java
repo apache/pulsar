@@ -1005,7 +1005,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30 * 1000)
     public void testListTopic() throws Exception {
         final String namespace = "public/testListTopic";
-        admin.namespaces().createNamespace(namespace, 3);
+        admin.namespaces().createNamespace(namespace, 9);
 
         final String persistentTopicName = TopicName.get(
                 "persistent", NamespaceName.get(namespace),
@@ -1014,8 +1014,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         final String nonPersistentTopicName = TopicName.get(
                 "non-persistent", NamespaceName.get(namespace),
                 "get_topics_mode_" + UUID.randomUUID()).toString();
-        admin.topics().createPartitionedTopic(persistentTopicName, 3);
-        admin.topics().createPartitionedTopic(nonPersistentTopicName, 3);
+        admin.topics().createPartitionedTopic(persistentTopicName, 9);
+        admin.topics().createPartitionedTopic(nonPersistentTopicName, 9);
         pulsarClient.newProducer().topic(persistentTopicName).create().close();
         pulsarClient.newProducer().topic(nonPersistentTopicName).create().close();
 
@@ -1033,10 +1033,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertFalse(TopicName.get(s).isPersistent());
             }
         }
-        assertEquals(topicNum, 3);
+        assertEquals(topicNum, 9);
 
         List<String> list = admin.topics().getList(namespace);
-        assertEquals(list.size(), 6);
+        assertEquals(list.size(), 18);
         admin.namespaces().deleteNamespace(namespace, true);
     }
 

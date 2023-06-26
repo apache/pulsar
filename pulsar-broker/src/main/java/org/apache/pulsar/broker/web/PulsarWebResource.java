@@ -45,6 +45,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
@@ -717,9 +718,18 @@ public abstract class PulsarWebResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
                     }
-                    // If the load manager is extensible load manager, we don't need check the authoritative.
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
-                        return CompletableFuture.completedFuture(null);
+                    // If the load manager is extensible load manager, and is transfer operation,
+                    // we don't need check the authoritative.
+                    if (uri != null) {
+                        MultivaluedMap<String, String> queryParameters = uri.getQueryParameters();
+                        if (queryParameters != null && !queryParameters.isEmpty()
+                                && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                            List<String> destinationBroker = uri.getQueryParameters().get("destinationBroker");
+                            if (destinationBroker != null && !destinationBroker.isEmpty()) {
+                                // If the request is already redirected, we don't need check the authoritative.
+                                return CompletableFuture.completedFuture(null);
+                            }
+                        }
                     }
                     return nsService.isServiceUnitOwnedAsync(bundle)
                             .thenAccept(owned -> {
