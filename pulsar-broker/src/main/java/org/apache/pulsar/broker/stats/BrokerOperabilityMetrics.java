@@ -89,7 +89,8 @@ public class BrokerOperabilityMetrics {
     }
 
     Metrics getOldTopicLoadMetrics() {
-        return getDimensionMetrics("topic_load_times", "topic_load", oldTopicLoadStats);
+        Metrics metrics = getDimensionMetrics("topic_load_times", "topic_load", oldTopicLoadStats);
+        return metrics;
     }
 
     Metrics getTopicLoadMetrics() {
