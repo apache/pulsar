@@ -220,7 +220,6 @@ public class BrokersImpl extends BaseResource implements Brokers {
             sync(() -> asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)));
         } catch (PulsarAdminException e) {
             completableFuture.completeExceptionally(e);
-            return completableFuture;
         }
         return completableFuture;
     }
