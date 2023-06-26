@@ -174,7 +174,7 @@ public class MessageDuplicationTest {
 
         Field field = MessageDeduplication.class.getDeclaredField("inactiveProducers");
         field.setAccessible(true);
-        Map<String, Long> inactiveProducers = (Map<String, Long>) field.get(messageDeduplication);
+        ConcurrentOpenHashMap<String, Long> inactiveProducers = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
 
         String producerName1 = "test1";
         when(publishContext.getHighestSequenceId()).thenReturn(2L);
