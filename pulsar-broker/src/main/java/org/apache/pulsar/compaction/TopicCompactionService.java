@@ -31,34 +31,33 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 public interface TopicCompactionService {
     /**
      * Compact the topic.
-     * Topic Compaction is a key-based retention mechanism. it will keep the most recent value for a given key and
-     * user will read compacted data from TopicCompactionService.
+     * Topic Compaction is a key-based retention mechanism. It keeps the most recent value for a given key and
+     * user reads compacted data from TopicCompactionService.
      *
      * @return a future that will be completed when the compaction is done.
      */
     CompletableFuture<Void> compact();
 
     /**
-     * Read the compacted entries from the topic.
+     * Read the compacted entries from the TopicCompactionService.
      *
      * @param startPosition         the position to start reading from.
-     * @param numberOfEntriesToRead the number of entries to read.
-     * @return a future that will be completed with the list of entries, this list can is null.
+     * @param numberOfEntriesToRead the maximum number of entries to read.
+     * @return a future that will be completed with the list of entries, this list can be null.
      */
     CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition, int numberOfEntriesToRead);
 
     /**
      * Read the last compacted entry from the TopicCompactionService.
      *
-     * @return a future that will be completed with the compacted last entry, this entry can is null.
+     * @return a future that will be completed with the compacted last entry, this entry can be null.
      */
     CompletableFuture<Entry> readLastCompactedEntry();
 
     /**
      * Get the last compacted position from the TopicCompactionService.
      *
-     * @return a future that will be completed with the last compacted position, this position can is null.
+     * @return a future that will be completed with the last compacted position, this position can be null.
      */
     CompletableFuture<Position> getLastCompactedPosition();
 }
-
