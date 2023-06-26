@@ -25,7 +25,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -544,8 +543,9 @@ public class ConcurrentOpenHashMapTest {
     }
 
     static final int Iterations = 1;
-    static final int ReadIterations = 1000;
+    static final int ReadIterations = 1;
     static final int N = 1_000_000;
+    static final int T = Runtime.getRuntime().availableProcessors() / 2;
 
     public void benchConcurrentOpenHashMap() throws Exception {
         ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
@@ -610,6 +610,129 @@ public class ConcurrentOpenHashMapTest {
         }
     }
 
+    void benchConcurrentOpenHashMapWithMultipleThreads() throws InterruptedException {
+        ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
+                .expectedItems(N)
+                .concurrencyLevel(16)
+                .build();
+        for (long i = 0; i < Iterations; i++) {
+            List<Thread> threads = new ArrayList<>();
+            for (int t = 0; t < T; t++) {
+                Thread thread = new Thread(() -> {
+                    long start = System.currentTimeMillis();
+                    for (long j = 0; j < N; j++) {
+                        map.put(j, "value");
+                    }
+                    long end = System.currentTimeMillis();
+                    System.out.println("CLHM_CON::" + Thread.currentThread().getName() + "::put: " + (end - start) + "ms");
+
+                    start = System.currentTimeMillis();
+                    for (long h = 0; h < ReadIterations; h++) {
+                        for (long j = 0; j < N; j++) {
+                            map.get(j);
+                        }
+                    }
+                    end = System.currentTimeMillis();
+                    System.out.println("CLHM_CON::" + Thread.currentThread().getName() + "::get: " + (end - start) + "ms");
+
+                    start = System.currentTimeMillis();
+                    for (long j = 0; j < N; j++) {
+                        map.remove(j);
+                    }
+                    end = System.currentTimeMillis();
+                    System.out.println("CLHM_CON::" + Thread.currentThread().getName() + "::remove: " + (end - start) + "ms");
+                });
+                threads.add(thread);
+            }
+            threads.forEach(Thread::start);
+            for (Thread thread1 : threads) {
+                thread1.join();
+            }
+        }
+    }
+
+    void benchConcurrentHashMapWithMultipleThreads() throws InterruptedException {
+        ConcurrentHashMap<Long, String> map = new ConcurrentHashMap<Long, String>();
+        for (long i = 0; i < Iterations; i++) {
+            List<Thread> threads = new ArrayList<>();
+            for (int t = 0; t < T; t++) {
+                Thread thread = new Thread(() -> {
+                    long start = System.currentTimeMillis();
+                    for (long j = 0; j < N; j++) {
+                        map.put(j, "value");
+                    }
+                    long end = System.currentTimeMillis();
+                    System.out.println("CHM_CON::" + Thread.currentThread().getName() + "::put: " + (end - start) + "ms");
+
+                    start = System.currentTimeMillis();
+                    for (long h = 0; h < ReadIterations; h++) {
+                        for (long j = 0; j < N; j++) {
+                            map.get(j);
+                        }
+                    }
+                    end = System.currentTimeMillis();
+                    System.out.println("CHM_CON::" + Thread.currentThread().getName() + "::get: " + (end - start) + "ms");
+
+                    start = System.currentTimeMillis();
+                    for (long j = 0; j < N; j++) {
+                        map.remove(j);
+                    }
+                    end = System.currentTimeMillis();
+                    System.out.println("CHM_CON::" + Thread.currentThread().getName() + "::remove: " + (end - start) + "ms");
+                });
+                threads.add(thread);
+            }
+            threads.forEach(Thread::start);
+            for (Thread thread1 : threads) {
+                thread1.join();
+            }
+        }
+    }
+
+    void benchHashMapWithMultipleThreads() throws InterruptedException {
+        HashMap<Long, String> map = new HashMap<>();
+        for (long i = 0; i < Iterations; i++) {
+            List<Thread> threads = new ArrayList<>();
+            for (int t = 0; t < T; t++) {
+                Thread thread = new Thread(() -> {
+                    long start = System.currentTimeMillis();
+                    for (long j = 0; j < N; j++) {
+                        synchronized (map) {
+                            map.put(j, "value");
+                        }
+                    }
+                    long end = System.currentTimeMillis();
+                    System.out.println("HM_CON::" + Thread.currentThread().getName() + "::put: " + (end - start) + "ms");
+
+                    start = System.currentTimeMillis();
+                    for (long h = 0; h < ReadIterations; h++) {
+                        for (long j = 0; j < N; j++) {
+                            synchronized (map) {
+                                map.get(j);
+                            }
+                        }
+                    }
+                    end = System.currentTimeMillis();
+                    System.out.println("HM_CON::" + Thread.currentThread().getName() + "::get: " + (end - start) + "ms");
+
+                    start = System.currentTimeMillis();
+                    for (long j = 0; j < N; j++) {
+                        synchronized (map) {
+                            map.remove(j);
+                        }
+                    }
+                    end = System.currentTimeMillis();
+                    System.out.println("HM_CON::" + Thread.currentThread().getName() + "::remove: " + (end - start) + "ms");
+                });
+                threads.add(thread);
+            }
+            threads.forEach(Thread::start);
+            for (Thread thread1 : threads) {
+                thread1.join();
+            }
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         ConcurrentOpenHashMapTest t = new ConcurrentOpenHashMapTest();
 
@@ -630,6 +753,24 @@ public class ConcurrentOpenHashMapTest {
         end = System.nanoTime();
 
         System.out.println("CLHM: " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
+
+        start = System.nanoTime();
+        t.benchConcurrentOpenHashMapWithMultipleThreads();
+        end = System.nanoTime();
+
+        System.out.println("CLHM_CON: " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
+
+        start = System.nanoTime();
+        t.benchConcurrentHashMapWithMultipleThreads();
+        end = System.nanoTime();
+
+        System.out.println("CHM_CON: " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
+
+        start = System.nanoTime();
+        t.benchHashMapWithMultipleThreads();
+        end = System.nanoTime();
+
+        System.out.println("HM_CON: " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
 
     }
 }
