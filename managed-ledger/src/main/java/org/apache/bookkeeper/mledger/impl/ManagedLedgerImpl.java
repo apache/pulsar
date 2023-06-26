@@ -2459,7 +2459,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
-        scheduledExecutor.schedule(() -> trimConsumedLedgersInBackground(isTruncate, promise),
+        scheduledExecutor.schedule(() -> internalTrimLedgers(isTruncate, promise),
                 100, TimeUnit.MILLISECONDS);
     }
 
@@ -4235,9 +4235,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             futures.add(future);
         }
         CompletableFuture<Void> future = new CompletableFuture();
-        FutureUtil.waitForAll(futures).thenAccept(p -> {
+        FutureUtil.waitForAll(futures).thenAcceptAsync(p -> {
             internalTrimLedgers(true, future);
-        }).exceptionally(e -> {
+        }, scheduledExecutor).exceptionally(e -> {
             future.completeExceptionally(e);
             return null;
         });
