@@ -20,13 +20,12 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -126,7 +125,8 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final Map<String, Long> inactiveProducers = new HashMap<>();
+    private final ConcurrentOpenHashMap<String, Long> inactiveProducers =
+            ConcurrentOpenHashMap.<String, Long>newBuilder().build();
 
     private final String replicatorPrefix;
 
@@ -436,7 +436,7 @@ public class MessageDeduplication {
     /**
      * Topic will call this method whenever a producer connects.
      */
-    public synchronized void producerAdded(String producerName) {
+    public void producerAdded(String producerName) {
         // Producer is no-longer inactive
         inactiveProducers.remove(producerName);
     }
@@ -444,7 +444,7 @@ public class MessageDeduplication {
     /**
      * Topic will call this method whenever a producer disconnects.
      */
-    public synchronized void producerRemoved(String producerName) {
+    public void producerRemoved(String producerName) {
         // Producer is no-longer active
         inactiveProducers.put(producerName, System.currentTimeMillis());
     }
@@ -455,23 +455,17 @@ public class MessageDeduplication {
     public synchronized void purgeInactiveProducers() {
         long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
-
-        Iterator<java.util.Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
-        boolean hasInactive = false;
-        while (mapIterator.hasNext()) {
-            java.util.Map.Entry<String, Long> entry = mapIterator.next();
-            String producerName = entry.getKey();
-            long lastActiveTimestamp = entry.getValue();
-
+        final AtomicBoolean hasInactive = new AtomicBoolean(false);
+        inactiveProducers.forEach((producerName, lastActiveTimestamp) -> {
             if (lastActiveTimestamp < minimumActiveTimestamp) {
                 log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
-                mapIterator.remove();
+                inactiveProducers.remove(producerName);
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                hasInactive.set(true);
             }
-        }
-        if (hasInactive && isEnabled()) {
+        });
+        if (hasInactive.get() && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }
