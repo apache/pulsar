@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static java.util.concurrent.CompletableFuture.*;
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
@@ -114,7 +115,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
      */
     private CompletableFuture<Versioned<Set<BookieId>>> getBookiesThenFreshCache(String path) {
         if (path == null || path.isEmpty()) {
-            return CompletableFuture.failedFuture(
+            return failedFuture(
                     new IllegalArgumentException(String.format("parameter [path] can not be null or empty.")));
         }
         return store.getChildren(path)
@@ -138,12 +139,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
                             }
                             bookieInfoUpdated.add(readBookieServiceInfoAsync(id) // check writable first
                                     .thenCompose(updated ->
-                                            updated ? CompletableFuture.completedFuture(null)
+                                            updated ? completedFuture(null)
                                                     : readBookieInfoAsReadonlyBookie(id))); // check read-only then
                         }
                     }
                     if (bookieInfoUpdated.isEmpty()) {
-                        return CompletableFuture.completedFuture(bookieIds);
+                        return completedFuture(bookieIds);
                     } else {
                         return waitForAll(bookieInfoUpdated)
                                 .thenApply(___ -> bookieIds);
@@ -204,7 +205,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                                     executor.execute(() -> w.onBookiesChanged(bookies))));
                 case Modified:
                     if (bookieId == null) {
-                        break;
+                        return completedFuture(null);
                     }
                     if (path.equals(bookieReadonlyRegistrationPath)) {
                         return readBookieInfoAsReadonlyBookie(bookieId).thenApply(__ -> null);
@@ -212,21 +213,20 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     return readBookieServiceInfoAsync(bookieId).thenApply(__ -> null);
                 case Deleted:
                     if (bookieId == null) {
-                        break;
+                        return completedFuture(null);
                     }
                     if (path.equals(bookieReadonlyRegistrationPath)) {
                         readOnlyBookieInfo.remove(bookieId);
-                        break;
+                        return completedFuture(null);
                     }
                     if (path.equals(bookieRegistrationPath)) {
                         writableBookieInfo.remove(bookieId);
-                        break;
+                        return completedFuture(null);
                     }
+                    return completedFuture(null);
                 default:
-                    return CompletableFuture.completedFuture(null);
+                    return completedFuture(null);
             }
-            // fallback to completed future
-            return CompletableFuture.completedFuture(null);
         });
     }
 
@@ -274,7 +274,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
             log.debug("getBookieServiceInfo {} -> {}", bookieId, info);
         }
         if (info != null) {
-            return CompletableFuture.completedFuture(info);
+            return completedFuture(info);
         } else {
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
