@@ -543,9 +543,10 @@ public class ConcurrentOpenHashMapTest {
     }
 
     static final int Iterations = 1;
-    static final int ReadIterations = 1;
+    static final int ReadIterations = 100;
     static final int N = 1_000_000;
     static final int T = Runtime.getRuntime().availableProcessors() / 2;
+    static final int K = 10000;
 
     public void benchConcurrentOpenHashMap() throws Exception {
         ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
@@ -621,7 +622,7 @@ public class ConcurrentOpenHashMapTest {
                 Thread thread = new Thread(() -> {
                     long start = System.currentTimeMillis();
                     for (long j = 0; j < N; j++) {
-                        map.put(j, "value");
+                        map.put(j % K, "value");
                     }
                     long end = System.currentTimeMillis();
                     System.out.println("CLHM_CON::" + Thread.currentThread().getName() + "::put: " + (end - start) + "ms");
@@ -629,7 +630,7 @@ public class ConcurrentOpenHashMapTest {
                     start = System.currentTimeMillis();
                     for (long h = 0; h < ReadIterations; h++) {
                         for (long j = 0; j < N; j++) {
-                            map.get(j);
+                            map.get(j % K);
                         }
                     }
                     end = System.currentTimeMillis();
@@ -637,7 +638,7 @@ public class ConcurrentOpenHashMapTest {
 
                     start = System.currentTimeMillis();
                     for (long j = 0; j < N; j++) {
-                        map.remove(j);
+                        map.remove(j % K);
                     }
                     end = System.currentTimeMillis();
                     System.out.println("CLHM_CON::" + Thread.currentThread().getName() + "::remove: " + (end - start) + "ms");
@@ -659,7 +660,7 @@ public class ConcurrentOpenHashMapTest {
                 Thread thread = new Thread(() -> {
                     long start = System.currentTimeMillis();
                     for (long j = 0; j < N; j++) {
-                        map.put(j, "value");
+                        map.put(j % K, "value");
                     }
                     long end = System.currentTimeMillis();
                     System.out.println("CHM_CON::" + Thread.currentThread().getName() + "::put: " + (end - start) + "ms");
@@ -667,7 +668,7 @@ public class ConcurrentOpenHashMapTest {
                     start = System.currentTimeMillis();
                     for (long h = 0; h < ReadIterations; h++) {
                         for (long j = 0; j < N; j++) {
-                            map.get(j);
+                            map.get(j % K);
                         }
                     }
                     end = System.currentTimeMillis();
@@ -675,7 +676,7 @@ public class ConcurrentOpenHashMapTest {
 
                     start = System.currentTimeMillis();
                     for (long j = 0; j < N; j++) {
-                        map.remove(j);
+                        map.remove(j % K);
                     }
                     end = System.currentTimeMillis();
                     System.out.println("CHM_CON::" + Thread.currentThread().getName() + "::remove: " + (end - start) + "ms");
@@ -698,7 +699,7 @@ public class ConcurrentOpenHashMapTest {
                     long start = System.currentTimeMillis();
                     for (long j = 0; j < N; j++) {
                         synchronized (map) {
-                            map.put(j, "value");
+                            map.put(j % K, "value");
                         }
                     }
                     long end = System.currentTimeMillis();
@@ -708,7 +709,7 @@ public class ConcurrentOpenHashMapTest {
                     for (long h = 0; h < ReadIterations; h++) {
                         for (long j = 0; j < N; j++) {
                             synchronized (map) {
-                                map.get(j);
+                                map.get(j % K);
                             }
                         }
                     }
@@ -718,7 +719,7 @@ public class ConcurrentOpenHashMapTest {
                     start = System.currentTimeMillis();
                     for (long j = 0; j < N; j++) {
                         synchronized (map) {
-                            map.remove(j);
+                            map.remove(j % K);
                         }
                     }
                     end = System.currentTimeMillis();
