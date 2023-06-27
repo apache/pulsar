@@ -131,7 +131,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                             continue;
                         }
                         if (path.equals(bookieRegistrationPath) && writableBookieInfo.get(id) == null) {
-                            bookieInfoUpdated.add(readBookieServiceInfoAsync(id));
+                            bookieInfoUpdated.add(readBookieInfoAsWritableBookie(id));
                             continue;
                         }
                         if (path.equals(bookieAllRegistrationPath)) {
@@ -140,7 +140,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                                 continue;
                             }
                             // check writable first
-                            final CompletableFuture<?> revalidateAllBookiesFuture = readBookieServiceInfoAsync(id)
+                            final CompletableFuture<?> revalidateAllBookiesFuture = readBookieInfoAsWritableBookie(id)
                                     .thenCompose(writableBookieInfo -> writableBookieInfo
                                                 .<CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>>>map(
                                                         bookieServiceInfo -> completedFuture(null))
@@ -219,7 +219,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         return readBookieInfoAsReadonlyBookie(bookieId).thenApply(__ -> null);
                     }
-                    return readBookieServiceInfoAsync(bookieId).thenApply(__ -> null);
+                    return readBookieInfoAsWritableBookie(bookieId).thenApply(__ -> null);
                 case Deleted:
                     if (bookieId == null) {
                         return completedFuture(null);
@@ -290,7 +290,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
         }
     }
 
-    public CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieServiceInfoAsync(
+    public CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieInfoAsWritableBookie(
             BookieId bookieId) {
         final String asWritable = bookieRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.getWithStats(asWritable)
