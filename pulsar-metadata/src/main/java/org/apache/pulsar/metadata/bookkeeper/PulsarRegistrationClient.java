@@ -139,13 +139,14 @@ public class PulsarRegistrationClient implements RegistrationClient {
                                 // jump to next bookie id
                                 continue;
                             }
-                            bookieInfoUpdated.add(readBookieServiceInfoAsync(id) // check writable first
-                                .thenCompose(writableBookieInfo ->
-                                    writableBookieInfo
-                                            .<CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>>>map(
-                                                    bookieServiceInfo -> completedFuture(null))
-                                            .orElseGet(() -> // check read-only then
-                                                    readBookieInfoAsReadonlyBookie(id))));
+                            // check writable first
+                            final CompletableFuture<?> revalidateAllBookiesFuture = readBookieServiceInfoAsync(id)
+                                    .thenCompose(writableBookieInfo -> writableBookieInfo
+                                                .<CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>>>map(
+                                                        bookieServiceInfo -> completedFuture(null))
+                                                // check read-only then
+                                                .orElseGet(() -> readBookieInfoAsReadonlyBookie(id)));
+                            bookieInfoUpdated.add(revalidateAllBookiesFuture);
                         }
                     }
                     if (bookieInfoUpdated.isEmpty()) {
