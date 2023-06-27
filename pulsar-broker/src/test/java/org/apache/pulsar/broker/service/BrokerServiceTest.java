@@ -155,8 +155,50 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(bundlesData.getNumBundles(), bundleNum);
         List<String> list = admin.brokers().getActiveBrokers("test");
         assertEquals(list.size(), 1);
-        admin.brokers().shutDownBrokerGracefully(1, false);
+        admin.brokers().shutDownBrokerGracefully(1, false, false);
         //We can only unload one bundle per second, so it takes at least 2 seconds.
+        Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(pulsar.getBrokerService().getTopics().size(), 0);
+        });
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertNull(pulsar.getBrokerService());
+            assertEquals(pulsar.getState(), PulsarService.State.Closed);
+        });
+        try {
+            producer.send("1".getBytes(StandardCharsets.UTF_8));
+            fail("sending msg should timeout, because broker is down and there is only one broker");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        }
+
+        producer.close();
+        resetState();
+    }
+
+    /**
+     * Testing {@link org.apache.pulsar.client.admin.Brokers#shutDownBrokerGracefully(int, boolean, boolean)}
+     * with {@code waitForBrokerResponse = true}
+     */
+    @Test
+    public void testShutDownWaitTime() throws Exception {
+        int bundleNum = 3;
+        cleanup();
+        conf.setDefaultNumberOfNamespaceBundles(bundleNum);
+        setup();
+        final String topic = "persistent://prop/ns-abc/successTopic";
+        admin.topics().createPartitionedTopic(topic, 12);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+
+        BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
+        assertEquals(bundlesData.getNumBundles(), bundleNum);
+        List<String> list = admin.brokers().getActiveBrokers("test");
+        assertEquals(list.size(), 1);
+
+        admin.brokers().shutDownBrokerGracefully(1, false, true);
+        //We can only unload one bundle per second, so it takes at least 2 seconds.
+        Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(pulsar.getBrokerService().getTopics().size(), 0);
+        });
         Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
             assertNull(pulsar.getBrokerService());
             assertEquals(pulsar.getState(), PulsarService.State.Closed);

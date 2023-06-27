@@ -167,7 +167,19 @@ public class PulsarAdminToolTest {
         verify(mockBrokers).getVersion();
 
         brokers.run(split("shutdown -m 10 -f"));
-        verify(mockBrokers).shutDownBrokerGracefully(10,true);
+        verify(mockBrokers).shutDownBrokerGracefully(10,true, false);
+    }
+
+    @Test
+    public void brokersShutdownWaitSpecified() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Brokers mockBrokers = mock(Brokers.class);
+        doReturn(mockBrokers).when(admin).brokers();
+
+        CmdBrokers brokers = new CmdBrokers(() -> admin);
+        
+        brokers.run(split("shutdown -m 10 -f -w"));
+        verify(mockBrokers).shutDownBrokerGracefully(10,true, true);
     }
 
     @Test

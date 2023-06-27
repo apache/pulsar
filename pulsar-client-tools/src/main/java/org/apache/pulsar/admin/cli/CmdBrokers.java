@@ -148,10 +148,15 @@ public class CmdBrokers extends CmdBase {
         @Parameter(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
         private boolean forcedTerminateTopic;
 
+        @Parameter(names = {"--wait-for-broker-response", "-w"}, description = "Wait for Pulsar Service's response"
+                + "to ensure the start of broker's graceful shutdown")
+        private boolean waitForBrokerResponse;
+
         @Override
         void run() throws Exception {
-            getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-            System.out.println("Successfully trigger broker shutdown gracefully");
+            getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic,
+                    waitForBrokerResponse);
+            System.out.println("Successfully triggered broker's graceful shutdown");
         }
 
     }

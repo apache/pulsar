@@ -327,12 +327,15 @@ public interface Brokers {
 
     /**
      * Trigger the current broker to graceful-shutdown asynchronously.
+     *
      * @param maxConcurrentUnloadPerSec
      * @param forcedTerminateTopic
+     * @param waitForBrokerResponse
      * @return
      */
     CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                                     boolean forcedTerminateTopic);
+                                                     boolean forcedTerminateTopic,
+                                                     boolean waitForBrokerResponse);
 
     /**
      * Get version of broker.
