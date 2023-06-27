@@ -18,18 +18,34 @@
  */
 package org.apache.pulsar.testclient;
 
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramLogWriter;
+import org.HdrHistogram.Recorder;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -52,18 +68,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.HistogramLogWriter;
-import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
 /**
  * A client program to test pulsar producer performance.
@@ -95,17 +106,17 @@ public class PerformanceProducer {
     @Parameters(commandDescription = "Test pulsar producer performance.")
     static class Arguments extends PerformanceTopicListArguments {
 
-        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads",
+        @Parameter(names = {"-threads", "--num-test-threads"}, description = "Number of test threads",
                 validateWith = PositiveNumberParameterValidator.class)
         public int numTestThreads = 1;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
+        @Parameter(names = {"-r", "--rate"}, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
+        @Parameter(names = {"-s", "--size"}, description = "Message size (bytes)")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)",
+        @Parameter(names = {"-n", "--num-producers"}, description = "Number of producers (per topic)",
                 validateWith = PositiveNumberParameterValidator.class)
         public int numProducers = 1;
 
@@ -116,98 +127,98 @@ public class PerformanceProducer {
                 + "compatibility with previous version of pulsar-perf")
         public int sendTimeout = 0;
 
-        @Parameter(names = { "-pn", "--producer-name" }, description = "Producer Name")
+        @Parameter(names = {"-pn", "--producer-name"}, description = "Producer Name")
         public String producerName = null;
 
-        @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+        @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
 
-        @Parameter(names = { "-ch",
-                "--chunking" }, description = "Should split the message and publish in chunks if message size is "
+        @Parameter(names = {"-ch",
+                "--chunking"}, description = "Should split the message and publish in chunks if message size is "
                 + "larger than allowed max size")
         private boolean chunkingAllowed = false;
 
-        @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
+        @Parameter(names = {"-o", "--max-outstanding"}, description = "Max number of outstanding messages")
         public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
 
-        @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding "
+        @Parameter(names = {"-p", "--max-outstanding-across-partitions"}, description = "Max number of outstanding "
                 + "messages across partitions")
         public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
-        @Parameter(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number "
+        @Parameter(names = {"-np", "--partitions"}, description = "Create partitioned topics with the given number "
                 + "of partitions, set 0 to not try to create the topic")
         public Integer partitions = null;
 
-        @Parameter(names = { "-m",
-                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep "
+        @Parameter(names = {"-m",
+                "--num-messages"}, description = "Number of messages to publish in total. If <= 0, it will keep "
                 + "publishing")
         public long numMessages = 0;
 
-        @Parameter(names = { "-z", "--compression" }, description = "Compress messages payload")
+        @Parameter(names = {"-z", "--compression"}, description = "Compress messages payload")
         public CompressionType compression = CompressionType.NONE;
 
-        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from an UTF-8 encoded text file and "
+        @Parameter(names = {"-f", "--payload-file"}, description = "Use payload from an UTF-8 encoded text file and "
                 + "a payload will be randomly selected when publishing messages")
         public String payloadFilename = null;
 
-        @Parameter(names = { "-e", "--payload-delimiter" }, description = "The delimiter used to split lines when "
+        @Parameter(names = {"-e", "--payload-delimiter"}, description = "The delimiter used to split lines when "
                 + "using payload from a file")
         // here escaping \n since default value will be printed with the help text
         public String payloadDelimiter = "\\n";
 
-        @Parameter(names = { "-b",
-                "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
+        @Parameter(names = {"-b",
+                "--batch-time-window"}, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
 
-        @Parameter(names = { "-db",
-                "--disable-batching" }, description = "Disable batching if true")
+        @Parameter(names = {"-db",
+                "--disable-batching"}, description = "Disable batching if true")
         public boolean disableBatching;
 
         @Parameter(names = {
-            "-bm", "--batch-max-messages"
+                "-bm", "--batch-max-messages"
         }, description = "Maximum number of messages per batch")
         public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
 
         @Parameter(names = {
-            "-bb", "--batch-max-bytes"
+                "-bb", "--batch-max-bytes"
         }, description = "Maximum number of bytes per batch")
         public int batchMaxBytes = 4 * 1024 * 1024;
 
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
+        @Parameter(names = {"-time",
+                "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
 
         @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
         public double warmupTimeSeconds = 1.0;
 
-        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
+        @Parameter(names = {"-k", "--encryption-key-name"}, description = "The public key name to encrypt payload")
         public String encKeyName = null;
 
-        @Parameter(names = { "-v",
-                "--encryption-key-value-file" },
+        @Parameter(names = {"-v",
+                "--encryption-key-value-file"},
                 description = "The file which contains the public key to encrypt payload")
         public String encKeyFile = null;
 
-        @Parameter(names = { "-d",
-                "--delay" }, description = "Mark messages with a given delay in seconds")
+        @Parameter(names = {"-d",
+                "--delay"}, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
 
-        @Parameter(names = { "-set",
-                "--set-event-time" }, description = "Set the eventTime on messages")
+        @Parameter(names = {"-set",
+                "--set-event-time"}, description = "Set the eventTime on messages")
         public boolean setEventTime = false;
 
-        @Parameter(names = { "-ef",
-                "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
+        @Parameter(names = {"-ef",
+                "--exit-on-failure"}, description = "Exit from the process on publish failure (default: disable)")
         public boolean exitOnFailure = false;
 
         @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
                 + ", valid options are: [autoIncrement, random]")
         public String messageKeyGenerationMode = null;
 
-        @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
+        @Parameter(names = {"-am", "--access-mode"}, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
 
-        @Parameter(names = { "-fp", "--format-payload" },
+        @Parameter(names = {"-fp", "--format-payload"},
                 description = "Format %i as a message index in the stream from producer and/or %t as the timestamp"
                         + " nanoseconds.")
         public boolean formatPayload = false;
@@ -231,7 +242,7 @@ public class PerformanceProducer {
                 + "setting to true, -abort takes effect)")
         public boolean isAbortTransaction = false;
 
-        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        @Parameter(names = {"--histogram-file"}, description = "HdrHistogram output file")
         public String histogramFile = null;
 
         @Override
@@ -266,7 +277,7 @@ public class PerformanceProducer {
         List<byte[]> payloadByteList = new ArrayList<>();
         if (arguments.payloadFilename != null) {
             Path payloadFilePath = Paths.get(arguments.payloadFilename);
-            if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
+            if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0) {
                 throw new IllegalArgumentException("Payload file doesn't exist or it is empty.");
             }
             // here escaping the default payload delimiter to correct value
@@ -296,7 +307,7 @@ public class PerformanceProducer {
             printAggregatedStats();
         }));
 
-        if (arguments.partitions  != null) {
+        if (arguments.partitions != null) {
             final PulsarAdminBuilder adminBuilder = PerfClientUtils
                     .createAdminBuilderFromArguments(arguments, arguments.adminURL);
 
@@ -332,13 +343,13 @@ public class PerformanceProducer {
             executor.submit(() -> {
                 log.info("Started performance test thread {}", threadIdx);
                 runProducer(
-                    threadIdx,
-                    arguments,
-                    numMessagesPerThread,
-                    msgRatePerThread,
-                    payloadByteList,
-                    payloadBytes,
-                    doneLatch
+                        threadIdx,
+                        arguments,
+                        numMessagesPerThread,
+                        msgRatePerThread,
+                        payloadByteList,
+                        payloadBytes,
+                        doneLatch
                 );
             });
         }
@@ -603,7 +614,7 @@ public class PerformanceProducer {
                         if (arguments.numMessagesPerTransaction > 0) {
                             try {
                                 numMsgPerTxnLimit.acquire();
-                            } catch (InterruptedException exception){
+                            } catch (InterruptedException exception) {
                                 log.error("Get exception: ", exception);
                             }
                         }
@@ -695,7 +706,7 @@ public class PerformanceProducer {
                                 numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
                                 totalNumTxnOpenTxnSuccess.increment();
                                 break;
-                            } catch (Exception e){
+                            } catch (Exception e) {
                                 totalNumTxnOpenTxnFail.increment();
                                 log.error("Failed to new transaction with exception: ", e);
                             }
@@ -745,10 +756,10 @@ public class PerformanceProducer {
                     TOTALFORMAT.format(rateOpenTxn));
         }
         log.info(
-            "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s ",
-            totalMessagesSent.sum(),
-            TOTALFORMAT.format(rate),
-            TOTALFORMAT.format(throughput));
+                "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s ",
+                totalMessagesSent.sum(),
+                TOTALFORMAT.format(rate),
+                TOTALFORMAT.format(throughput));
     }
 
     private static void printAggregatedStats() {
