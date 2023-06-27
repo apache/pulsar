@@ -21,11 +21,11 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
@@ -108,12 +108,17 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
 
     }
 
-    @Test(expectedExceptions = BrokerFilterBadVersionException.class)
-    public void testInvalidVersionString() throws BrokerFilterException, ExecutionException, InterruptedException {
+    @Test
+    public void testInvalidVersionString() {
         Map<String, BrokerLookupData> originalBrokers = Map.of(
                 "localhost:6650", getLookupData("xxx")
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext()).get();
+        try {
+            brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext()).get();
+            fail();
+        } catch (Exception ex) {
+            assertEquals(ex.getCause().getClass(), BrokerFilterBadVersionException.class);
+        }
     }
 }

@@ -719,8 +719,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         Map<String, BrokerLookupData> candidates = new HashMap<>(availableBrokers);
         for (var filter : brokerFilterPipeline) {
             try {
-                filter.filter(candidates, namespaceBundle, context).get();
-            } catch (InterruptedException | ExecutionException e) {
+                filter.filter(candidates, namespaceBundle, context)
+                        .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                                TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 log.error("Failed to filter brokers with filter: {}", filter.getClass().getName(), e);
                 return false;
             }

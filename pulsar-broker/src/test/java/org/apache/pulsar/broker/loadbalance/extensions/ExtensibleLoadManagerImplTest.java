@@ -292,7 +292,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
                                                                            ServiceUnitId serviceUnit,
                                                                            LoadManagerContext context) {
-                brokers.clear();
+                brokers.remove(brokers.keySet().iterator().next());
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
@@ -543,7 +543,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
                                                                            ServiceUnitId serviceUnit,
                                                                            LoadManagerContext context) {
-                brokers.clear();
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();

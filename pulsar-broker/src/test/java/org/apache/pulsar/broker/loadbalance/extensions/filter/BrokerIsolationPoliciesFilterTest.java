@@ -31,6 +31,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -131,7 +132,8 @@ public class BrokerIsolationPoliciesFilterTest {
         doReturn(namespaceName).when(namespaceBundle).getNamespaceObject();
 
         var policies = mock(SimpleResourceAllocationPolicies.class);
-        doReturn(false).when(policies).areIsolationPoliciesPresent(eq(namespaceName));
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
         doReturn(true).when(policies).isSharedBroker(any());
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
 
@@ -174,7 +176,8 @@ public class BrokerIsolationPoliciesFilterTest {
                                       Set<String> shared,
                                       int min_limit) {
         reset(policies);
-        doReturn(true).when(policies).areIsolationPoliciesPresent(eq(namespaceName));
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
         doReturn(false).when(policies).isPrimaryBroker(eq(namespaceName), any());
         doReturn(false).when(policies).isSecondaryBroker(eq(namespaceName), any());
         doReturn(false).when(policies).isSharedBroker(any());

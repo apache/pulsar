@@ -495,25 +495,21 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         CompletableFuture<Map<String, BrokerLookupData>> future =
                                 filter.filter(availableBrokerCandidates, bundle, context);
                         futures.add(future);
-//                        try {
-//                            filter.filter(availableBrokerCandidates, bundle, context);
-//                            // Preserve the filter successes result.
-//                            availableBrokers.keySet().retainAll(availableBrokerCandidates.keySet());
-//                        } catch (BrokerFilterException e) {
-//                            // TODO: We may need to revisit this error case.
-//                            log.error("Failed to filter out brokers.", e);
-//                            availableBrokerCandidates = new HashMap<>(availableBrokers);
-//                        }
                     }
-                    return FutureUtil.waitForAll(futures).thenCompose(__ -> {
+                    CompletableFuture<Optional<String>> result = new CompletableFuture<>();
+                    FutureUtil.waitForAll(futures).whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to filter out brokers when select bundle: {}", bundle, ex);
+                        }
                         if (availableBrokerCandidates.isEmpty()) {
-                            return CompletableFuture.completedFuture(Optional.empty());
+                            result.complete(Optional.empty());
+                            return;
                         }
                         Set<String> candidateBrokers = availableBrokerCandidates.keySet();
 
-                        return CompletableFuture.completedFuture(
-                                getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
+                        result.complete(getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
                     });
+                    return result;
                 });
     }
 
