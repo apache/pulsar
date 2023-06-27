@@ -545,16 +545,28 @@ public class BrokersBase extends AdminResource {
             @ApiParam(name = "maxConcurrentUnloadPerSec",
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
-            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
+            @Suspended AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic, asyncResponse);
     }
 
     private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                            boolean forcedTerminateTopic) {
+                                            boolean forcedTerminateTopic,
+                                            AsyncResponse asyncResponse
+    ) {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-        pulsar().closeAsync();
+        CompletableFuture.runAsync(
+                () -> pulsar()
+                        .closeAsync()
+                        .thenAccept(__ -> LOG.info("[{}] Pulsar Broker graceful shutdown completed", clientAppId()))
+                        .exceptionally(ex -> {
+                            LOG.error("[{}] Failed to gracefully shutdown the broker", clientAppId(), ex);
+                            return null;
+                        })
+        );
+        asyncResponse.resume(Response.noContent().build());
     }
 }
 
