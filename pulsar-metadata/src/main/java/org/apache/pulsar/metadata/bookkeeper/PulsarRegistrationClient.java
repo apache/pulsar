@@ -25,8 +25,6 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.apache.pulsar.common.util.FutureUtil.Sequencer;
 import static org.apache.pulsar.common.util.FutureUtil.waitForAll;
-
-import com.google.common.base.Throwables;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
