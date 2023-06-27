@@ -127,7 +127,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final ConcurrentHashMap<String, Long> inactiveProducers = new ConcurrentHashMap<>();
+    private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -456,6 +456,7 @@ public class MessageDeduplication {
     public synchronized void purgeInactiveProducers() {
         long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
+
         Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
         boolean hasInactive = false;
         while (mapIterator.hasNext()) {
