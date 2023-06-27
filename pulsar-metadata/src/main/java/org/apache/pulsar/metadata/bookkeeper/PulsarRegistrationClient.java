@@ -202,7 +202,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
         sequencer.sequential(() -> {
             switch (n.getType()) {
                 case Created:
-                    log.info("Bookie {} created. path: {}", stripBookieIdFromPath(n.getPath()), n.getPath());
+                    log.info("Bookie {} created. path: {}", bookieId, n.getPath());
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         return getReadOnlyBookies().thenAccept(bookies ->
                                 readOnlyBookiesWatchers.forEach(w ->
