@@ -20,12 +20,14 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -125,8 +127,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final ConcurrentOpenHashMap<String, Long> inactiveProducers =
-            ConcurrentOpenHashMap.<String, Long>newBuilder().build();
+    private final ConcurrentHashMap<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -455,17 +456,22 @@ public class MessageDeduplication {
     public synchronized void purgeInactiveProducers() {
         long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
-        final AtomicBoolean hasInactive = new AtomicBoolean(false);
-        inactiveProducers.forEach((producerName, lastActiveTimestamp) -> {
+        Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
+        boolean hasInactive = false;
+        while (mapIterator.hasNext()) {
+            java.util.Map.Entry<String, Long> entry = mapIterator.next();
+            String producerName = entry.getKey();
+            long lastActiveTimestamp = entry.getValue();
+
             if (lastActiveTimestamp < minimumActiveTimestamp) {
                 log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
-                inactiveProducers.remove(producerName);
+                mapIterator.remove();
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
-                hasInactive.set(true);
+                hasInactive = true;
             }
-        });
-        if (hasInactive.get() && isEnabled()) {
+        }
+        if (hasInactive && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }
