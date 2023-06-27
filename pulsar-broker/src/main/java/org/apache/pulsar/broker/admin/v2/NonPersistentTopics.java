@@ -450,30 +450,26 @@ public class NonPersistentTopics extends PersistentTopics {
             } else {
                 validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
                         .thenAccept(nsBundle -> {
-                            try {
-                                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
-                                        pulsar().getBrokerService()
-                                                .getMultiLayerTopicsMap().get(namespaceName.toString());
-                                if (bundleTopics == null || bundleTopics.isEmpty()) {
-                                    asyncResponse.resume(Collections.emptyList());
-                                    return;
-                                }
-                                final List<String> topicList = new ArrayList<>();
-                                String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                                ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
-                                if (topicMap != null) {
-                                    topicList.addAll(topicMap.keys().stream()
-                                            .filter(name -> !TopicName.get(name).isPersistent())
-                                            .collect(Collectors.toList()));
-                                }
-                                asyncResponse.resume(topicList);
-                            } catch (Exception e) {
-                                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                                        namespaceName, bundleRange, e);
-                                asyncResponse.resume(new RestException(e));
+                            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
+                                    pulsar().getBrokerService()
+                                            .getMultiLayerTopicsMap().get(namespaceName.toString());
+                            if (bundleTopics == null || bundleTopics.isEmpty()) {
+                                asyncResponse.resume(Collections.emptyList());
+                                return;
                             }
+                            final List<String> topicList = new ArrayList<>();
+                            String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
+                            ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                            if (topicMap != null) {
+                                topicList.addAll(topicMap.keys().stream()
+                                        .filter(name -> !TopicName.get(name).isPersistent())
+                                        .collect(Collectors.toList()));
+                            }
+                            asyncResponse.resume(topicList);
                         }).exceptionally(ex -> {
                             Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                                    namespaceName, bundleRange, realCause);
                             if (realCause instanceof WebApplicationException) {
                                 asyncResponse.resume(realCause);
                             } else {
