@@ -78,6 +78,7 @@
     <module>mongodb</module>
     <module>oracle</module>
     <module>mssql</module>
+    <module>db2</module>
   </modules>
 
 </project>

@@ -129,7 +129,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
         }
-
+        log.info(String.format("Running Assert.assertEquals(recordsNumber, number) for (%d, %d)", recordsNumber, number));
         Assert.assertEquals(recordsNumber, number);
         log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
     }

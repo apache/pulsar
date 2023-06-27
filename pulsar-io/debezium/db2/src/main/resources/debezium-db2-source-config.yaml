@@ -1,0 +1,59 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+## config for db2, docker image: ibmcom/db2, which was moved to icr.io/db2_community/db2
+## As per note at https://hub.docker.com/r/ibmcom/db2
+## docs are being moved to: https://www.ibm.com/docs/en/db2/11.5?topic=deployments-db2-community-edition-docker
+## For testing, you can use this image that was configured with the required libraries: apachepulsar/debezium-db2-test-image:latest
+## docker run -itd --name mydb2 --privileged=true -p 50000:50000 -e LICENSE=accept -e DB2INST1_PASSWORD=admin -e DBNAME=testdb -v <db storage dir>:/database ibmcom/db2
+
+tenant: "public"
+namespace: "default"
+name: "debezium-db2-source"
+inputs: [ "db2-connect-topic" ]
+topicName: "db2-connect-topic"
+archive: "connectors/pulsar-io-debezium-db2-2.11.0-SNAPSHOT.nar"
+parallelism: 1
+configs:
+  database.hostname: "localhost"
+  database.port: "50000"
+  database.user: "db2inst1"
+  database.password: "admin"
+  database.dbname: "mydb2"
+  database.server.name: "db2inst1"
+  topic.prefix: "stores" # Example for hypothetical stores topics
+  table.exclude.list: "DB2INST1.EXCLUDEDSTORES" # Example for hypothetical stores table
+
+  database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+  database.history.pulsar.topic: "debezium-db2-source-history-topic"
+  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  ## PULSAR_SERVICE_URL_CONFIG
+  pulsar.service.url: "pulsar://127.0.0.1:6650"
+  topic.namespace: "public/default"
+  # CONVERTERS
+  key.converter: "org.apache.kafka.connect.json.JsonConverter"
+  value.converter: "org.apache.kafka.connect.json.JsonConverter"
+  typeClassName: "org.apache.pulsar.common.schema.KeyValue"
+
+  task.class: "io.debezium.connector.db2.Db2ConnectorTask"
+
+  offset.storage.topic: "offset-topic"
+  snapshot.mode: "initial"
+  database.tcpKeepAlive: "true"
+  decimal.handling.mode: "double"

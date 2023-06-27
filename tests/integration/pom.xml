@@ -101,6 +101,18 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.ibm.db2/jcc
+    "Client license files are not required for connections to Db2, Cloudscape, or IBM Informix® databases
+     from the IBM Data Server Driver for JDBC and SQLJ version 3.50 or later. Client license files
+     are not required for direct connections to Db2 for z/OS if Db2 Connect Unlimited Edition
+     for System z® server license activation is performed."
+     (https://www.ibm.com/docs/en/db2/11.5?topic=apis-installing-data-server-driver-jdbc-sqlj)-->
+    <dependency>
+      <groupId>com.ibm.db2</groupId>
+      <artifactId>jcc</artifactId>
+      <version>11.5.8.0</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.testcontainers</groupId>
