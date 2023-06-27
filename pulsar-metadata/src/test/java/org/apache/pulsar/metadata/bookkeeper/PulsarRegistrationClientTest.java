@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -360,7 +359,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
 
     @Test
-    public void testCompatibilityWithBkZkManager() throws Throwable {
+    public void testNetworkDelayWithBkZkManager() throws Throwable {
         final String zksConnectionString = zks.getConnectionString();
         final String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
         // prepare registration manager
