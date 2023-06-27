@@ -57,7 +57,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -244,10 +243,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final long resumeThresholdPendingBytesPerThread;
 
     private final long connectionLivenessCheckTimeoutMillis;
-
-    protected static final AtomicLongFieldUpdater<ServerCnx> LAST_MANUAL_HEARTBEAT_CHECK_TIME_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(ServerCnx.class, "lastManualHeartbeatCheckTime");
-    private volatile long lastManualHeartbeatCheckTime = 0L;
 
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
@@ -3427,17 +3422,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             // check is disabled
             return CompletableFuture.completedFuture((Boolean) null);
-        }
-    }
-
-    @Override
-    public void healthCheckManually() {
-        long lastCheckTime = LAST_MANUAL_HEARTBEAT_CHECK_TIME_UPDATER.get(this);
-        if (System.currentTimeMillis() - lastCheckTime < 5000) {
-            return;
-        }
-        if (LAST_MANUAL_HEARTBEAT_CHECK_TIME_UPDATER.compareAndSet(this, lastCheckTime, System.currentTimeMillis())) {
-            sendPing();
         }
     }
 

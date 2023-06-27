@@ -362,14 +362,11 @@ public class Consumer {
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
             } else {
-                log.warn("[{}-{}] Sent messages to client fail by IO exception[{}], these messages(messages count:"
-                                + " {}) will be redelivered after the heartbeat check fails. If the next heartbeat"
-                                + " check is successful, these messages will be stuck until the client reconnect"
-                                + " or the topic is reloaded. Consumer: {}",
-                        topicName, subscription, status.cause() == null ? "" : status.cause().getMessage(),
-                        totalMessages, this.toString(), status.cause());
-                // If the health check fail, this connection will be closed.
-                cnx.healthCheckManually();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Sent messages to client fail by IO exception[{}], close the connection"
+                                    + " immediately. Consumer: {}",  topicName, subscription,
+                            status.cause() == null ? "" : status.cause().getMessage(), this.toString());
+                }
             }
         });
         return writeAndFlushPromise;

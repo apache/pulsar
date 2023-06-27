@@ -90,11 +90,4 @@ public interface TransportCnx {
      * is null if the connection liveness check is disabled.
      */
     CompletableFuture<Boolean> checkConnectionLiveness();
-
-    /**
-     * If an IO exception is found, you can call this method immediately. The connection will be closed if the
-     * heartbeat check fails.
-     * Note: to avoid calling this method frequently, this method discards non-first calls within 5 seconds.
-     */
-    void healthCheckManually();
 }
