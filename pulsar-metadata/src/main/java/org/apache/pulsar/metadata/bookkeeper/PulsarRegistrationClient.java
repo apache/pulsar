@@ -290,7 +290,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
         }
     }
 
-    public CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieServiceInfoAsync(BookieId bookieId) {
+    public CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieServiceInfoAsync(
+            BookieId bookieId) {
         final String asWritable = bookieRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.getWithStats(asWritable)
                 .thenApply((Optional<CacheGetResult<BookieServiceInfo>> bkInfoWithStats) -> {
@@ -305,7 +306,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
                 );
     }
 
-    final CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
+    final CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieInfoAsReadonlyBookie(
+            BookieId bookieId) {
         final String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.getWithStats(asReadonly)
                 .thenApply((Optional<CacheGetResult<BookieServiceInfo>> bkInfoWithStats) -> {
