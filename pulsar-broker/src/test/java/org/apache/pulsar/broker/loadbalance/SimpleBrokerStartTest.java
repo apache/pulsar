@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -96,5 +99,28 @@ public class SimpleBrokerStartTest {
         }
     }
 
+
+    @Test
+    public void testCGroupMetrics() {
+        if (!LinuxInfoUtils.isLinux()) {
+            return;
+        }
+
+        boolean existsCGroup = Files.exists(Paths.get("/sys/fs/cgroup"));
+        boolean cGroupEnabled = LinuxInfoUtils.isCGroupEnabled();
+        Assert.assertEquals(cGroupEnabled, existsCGroup);
+
+        double totalCpuLimit = LinuxInfoUtils.getTotalCpuLimit(cGroupEnabled);
+        log.info("totalCpuLimit: {}", totalCpuLimit);
+        Assert.assertTrue(totalCpuLimit > 0.0);
+
+        if (cGroupEnabled) {
+            Assert.assertNotNull(LinuxInfoUtils.getMetrics());
+
+            long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
+            log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
+            Assert.assertTrue(cpuUsageForCGroup > 0);
+        }
+    }
 
 }
