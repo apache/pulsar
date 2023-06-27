@@ -58,8 +58,5 @@ public class TopicBundleAssignmentStrategyTest {
         public void init(PulsarService pulsarService) {
             
         }
-
-
     }
-
 }
