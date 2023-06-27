@@ -178,6 +178,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setAdvertisedAddress("localhost");
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setMaxUnackedMessagesPerConsumer(50000);
         svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);

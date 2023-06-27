@@ -178,6 +178,7 @@ public class ServerCnxTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
