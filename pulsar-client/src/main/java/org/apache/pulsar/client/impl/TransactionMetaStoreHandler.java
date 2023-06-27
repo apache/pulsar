@@ -103,7 +103,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                 .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                 .setMandatoryStop(100, TimeUnit.MILLISECONDS)
                 .create(),
-            this);
+            this, pulsarClient.getLookup().getAddressList());
         this.connectFuture = connectFuture;
         this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
         this.timer = pulsarClient.timer();

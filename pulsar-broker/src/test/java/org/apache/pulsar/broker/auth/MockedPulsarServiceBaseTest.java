@@ -119,10 +119,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
+    protected PulsarClient pulsarClientHttpUrlNotAllAvailable;
+    protected PulsarClient pulsarClientserviceUrlNotAllAvailable;
     protected PortForwarder brokerGateway;
     protected boolean enableBrokerGateway =  false;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
+    protected String brokerServiceUrl;
 
     protected URI lookupUrl;
 
@@ -164,6 +167,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             }
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        pulsarClientHttpUrlNotAllAvailable = newPulsarClient(brokerUrl.toString() + ",localhost:5678,localhost:5677,localhost:5676", 0);
+        pulsarClientserviceUrlNotAllAvailable = newPulsarClient(brokerServiceUrl + ",localhost:5678,localhost:5677,localhost:5676", 0);
     }
 
     protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
@@ -319,6 +324,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
         brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
         brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
+        brokerServiceUrl = pulsar.getBrokerServiceUrl() != null ? pulsar.getBrokerServiceUrl() : null;
 
         if (admin != null) {
             admin.close();

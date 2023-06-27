@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.List;
+
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
 
@@ -36,10 +38,23 @@ public interface ServiceNameResolver {
     InetSocketAddress resolveHost();
 
     /**
+     * Resolve pulsar service url by using given index
+     *
+     * @return resolve the service url to return a socket address
+     */
+    InetSocketAddress resolveHost(int index);
+
+    /**
      * Resolve pulsar service url.
      * @return
      */
     URI resolveHostUri();
+
+    /**
+     * Resolve pulsar service url by using given index
+     * @return
+     */
+    URI resolveHostUri(int currentIndex);
 
     /**
      * Get service url.
@@ -47,6 +62,13 @@ public interface ServiceNameResolver {
      * @return service url
      */
     String getServiceUrl();
+
+    /**
+     * Get service url address list.
+     *
+     * @return address list
+     */
+    List<InetSocketAddress> getAddressList();
 
     /**
      * Get service uri.

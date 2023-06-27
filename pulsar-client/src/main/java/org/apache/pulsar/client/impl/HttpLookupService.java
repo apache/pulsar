@@ -112,6 +112,41 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
+    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName, int currentIndex) {
+        String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
+        String path = basePath + topicName.getLookupName();
+        path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
+        return httpClient.get(path, LookupData.class, currentIndex)
+                .thenCompose(lookupData -> {
+            // Convert LookupData into as SocketAddress, handling exceptions
+            URI uri = null;
+            try {
+                if (useTls) {
+                    uri = new URI(lookupData.getBrokerUrlTls());
+                } else {
+                    String serviceUrl = lookupData.getBrokerUrl();
+                    if (serviceUrl == null) {
+                        serviceUrl = lookupData.getNativeUrl();
+                    }
+                    uri = new URI(serviceUrl);
+                }
+
+                InetSocketAddress brokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
+            } catch (Exception e) {
+                // Failed to parse url
+                log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
+                return FutureUtil.failedFuture(e);
+            }
+        });
+    }
+
+    @Override
+    public List<InetSocketAddress> getAddressList() {
+        return httpClient.serviceNameResolver.getAddressList();
+    }
+
+    @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
         return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",

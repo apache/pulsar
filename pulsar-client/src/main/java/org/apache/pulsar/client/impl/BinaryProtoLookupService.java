@@ -95,6 +95,11 @@ public class BinaryProtoLookupService implements LookupService {
         return findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
     }
 
+    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName, int currentIndex) {
+        InetSocketAddress socketAddress = serviceNameResolver.resolveHost(currentIndex);
+        return findBroker(socketAddress, false, topicName, 0);
+    }
+
     /**
      * calls broker binaryProto-lookup api to get metadata of partitioned-topic.
      *
@@ -257,6 +262,10 @@ public class BinaryProtoLookupService implements LookupService {
 
     public String getServiceUrl() {
         return serviceNameResolver.getServiceUrl();
+    }
+
+    public List<InetSocketAddress> getAddressList() {
+        return serviceNameResolver.getAddressList();
     }
 
     @Override

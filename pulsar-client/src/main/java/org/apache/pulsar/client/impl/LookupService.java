@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.tuple.Pair;
@@ -59,6 +60,18 @@ public interface LookupService extends AutoCloseable {
     CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName);
 
     /**
+     * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespace bundle that contains given
+     * topic. use currentIndex to select the indexed address of the serviceUrl address list
+     *
+     * @param topicName
+     *            topic-name
+     * @param currentIndex
+     *            index of multi-serviceUrl
+     * @return a pair of addresses, representing the logical and physical address of the broker that serves given topic
+     */
+    CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName, int currentIndex);
+
+    /**
      * Returns {@link PartitionedTopicMetadata} for a given topic.
      *
      * @param topicName topic-name
@@ -89,6 +102,13 @@ public interface LookupService extends AutoCloseable {
      * @return
      */
     String getServiceUrl();
+
+    /**
+     * Returns serviceUrl address list.
+     *
+     * @return
+     */
+    List<InetSocketAddress> getAddressList();
 
     /**
      * Resolves pulsar service url.

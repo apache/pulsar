@@ -332,7 +332,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                                 .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                                 .create(),
-                this);
+                this, client.getLookup().getAddressList());
 
         this.topicName = TopicName.get(topic);
         if (this.topicName.isPersistent()) {

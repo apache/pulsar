@@ -264,4 +264,90 @@ public class HttpClient implements Closeable {
 
         return future;
     }
+
+    public <T> CompletableFuture<T> get(String path, Class<T> clazz, int currentIndex) {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        try {
+            URI hostUri = serviceNameResolver.resolveHostUri(currentIndex);
+            String requestUrl = new URL(hostUri.toURL(), path).toString();
+            String remoteHostName = hostUri.getHost();
+            AuthenticationDataProvider authData = authentication.getAuthData(remoteHostName);
+
+            CompletableFuture<Map<String, String>>  authFuture = new CompletableFuture<>();
+
+            // bring a authenticationStage for sasl auth.
+            if (authData.hasDataForHttp()) {
+                authentication.authenticationStage(requestUrl, authData, null, authFuture);
+            } else {
+                authFuture.complete(null);
+            }
+
+            // auth complete, do real request
+            authFuture.whenComplete((respHeaders, ex) -> {
+                if (ex != null) {
+                    log.warn("[{}] Failed to perform http request at authentication stage: {}",
+                            requestUrl, ex.getMessage());
+                    future.completeExceptionally(new PulsarClientException(ex));
+                    return;
+                }
+
+                // auth complete, use a new builder
+                BoundRequestBuilder builder = httpClient.prepareGet(requestUrl)
+                        .setHeader("Accept", "application/json");
+
+                if (authData.hasDataForHttp()) {
+                    Set<Entry<String, String>> headers;
+                    try {
+                        headers = authentication.newRequestHeader(requestUrl, authData, respHeaders);
+                    } catch (Exception e) {
+                        log.warn("[{}] Error during HTTP get headers: {}", requestUrl, e.getMessage());
+                        future.completeExceptionally(new PulsarClientException(e));
+                        return;
+                    }
+                    if (headers != null) {
+                        headers.forEach(entry -> builder.addHeader(entry.getKey(), entry.getValue()));
+                    }
+                }
+
+                builder.execute().toCompletableFuture().whenComplete((response2, t) -> {
+                    if (t != null) {
+                        log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
+                        future.completeExceptionally(new PulsarClientException(t));
+                        return;
+                    }
+
+                    // request not success
+                    if (response2.getStatusCode() != HttpURLConnection.HTTP_OK) {
+                        log.warn("[{}] HTTP get request failed: {}", requestUrl, response2.getStatusText());
+                        Exception e;
+                        if (response2.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                            e = new NotFoundException("Not found: " + response2.getStatusText());
+                        } else {
+                            e = new PulsarClientException("HTTP get request failed: " + response2.getStatusText());
+                        }
+                        future.completeExceptionally(e);
+                        return;
+                    }
+
+                    try {
+                        T data = ObjectMapperFactory.getMapper().reader().readValue(
+                                response2.getResponseBodyAsBytes(), clazz);
+                        future.complete(data);
+                    } catch (Exception e) {
+                        log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());
+                        future.completeExceptionally(new PulsarClientException(e));
+                    }
+                });
+            });
+        } catch (Exception e) {
+            log.warn("[{}]PulsarClientImpl: {}", path, e.getMessage());
+            if (e instanceof PulsarClientException) {
+                future.completeExceptionally(e);
+            } else {
+                future.completeExceptionally(new PulsarClientException(e));
+            }
+        }
+
+        return future;
+    }
 }
