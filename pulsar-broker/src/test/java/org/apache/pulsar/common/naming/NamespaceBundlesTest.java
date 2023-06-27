@@ -91,7 +91,7 @@ public class NamespaceBundlesTest {
 
     @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
-        PulsarService pulsar = mock(PulsarService.class); 
+        PulsarService pulsar = mock(PulsarService.class);
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
