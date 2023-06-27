@@ -25,6 +25,8 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.apache.pulsar.common.util.FutureUtil.Sequencer;
 import static org.apache.pulsar.common.util.FutureUtil.waitForAll;
+
+import com.google.common.base.Throwables;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -193,6 +195,10 @@ public class PulsarRegistrationClient implements RegistrationClient {
             // ignore unknown path
             return;
         }
+        if (path.equals(bookieReadonlyRegistrationPath) || path.equals(bookieRegistrationPath)) {
+            // ignore root path
+            return;
+        }
         final BookieId bookieId = stripBookieIdFromPath(n.getPath());
         sequencer.sequential(() -> {
             switch (n.getType()) {
@@ -244,7 +250,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
             try {
                 return BookieId.parse(path.substring(slash + 1));
             } catch (IllegalArgumentException e) {
-                log.warn("Cannot decode bookieId from {}", path, e);
+                log.warn("Cannot decode bookieId from {}, error: {}", path, e.getMessage());
             }
         }
         return null;
