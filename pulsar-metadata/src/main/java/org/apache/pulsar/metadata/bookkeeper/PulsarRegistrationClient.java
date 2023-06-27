@@ -118,7 +118,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private CompletableFuture<Versioned<Set<BookieId>>> getBookiesThenFreshCache(String path) {
         if (path == null || path.isEmpty()) {
             return failedFuture(
-                    new IllegalArgumentException(String.format("parameter [path] can not be null or empty.")));
+                    new IllegalArgumentException("parameter [path] can not be null or empty."));
         }
         return store.getChildren(path)
                 .thenComposeAsync(children -> {
