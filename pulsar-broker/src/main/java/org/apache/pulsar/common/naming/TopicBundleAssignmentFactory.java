@@ -19,10 +19,12 @@
 package org.apache.pulsar.common.naming;
 
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.Reflections;
 
 public class TopicBundleAssignmentFactory {
+
+    public static final String DEFAULT_TOPIC_BUNDLE_ASSIGNMENT_STRATEGY =
+            "org.apache.pulsar.common.naming.ConsistentHashingTopicBundleAssigner";
 
     private static volatile TopicBundleAssignmentStrategy strategy;
 
@@ -34,18 +36,25 @@ public class TopicBundleAssignmentFactory {
             if (strategy != null) {
                 return strategy;
             }
-            ServiceConfiguration conf = pulsar.getConfiguration();
+            String topicBundleAssignmentStrategy = getTopicBundleAssignmentStrategy(pulsar);
             try {
                 TopicBundleAssignmentStrategy tempStrategy =
-                        Reflections.createInstance(conf.getTopicBundleAssignmentStrategy(),
+                        Reflections.createInstance(topicBundleAssignmentStrategy,
                                 TopicBundleAssignmentStrategy.class, Thread.currentThread().getContextClassLoader());
                 tempStrategy.init(pulsar);
                 strategy = tempStrategy;
                 return strategy;
             } catch (Exception e) {
                 throw new RuntimeException(
-                        "Could not load TopicBundleAssignmentStrategy:" + conf.getTopicBundleAssignmentStrategy(), e);
+                        "Could not load TopicBundleAssignmentStrategy:" + topicBundleAssignmentStrategy, e);
             }
         }
+    }
+
+    private static String getTopicBundleAssignmentStrategy(PulsarService pulsar) {
+        if (pulsar == null || pulsar.getConfiguration() == null) {
+            return DEFAULT_TOPIC_BUNDLE_ASSIGNMENT_STRATEGY;
+        }
+        return pulsar.getConfiguration().getTopicBundleAssignmentStrategy();
     }
 }

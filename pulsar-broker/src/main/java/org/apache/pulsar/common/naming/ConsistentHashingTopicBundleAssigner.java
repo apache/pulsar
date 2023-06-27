@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.common.naming;
 
+import com.google.common.hash.Hashing;
+import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.broker.PulsarService;
 
 public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignmentStrategy {
-    private PulsarService pulsarService;
-
     @Override
     public NamespaceBundle findBundle(TopicName topicName, NamespaceBundles namespaceBundles) {
-        long hashCode =
-                pulsarService.getNamespaceService().getNamespaceBundleFactory().getLongHashCode(topicName.toString());
+        long hashCode = Hashing.crc32().hashString(topicName.toString(), StandardCharsets.UTF_8).padToLong();
         NamespaceBundle bundle = namespaceBundles.getBundle(hashCode);
         if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
             bundle.setHasNonPersistentTopic(true);
@@ -36,7 +35,6 @@ public class ConsistentHashingTopicBundleAssigner implements TopicBundleAssignme
 
     @Override
     public void init(PulsarService pulsarService) {
-        this.pulsarService = pulsarService;
     }
 
 }
