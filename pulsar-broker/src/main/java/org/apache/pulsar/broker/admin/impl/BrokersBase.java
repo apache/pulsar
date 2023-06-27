@@ -562,7 +562,7 @@ public class BrokersBase extends AdminResource {
                         .closeAsync()
                         .thenAccept(__ -> LOG.info("[{}] Pulsar Broker graceful shutdown completed", clientAppId()))
                         .exceptionally(ex -> {
-                            LOG.error("[{}] Failed to gracefully shutdown the broker", clientAppId(), ex);
+                            LOG.error("[{}] Failed to gracefully shutdown Pulsar Broker", clientAppId(), ex);
                             return null;
                         })
         );
