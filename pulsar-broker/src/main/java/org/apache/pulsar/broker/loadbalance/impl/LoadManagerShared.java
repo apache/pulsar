@@ -181,18 +181,17 @@ public class LoadManagerShared {
         }
     }
 
-    public static CompletableFuture<Void> applyNamespacePoliciesAsync(
-            final ServiceUnitId serviceUnit,
-            final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache,
+    public static CompletableFuture<Set<String>> applyNamespacePoliciesAsync(
+            final ServiceUnitId serviceUnit, final SimpleResourceAllocationPolicies policies,
             final Set<String> availableBrokers, final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
-        Set<String> primariesCache = localPrimariesCache.get();
-        primariesCache.clear();
-
-        Set<String> secondaryCache = localSecondaryCache.get();
-        secondaryCache.clear();
-
         NamespaceName namespace = serviceUnit.getNamespaceObject();
-        return policies.areIsolationPoliciesPresentAsync(namespace).thenAccept(isIsolationPoliciesPresent -> {
+        return policies.areIsolationPoliciesPresentAsync(namespace).thenApply(isIsolationPoliciesPresent -> {
+            final Set<String> brokerCandidateCache = new HashSet<>();
+            Set<String> primariesCache = localPrimariesCache.get();
+            primariesCache.clear();
+
+            Set<String> secondaryCache = localSecondaryCache.get();
+            secondaryCache.clear();
             boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
                     ? ((NamespaceBundle) serviceUnit).hasNonPersistentTopic() : false;
             if (isIsolationPoliciesPresent) {
@@ -271,6 +270,7 @@ public class LoadManagerShared {
                         namespace.toString(), secondaryCache.size());
                 brokerCandidateCache.addAll(secondaryCache);
             }
+            return brokerCandidateCache;
         });
     }
     /**

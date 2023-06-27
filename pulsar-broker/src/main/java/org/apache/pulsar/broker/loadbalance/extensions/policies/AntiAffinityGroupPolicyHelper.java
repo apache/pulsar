@@ -42,16 +42,11 @@ public class AntiAffinityGroupPolicyHelper {
         this.channel = channel;
     }
 
-    public void filter(
-            Map<String, BrokerLookupData> brokers, String bundle) {
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, bundle,
-                brokers.keySet(),
-                channel.getOwnershipEntrySet(), brokerToFailureDomainMap);
-    }
-
-    public CompletableFuture<Void> filterAsync(Map<String, BrokerLookupData> brokers, String bundle) {
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                        String bundle) {
         return LoadManagerShared.filterAntiAffinityGroupOwnedBrokersAsync(pulsar, bundle,
-                brokers.keySet(), channel.getOwnershipEntrySet(), brokerToFailureDomainMap);
+                brokers.keySet(), channel.getOwnershipEntrySet(), brokerToFailureDomainMap)
+                .thenApply(__ -> brokers);
     }
 
     public boolean hasAntiAffinityGroupPolicy(String bundle) {

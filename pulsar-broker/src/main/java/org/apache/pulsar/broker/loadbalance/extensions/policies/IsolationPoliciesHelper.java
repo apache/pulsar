@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.policies;
 
-import io.netty.util.concurrent.FastThreadLocal;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -39,18 +37,9 @@ public class IsolationPoliciesHelper {
         this.policies = policies;
     }
 
-    private static final FastThreadLocal<Set<String>> localBrokerCandidateCache = new FastThreadLocal<>() {
-        @Override
-        protected Set<String> initialValue() {
-            return new HashSet<>();
-        }
-    };
-
-    public Set<String> applyIsolationPolicies(Map<String, BrokerLookupData> availableBrokers,
-                                              ServiceUnitId serviceUnit) {
-        Set<String> brokerCandidateCache = localBrokerCandidateCache.get();
-        brokerCandidateCache.clear();
-        LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+    public CompletableFuture<Set<String>> applyIsolationPoliciesAsync(Map<String, BrokerLookupData> availableBrokers,
+                                                                      ServiceUnitId serviceUnit) {
+        return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies,
                 availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
                     @Override
                     public boolean isEnablePersistentTopics(String brokerUrl) {
@@ -64,27 +53,6 @@ public class IsolationPoliciesHelper {
                         return lookupData != null && lookupData.nonPersistentTopicsEnabled();
                     }
                 });
-        return brokerCandidateCache;
-    }
-
-    public CompletableFuture<Set<String>> applyIsolationPoliciesAsync(Map<String, BrokerLookupData> availableBrokers,
-                                                                      ServiceUnitId serviceUnit) {
-        Set<String> brokerCandidateCache = new HashSet<>();
-        return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies, brokerCandidateCache,
-                availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
-                    @Override
-                    public boolean isEnablePersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
-                        return lookupData != null && lookupData.persistentTopicsEnabled();
-                    }
-
-                    @Override
-                    public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
-                        return lookupData != null && lookupData.nonPersistentTopicsEnabled();
-                    }
-                }).thenApply(__ -> brokerCandidateCache);
-
     }
 
     public boolean hasIsolationPolicy(NamespaceName namespaceName) {

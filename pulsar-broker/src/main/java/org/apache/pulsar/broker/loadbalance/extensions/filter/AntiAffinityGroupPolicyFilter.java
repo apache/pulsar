@@ -41,7 +41,7 @@ public class AntiAffinityGroupPolicyFilter implements BrokerFilter {
     @Override
     public CompletableFuture<Map<String, BrokerLookupData>> filter(
             Map<String, BrokerLookupData> brokers, ServiceUnitId serviceUnitId, LoadManagerContext context) {
-        return helper.filterAsync(brokers, serviceUnitId.toString()).thenApply(__ -> brokers);
+        return helper.filterAsync(brokers, serviceUnitId.toString());
     }
 
 
