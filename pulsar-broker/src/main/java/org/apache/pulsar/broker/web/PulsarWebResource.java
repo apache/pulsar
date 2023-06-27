@@ -718,28 +718,19 @@ public abstract class PulsarWebResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
                     }
-                    // If the load manager is extensible load manager, and is transfer operation,
-                    // we don't need check the authoritative.
-                    if (uri != null) {
-                        MultivaluedMap<String, String> queryParameters = uri.getQueryParameters();
-                        if (queryParameters != null && !queryParameters.isEmpty()
-                                && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
-                            List<String> destinationBroker = uri.getQueryParameters().get("destinationBroker");
-                            if (destinationBroker != null && !destinationBroker.isEmpty()) {
-                                // If the request is already redirected, we don't need check the authoritative.
-                                return CompletableFuture.completedFuture(null);
-                            }
-                        }
-                    }
                     return nsService.isServiceUnitOwnedAsync(bundle)
                             .thenAccept(owned -> {
                                 if (!owned) {
                                     boolean newAuthoritative = this.isLeaderBroker();
                                     // Replace the host and port of the current request and redirect
-                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
-                                                    newAuthoritative).replaceQueryParam("destinationBroker",
-                                                    null).build();
+                                    UriBuilder uriBuilder = UriBuilder.fromUri(uri.getRequestUri())
+                                            .host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort())
+                                            .replaceQueryParam("authoritative", newAuthoritative);
+                                    if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                                        uriBuilder.replaceQueryParam("destinationBroker", null);
+                                    }
+                                    URI redirect = uriBuilder.build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
