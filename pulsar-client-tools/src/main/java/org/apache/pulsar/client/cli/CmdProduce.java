@@ -187,7 +187,8 @@ public class CmdProduce {
      *
      * @return list of message bodies
      */
-    static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames, Schema schema) {
+    static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
+                                              Schema schema) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
@@ -232,7 +233,7 @@ public class CmdProduce {
             }
             return out.toByteArray();
         } catch (IOException e) {
-            throw new RuntimeException("Cannot convert " + m +" to AVRO " + e.getMessage(), e);
+            throw new RuntimeException("Cannot convert " + m + " to AVRO " + e.getMessage(), e);
         }
     }
 
@@ -307,7 +308,8 @@ public class CmdProduce {
             try (Producer<?> producer = producerBuilder.create();) {
                 Schema<?> schemaForPayload = schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
                         ? ((KeyValueSchema) schema).getValueSchema() : schema;
-                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames, schemaForPayload);
+                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
+                        schemaForPayload);
                 RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
                 Map<String, String> kvMap = new HashMap<>();
