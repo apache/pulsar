@@ -281,9 +281,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     public void testNoIsolationGroup() throws Exception {
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
-                + "\": {\"rack\": \"rack1\", \"hostname\": \"bookie2.example.com\"}}, \"group2\": {\"" + BOOKIE3
-                + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie3.example.com\"}, \"" + BOOKIE4
-                + "\": {\"rack\": \"rack2\", \"hostname\": \"bookie4.example.com\"}}}";
+                + "\": {\"rack\": \"rack1\", \"hostname\": \"bookie2.example.com\"}}}";
 
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(StandardCharsets.UTF_8),
                 Optional.empty()).join();
@@ -297,7 +295,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        isolationPolicy.newEnsemble(4, 4, 4, Collections.emptyMap(), new HashSet<>());
+        isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>());
 
         BookieId bookie1Id = new BookieSocketAddress(BOOKIE1).toBookieId();
         BookieId bookie2Id = new BookieSocketAddress(BOOKIE2).toBookieId();

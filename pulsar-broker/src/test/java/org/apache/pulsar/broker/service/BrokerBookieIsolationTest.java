@@ -762,6 +762,8 @@ public class BrokerBookieIsolationTest {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.setManagedLedgerMaxEntriesPerLedger(1);
+
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -809,6 +811,37 @@ public class BrokerBookieIsolationTest {
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
 
+
+        // test another case if the local police isolation policy covey the default isolation group
+        // when init bookkeeper client.
+        // (1) set affinity-group
+        admin.namespaces().setBookieAffinityGroup(ns2,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                        .build());
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
+
+        // (2) init the managedLedger's bookkeeper client.
+        PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", 1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
+
+        // (3) validate ledgers' ensemble with affinity bookies.
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+
+        // (4) delete affinity-group.
+        admin.namespaces().deleteBookieAffinityGroup(ns2);
+        ml.rollCurrentLedgerIfFull();
+        createTopicAndPublish(pulsarClient, ns2, "topic1", 1);
+
+        // (5) validate ledgers' ensemble with default affinity bookies after delete affinity-group.
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList().subList(1,2), defaultBookies);
     }
 
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,

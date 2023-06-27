@@ -76,6 +76,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized");
         }
+
+        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
+
         Set<String> primaryIsolationGroups = new HashSet<>();
         Set<String> secondaryIsolationGroups = new HashSet<>();
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
@@ -84,9 +88,6 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             if (!isolationGroupsString.isEmpty()) {
                 Collections.addAll(primaryIsolationGroups, isolationGroupsString.split(","));
             }
-            // Only add the bookieMappingCache if we have defined an isolation group
-            bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
