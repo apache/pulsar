@@ -125,23 +125,25 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     final List<CompletableFuture<?>> bookieInfoUpdated = new ArrayList<>(bookieIds.size());
                     for (BookieId id : bookieIds) {
                         // update the cache for new bookies
-                        if (path.equals(bookieRegistrationPath) && writableBookieInfo.get(id) == null) {
+                        if (path.startsWith(bookieRegistrationPath) && writableBookieInfo.get(id) == null) {
                             bookieInfoUpdated.add(readBookieServiceInfoAsync(id));
                             continue;
                         }
-                        if (path.equals(bookieReadonlyRegistrationPath) && readOnlyBookieInfo.get(id) == null) {
+                        if (path.startsWith(bookieReadonlyRegistrationPath) && readOnlyBookieInfo.get(id) == null) {
                             bookieInfoUpdated.add(readBookieInfoAsReadonlyBookie(id));
                             continue;
                         }
-                        if (path.equals(bookieAllRegistrationPath)) {
-                            if (writableBookieInfo.get(id) != null || readOnlyBookieInfo != null) {
+                        if (path.startsWith(bookieAllRegistrationPath)) {
+                            if (writableBookieInfo.get(id) != null || readOnlyBookieInfo.get(id) != null) {
                                 // jump to next bookie id
                                 continue;
                             }
                             bookieInfoUpdated.add(readBookieServiceInfoAsync(id) // check writable first
-                                    .thenCompose(updated ->
-                                            updated ? completedFuture(null)
-                                                    : readBookieInfoAsReadonlyBookie(id))); // check read-only then
+                                    .thenCompose(writableBookieInfo ->
+                                            writableBookieInfo.<CompletableFuture<Optional<BookieServiceInfo>>>map(
+                                                    bookieServiceInfo -> completedFuture(null))
+                                                    .orElseGet(() -> // check read-only then
+                                                            readBookieInfoAsReadonlyBookie(id))));
                         }
                     }
                     if (bookieInfoUpdated.isEmpty()) {
@@ -185,7 +187,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private void updatedBookies(Notification n) {
         // make the notification callback run sequential in background.
         final String path = n.getPath();
-        if (!path.startsWith(bookieReadonlyRegistrationPath) || !path.startsWith(bookieRegistrationPath)) {
+        if (!path.startsWith(bookieReadonlyRegistrationPath) && !path.startsWith(bookieRegistrationPath)) {
             // ignore unknown path
             return;
         }
@@ -196,7 +198,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
         sequencer.sequential(() -> {
             switch (n.getType()) {
                 case Created:
-                    if (path.equals(bookieReadonlyRegistrationPath)) {
+                    if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         return getReadOnlyBookies().thenAccept(bookies ->
                                 readOnlyBookiesWatchers.forEach(w ->
                                         executor.execute(() -> w.onBookiesChanged(bookies))));
@@ -208,7 +210,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     if (bookieId == null) {
                         return completedFuture(null);
                     }
-                    if (path.equals(bookieReadonlyRegistrationPath)) {
+                    if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         return readBookieInfoAsReadonlyBookie(bookieId).thenApply(__ -> null);
                     }
                     return readBookieServiceInfoAsync(bookieId).thenApply(__ -> null);
@@ -216,11 +218,11 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     if (bookieId == null) {
                         return completedFuture(null);
                     }
-                    if (path.equals(bookieReadonlyRegistrationPath)) {
+                    if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         readOnlyBookieInfo.remove(bookieId);
                         return completedFuture(null);
                     }
-                    if (path.equals(bookieRegistrationPath)) {
+                    if (path.startsWith(bookieRegistrationPath)) {
                         writableBookieInfo.remove(bookieId);
                         return completedFuture(null);
                     }
@@ -281,7 +283,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
         }
     }
 
-    public CompletableFuture<Boolean> readBookieServiceInfoAsync(BookieId bookieId) {
+    public CompletableFuture<Optional<BookieServiceInfo>> readBookieServiceInfoAsync(BookieId bookieId) {
         String asWritable = bookieRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.get(asWritable)
                 .thenApply((Optional<BookieServiceInfo> getResult) -> {
@@ -292,12 +294,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
                                         bookieId, getResult.get());
                                 writableBookieInfo.put(bookieId, res);
                             }
-                            return getResult.isPresent();
+                            return getResult;
                         }
                 );
     }
 
-    final CompletableFuture<Boolean> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
+    final CompletableFuture<Optional<BookieServiceInfo>> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
         String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
         return bookieServiceInfoMetadataCache.get(asReadonly)
                 .thenApply((Optional<BookieServiceInfo> getResultAsReadOnly) -> {
@@ -308,7 +310,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                                 getResultAsReadOnly.get());
                         readOnlyBookieInfo.put(bookieId, res);
                     }
-                    return getResultAsReadOnly.isPresent();
+                    return getResultAsReadOnly;
                 });
     }
 }
