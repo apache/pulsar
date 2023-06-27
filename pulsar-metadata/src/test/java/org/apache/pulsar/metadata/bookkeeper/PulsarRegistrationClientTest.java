@@ -131,16 +131,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 
-        RegistrationManager rm;
-        if (Objects.equals(provider, "ZooKeeper")) {
-            ZooKeeper zk = new ZooKeeper(urlSupplier.get(), 5000, null);
-            final ServerConfiguration serverConfiguration = new ServerConfiguration();
-            serverConfiguration.setZkLedgersRootPath(ledgersRoot);
-            rm = new FaultInjectableZKRegistrationManager(serverConfiguration, zk);
-            rm.prepareFormat();
-        } else {
-            rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
-        }
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
 
         @Cleanup
         RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
@@ -180,8 +172,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             for (BookieId address : addresses) {
                 BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
                 compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
-            }
-        });
+            }});
 
         // shutdown the bookies (but keep the cookie)
         for (BookieId address : addresses) {
@@ -199,8 +190,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
                         expectThrows(ExecutionException.class, () -> {
                             rc.getBookieServiceInfo(address).get();
                         }).getCause() instanceof BKException.BKBookieHandleNotAvailableException);
-            }
-        });
+            }});
 
 
         // restart the bookies, all writable
