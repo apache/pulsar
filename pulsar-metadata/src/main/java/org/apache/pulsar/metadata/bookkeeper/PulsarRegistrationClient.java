@@ -126,15 +126,15 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     final List<CompletableFuture<?>> bookieInfoUpdated = new ArrayList<>(bookieIds.size());
                     for (BookieId id : bookieIds) {
                         // update the cache for new bookies
-                        if (path.startsWith(bookieReadonlyRegistrationPath) && readOnlyBookieInfo.get(id) == null) {
+                        if (path.equals(bookieReadonlyRegistrationPath) && readOnlyBookieInfo.get(id) == null) {
                             bookieInfoUpdated.add(readBookieInfoAsReadonlyBookie(id));
                             continue;
                         }
-                        if (path.startsWith(bookieRegistrationPath) && writableBookieInfo.get(id) == null) {
+                        if (path.equals(bookieRegistrationPath) && writableBookieInfo.get(id) == null) {
                             bookieInfoUpdated.add(readBookieServiceInfoAsync(id));
                             continue;
                         }
-                        if (path.startsWith(bookieAllRegistrationPath)) {
+                        if (path.equals(bookieAllRegistrationPath)) {
                             if (writableBookieInfo.get(id) != null || readOnlyBookieInfo.get(id) != null) {
                                 // jump to next bookie id
                                 continue;
