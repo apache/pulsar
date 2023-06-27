@@ -21,14 +21,19 @@ package org.apache.pulsar.testclient;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.beust.jcommander.ParameterException;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
 
 
@@ -156,6 +161,74 @@ public class PerformanceBaseArgumentsTest {
             fail("Error while updating/reading config file");
         } finally {
             tempConfigFile.delete();
+        }
+    }
+
+    @DataProvider(name = "memoryLimitCliArgumentProvider")
+    public Object[][] memoryLimitCliArgumentProvider() {
+        return new Object[][] { 
+                { new String[]{"-ml","1"}, 1L},
+                { new String[]{"-ml","1K"}, 1024L},
+                { new String[]{"--memory-limit", "1G"}, 1_073_741_824L}
+        };
+    }
+
+    @Test(dataProvider = "memoryLimitCliArgumentProvider")
+    public void testMemoryLimitCliArgument(String[] cliArgs, long expectedMemoryLimit) {
+        for (String cmd : List.of(
+                "pulsar-perf read",
+                "pulsar-perf produce",
+                "pulsar-perf consume",
+                "pulsar-perf transaction"
+        )) {
+            // Arrange
+            AtomicBoolean called = new AtomicBoolean();
+            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments() {
+                @Override
+                public void fillArgumentsFromProperties(Properties prop) {
+                    called.set(true);
+                }
+            };
+            baseArgument.confFile = "./src/test/resources/perf_client1.conf";
+
+            // Act
+            baseArgument.parseCLI(cmd, cliArgs);
+
+            // Assert 
+            assertEquals(baseArgument.memoryLimit, expectedMemoryLimit);
+        }
+    }
+
+    @DataProvider(name = "invalidMemoryLimitCliArgumentProvider")
+    public Object[][] invalidMemoryLimitCliArgumentProvider() {
+        return new Object[][] {
+                { new String[]{"-ml","-1"}},
+                { new String[]{"-ml","1C"}},
+                { new String[]{"--memory-limit", "1Q"}}
+        };
+    }
+
+    @Test(dataProvider = "invalidMemoryLimitCliArgumentProvider")
+    public void testInvalidMemoryLimitCliArgument(String[] cliArgs) {
+        for (String cmd : List.of(
+                "pulsar-perf read",
+                "pulsar-perf produce",
+                "pulsar-perf consume",
+                "pulsar-perf transaction"
+        )) {
+            // Arrange
+            AtomicBoolean called = new AtomicBoolean();
+            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments() {
+                @Override
+                public void fillArgumentsFromProperties(Properties prop) {
+                    called.set(true);
+                }
+            };
+            baseArgument.confFile = "./src/test/resources/perf_client1.conf";
+
+            // Act & Assert
+            assertThrows(ParameterException.class, 
+                    () -> baseArgument.parseCLI(cmd, cliArgs));
         }
     }
 }
