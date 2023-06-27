@@ -326,7 +326,7 @@ public interface Brokers {
     CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion);
 
     /**
-     * Shutdown current broker gracefully.
+     * Trigger the current broker to graceful-shutdown asynchronously.
      * @param maxConcurrentUnloadPerSec
      * @param forcedTerminateTopic
      * @return

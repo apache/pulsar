@@ -137,7 +137,7 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Shutdown broker gracefully.")
+    @Parameters(commandDescription = "Trigger the current broker to graceful-shutdown asynchronously")
     private class ShutDownBrokerGracefully extends CliCommand {
 
         @Parameter(names = {"--max-concurrent-unload-per-sec", "-m"},
