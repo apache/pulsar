@@ -101,6 +101,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setDefaultNumberOfNamespaceBundles(1);
         conf.setMetadataStoreUrl(metadataStoreUrl);
         conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf.setBrokerServicePort(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         conf.setNumExecutorThreadPoolSize(1);

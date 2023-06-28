@@ -90,6 +90,7 @@ public class PulsarFunctionTlsTest {
 
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setWebServicePort(Optional.empty());
             config.setWebServicePortTls(Optional.of(webPort));
             config.setBrokerServicePort(Optional.empty());

@@ -112,6 +112,7 @@ public class PersistentSubscriptionTest {
 
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setTransactionCoordinatorEnabled(true);
         svcConfig.setClusterName("pulsar-cluster");
         pulsarMock = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
