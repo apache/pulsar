@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-import java.util.Optional;
-
+@Slf4j
 public class ElasticSearchTestBase {
 
     private static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
@@ -29,7 +30,10 @@ public class ElasticSearchTestBase {
 
     protected static ElasticsearchContainer createElasticsearchContainer() {
         return new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
+                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m")
+                .withEnv("ingest.geoip.downloader.enabled", "false")
+                .withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
+
 
     }
 

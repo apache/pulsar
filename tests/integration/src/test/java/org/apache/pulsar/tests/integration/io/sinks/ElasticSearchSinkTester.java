@@ -19,12 +19,10 @@
 package org.apache.pulsar.tests.integration.io.sinks;
 
 import static org.testng.Assert.assertTrue;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -93,7 +91,18 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
 
     @Override
     protected ElasticSearchContainer createSinkService(PulsarCluster cluster) {
-        return new ElasticSearchContainer(cluster.getClusterName());
+        ElasticSearchContainer elasticsearchContainer = new ElasticSearchContainer(cluster.getClusterName());
+        configureElasticContainer(elasticsearchContainer);
+        return elasticsearchContainer;
+    }
+
+    protected void configureElasticContainer(ElasticSearchContainer elasticContainer) {
+        elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false");
+
+        // allow disk to fill up beyond default 90% threshold
+        elasticContainer.withEnv("cluster.routing.allocation.disk.threshold_enabled", "false");
+
+        elasticContainer.withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
     }
 
     @Override
