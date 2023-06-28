@@ -1049,8 +1049,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             } else {
                                 newConsumer.resume();
                             }
-                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         }
+                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
                 .collect(Collectors.toList());
@@ -1070,7 +1070,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     internalConfig.setStartPaused(paused);
                     ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
                             -1, subFuture, createIfDoesNotExist, schema);
-
                     synchronized (pauseMutex) {
                         if (paused) {
                             newConsumer.pause();
