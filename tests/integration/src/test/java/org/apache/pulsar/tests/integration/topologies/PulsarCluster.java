@@ -167,7 +167,9 @@ public class PulsarCluster {
                             .withEnv("journalSyncData", "false")
                             .withEnv("journalMaxGroupWaitMSec", "0")
                             .withEnv("clusterName", clusterName)
+                            .withEnv("PULSAR_PREFIX_diskUsageWarnThreshold", "0.95")
                             .withEnv("diskUsageThreshold", "0.99")
+                            .withEnv("PULSAR_PREFIX_diskUsageLwmThreshold", "0.97")
                             .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize));
                     if (spec.bookkeeperEnvs != null) {
                         bookieContainer.withEnv(spec.bookkeeperEnvs);
