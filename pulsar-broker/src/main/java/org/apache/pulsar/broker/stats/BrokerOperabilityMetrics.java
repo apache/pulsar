@@ -46,7 +46,7 @@ public class BrokerOperabilityMetrics {
         this.metricsList = new ArrayList<>();
         this.localCluster = localCluster;
         this.oldTopicLoadStats = new DimensionStats("topic_load_times", 60);
-        this.topicLoadStats = new DimensionStats("brk_topic_load_times", 60);
+        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60);
         this.brokerName = brokerName;
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionCreateSuccessCount = new LongAdder();
