@@ -205,7 +205,6 @@ public class PulsarClientTool {
             }
             clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
         }
-
         this.produceCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);

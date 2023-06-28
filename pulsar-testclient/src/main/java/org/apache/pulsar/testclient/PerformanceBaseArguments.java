@@ -172,6 +172,7 @@ public abstract class PerformanceBaseArguments {
                 e.printStackTrace();
                 exit(1);
             }
+
         }
 
         fillArgumentsFromProperties(prop);
@@ -230,4 +231,5 @@ public abstract class PerformanceBaseArguments {
             PerfClientUtils.exit(1);
         }
     }
+
 }
