@@ -92,7 +92,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // sum of topicPartitions, simple topic has 1, partitioned topic equals to partition number.
     AtomicInteger allTopicPartitionsNumber;
 
-    private boolean paused = false;
+    private volatile boolean paused = false;
     private final Object pauseMutex = new Object();
     // timeout related to auto check and subscribe partition increasement
     private volatile Timeout partitionsAutoUpdateTimeout = null;
@@ -1038,19 +1038,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .range(0, numPartitions)
                 .mapToObj(
                     partitionIndex -> {
-                        String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
-                        configurationData.setStartPaused(paused);
-                        ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
-                                partitionIndex, subFuture, createIfDoesNotExist, schema);
+                        String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         synchronized (pauseMutex) {
+                            configurationData.setStartPaused(paused);
+                            ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
+                                    partitionIndex, subFuture, createIfDoesNotExist, schema);
                             if (paused) {
                                 newConsumer.pause();
                             } else {
                                 newConsumer.resume();
                             }
+                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         }
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
                 .collect(Collectors.toList());
@@ -1059,28 +1059,27 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
 
-            consumers.compute(topicName, (key, existingValue) -> {
-                if (existingValue != null) {
-                    String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
-                            + "Topic is already being subscribed for in other thread.", topic, topicName);
-                    log.warn(errorMessage);
-                    subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
-                    return existingValue;
-                } else {
-                    internalConfig.setStartPaused(paused);
-                    ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
-                            -1, subFuture, createIfDoesNotExist, schema);
-                    synchronized (pauseMutex) {
+            synchronized (pauseMutex) {
+                consumers.compute(topicName, (key, existingValue) -> {
+                    if (existingValue != null) {
+                        String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                                + "Topic is already being subscribed for in other thread.", topic, topicName);
+                        log.warn(errorMessage);
+                        subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
+                        return existingValue;
+                    } else {
+                        internalConfig.setStartPaused(paused);
+                        ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
+                                -1, subFuture, createIfDoesNotExist, schema);
                         if (paused) {
                             newConsumer.pause();
                         } else {
                             newConsumer.resume();
                         }
+                        return newConsumer;
                     }
-                    return newConsumer;
-                }
-            });
-
+                });
+            }
             futureList = Collections.singletonList(subFuture);
         }
 
