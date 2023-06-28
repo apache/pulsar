@@ -26,7 +26,6 @@ import static org.testng.Assert.assertTrue;
 import java.io.File;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
