@@ -110,6 +110,10 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
         if (!isOpenSearch()) {
             elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false");
         }
+
+        // allow disk to fill up beyond default 90% threshold
+        elasticContainer.withEnv("cluster.routing.allocation.disk.threshold_enabled", "false");
+
         elasticContainer.withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
     }
 
