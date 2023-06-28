@@ -1405,10 +1405,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 newConsumer.resume();
                             }
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] create consumer {} for partitionName: {}",
-                                        topicName, newConsumer.getTopic(), partitionName);
-                            }
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] create consumer {} for partitionName: {}",
+                                    topicName, newConsumer.getTopic(), partitionName);
                         }
                         return subFuture;
                     })
