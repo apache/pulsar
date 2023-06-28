@@ -47,9 +47,9 @@
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.89.Final</netty.version>
+    <netty.version>4.1.94.Final</netty.version>
     <guice.version>4.2.3</guice.version>
-    <guava.version>31.0.1-jre</guava.version>
+    <guava.version>32.0.0-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <mockito.version>3.12.4</mockito.version>

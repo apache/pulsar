@@ -24,10 +24,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.swagger.util.Json;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,8 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import io.swagger.util.Json;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -77,8 +75,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
-import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.InitializableFunction;
+import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.RecordFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
@@ -731,6 +729,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         //get function status
         getFunctionStatus(functionName, 0, true, 2);
 
+        // update code file
+        switch (runtime) {
+            case JAVA:
+                updateFunctionCodeFile(functionName, Runtime.JAVA, "test");
+                break;
+            case PYTHON:
+                updateFunctionCodeFile(functionName, Runtime.PYTHON, EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                updateFunctionCodeFile(functionName, Runtime.GO, EXCLAMATION_GO_FILE);
+                break;
+        }
+
         // delete function
         deleteFunction(functionName);
 
@@ -896,12 +907,29 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("Updated successfully"));
     }
 
+    private void updateFunctionCodeFile(String functionName, Runtime runtime, String codeFile) throws Exception {
+
+        CommandGenerator generator = new CommandGenerator();
+        generator.setFunctionName(functionName);
+        generator.setRuntime(runtime);
+        String command = generator.generateUpdateFunctionCommand(codeFile);
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("Updated successfully"));
+    }
+
     protected <T> void submitFunction(Runtime runtime,
                                       String inputTopicName,
                                       String outputTopicName,
                                       String functionName,
                                       String functionFile,
                                       String functionClass,
+                                      Map<String, String> inputSerdeClassNames,
                                       String outputSerdeClassName,
                                       Map<String, String> userConfigs) throws Exception {
 
@@ -916,6 +944,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
+        generator.setCustomSerDeSourceTopics(inputSerdeClassNames);
         generator.setOutputSerDe(outputSerdeClassName);
         if (userConfigs != null) {
             generator.setUserConfig(userConfigs);

@@ -158,5 +158,4 @@ public class PerformanceBaseArgumentsTest {
             tempConfigFile.delete();
         }
     }
-
 }

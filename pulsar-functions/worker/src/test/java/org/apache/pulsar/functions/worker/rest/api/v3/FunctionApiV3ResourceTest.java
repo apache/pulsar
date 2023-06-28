@@ -28,6 +28,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileInputStream;
@@ -57,6 +59,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -603,6 +606,96 @@ public class FunctionApiV3ResourceTest {
                 null,
                 null, null);
     }
+
+    @Test
+    public void testUpdateSourceWithNoChange() throws ClassNotFoundException {
+        mockWorkerUtils();
+
+        FunctionDetails functionDetails = createDefaultFunctionDetails();
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(FunctionConfig.class), any(Class.class))).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.convertRuntime(any(FunctionConfig.Runtime.class))).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
+            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(),any(),any(),any())).thenCallRealMethod();
+            ctx.when(FunctionCommon::createPkgTempFile).thenCallRealMethod();
+        });
+
+        doReturn(Function.class).when(mockedClassLoader).loadClass(anyString());
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        // No change on config,
+        FunctionConfig funcConfig = createDefaultFunctionConfig();
+        mockStatic(FunctionConfigUtils.class, ctx -> {
+            ctx.when(() -> FunctionConfigUtils.convertFromDetails(any())).thenReturn(funcConfig);
+            ctx.when(() -> FunctionConfigUtils.validateUpdate(any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.convert(any(FunctionConfig.class), any(ClassLoader.class))).thenReturn(functionDetails);
+            ctx.when(() -> FunctionConfigUtils.convert(any(FunctionConfig.class), any(FunctionConfigUtils.ExtractedFunctionDetails.class))).thenReturn(functionDetails);
+            ctx.when(() -> FunctionConfigUtils.validateJavaFunction(any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.doCommonChecks(any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.collectAllInputTopics(any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.doJavaChecks(any(), any())).thenCallRealMethod();
+        });
+
+        // config has not changes and don't update auth, should fail
+        try {
+            resource.updateFunction(
+                    funcConfig.getTenant(),
+                    funcConfig.getNamespace(),
+                    funcConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    funcConfig,
+                    null,
+                    null);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        try {
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+            updateOptions.setUpdateAuthData(false);
+            resource.updateFunction(
+                    funcConfig.getTenant(),
+                    funcConfig.getNamespace(),
+                    funcConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    funcConfig,
+                    null,
+                    updateOptions);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        // no changes but set the auth-update flag to true, should not fail
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+        updateOptions.setUpdateAuthData(true);
+        resource.updateFunction(
+                funcConfig.getTenant(),
+                funcConfig.getNamespace(),
+                funcConfig.getName(),
+                null,
+                mockedFormData,
+                null,
+                funcConfig,
+                null,
+                updateOptions);
+    }
+
 
     private void registerDefaultFunction() {
         registerDefaultFunctionWithPackageUrl(null);

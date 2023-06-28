@@ -206,7 +206,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private ResourceGroupService resourceGroupServiceManager;
 
     private final ScheduledExecutorService executor;
-    private final ScheduledExecutorService cacheExecutor;
 
     private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
@@ -324,8 +323,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.functionWorkerService = functionWorkerService;
         this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
                 new ExecutorProvider.ExtendedThreadFactory("pulsar"));
-        this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
-                new ExecutorProvider.ExtendedThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
@@ -380,6 +377,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      */
     public void closeMetadataServiceSession() throws Exception {
         localMetadataStore.close();
+    }
+
+    private void closeLeaderElectionService() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            ExtensibleLoadManagerImpl.get(loadManager.get()).getLeaderElectionService().close();
+        } else {
+            if (this.leaderElectionService != null) {
+                this.leaderElectionService.close();
+                this.leaderElectionService = null;
+            }
+        }
     }
 
     @Override
@@ -502,10 +510,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.bkClientFactory = null;
             }
 
-            if (this.leaderElectionService != null) {
-                this.leaderElectionService.close();
-                this.leaderElectionService = null;
-            }
+            closeLeaderElectionService();
 
             if (adminClient != null) {
                 adminClient.close();
@@ -535,7 +540,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             executorServicesShutdown.shutdown(offloaderScheduler);
             executorServicesShutdown.shutdown(executor);
             executorServicesShutdown.shutdown(orderedExecutor);
-            executorServicesShutdown.shutdown(cacheExecutor);
 
             LoadManager loadManager = this.loadManager.get();
             if (loadManager != null) {
@@ -1316,7 +1320,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * @return a reference of the current <code>LeaderElectionService</code> instance.
      */
     public LeaderElectionService getLeaderElectionService() {
-        return this.leaderElectionService;
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return ExtensibleLoadManagerImpl.get(loadManager.get()).getLeaderElectionService();
+        } else {
+            return this.leaderElectionService;
+        }
     }
 
     /**
@@ -1440,10 +1448,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public ScheduledExecutorService getExecutor() {
         return executor;
-    }
-
-    public ScheduledExecutorService getCacheExecutor() {
-        return cacheExecutor;
     }
 
     public ExecutorProvider getTransactionExecutorProvider() {
