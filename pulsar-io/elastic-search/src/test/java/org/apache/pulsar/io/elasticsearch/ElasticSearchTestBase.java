@@ -40,7 +40,7 @@ import org.testcontainers.utility.DockerImageName;
 public abstract class ElasticSearchTestBase {
 
     public static final String ELASTICSEARCH_8 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V8"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.5.1");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.5.3");
 
     public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
