@@ -59,7 +59,7 @@ class MemoryUnitToByteConverter implements IStringConverter<Long> {
                 return size;
         }
     }
-    
+
     static boolean positiveCheckStatic(String paramName, long value) {
         if (value <= 0) {
             throw new ParameterException(paramName + " is not be negative or 0!");

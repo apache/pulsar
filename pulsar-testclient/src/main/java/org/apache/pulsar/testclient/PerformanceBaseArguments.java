@@ -23,11 +23,9 @@ import static org.apache.pulsar.testclient.PerfClientUtils.exit;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.Properties;
-import java.util.Set;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -175,7 +173,7 @@ public abstract class PerformanceBaseArguments {
                 exit(1);
             }
         }
-        
+
         fillArgumentsFromProperties(prop);
     }
 
