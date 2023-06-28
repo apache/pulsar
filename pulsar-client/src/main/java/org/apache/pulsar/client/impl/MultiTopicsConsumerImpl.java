@@ -1040,10 +1040,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     partitionIndex -> {
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
+                        configurationData.setStartPaused(paused);
+                        ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
+                                partitionIndex, subFuture, createIfDoesNotExist, schema);
                         synchronized (pauseMutex) {
-                            configurationData.setStartPaused(paused);
-                            ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
-                                    partitionIndex, subFuture, createIfDoesNotExist, schema);
                             if (paused) {
                                 newConsumer.pause();
                             } else {
@@ -1062,7 +1062,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             synchronized (pauseMutex) {
                 consumers.compute(topicName, (key, existingValue) -> {
                     if (existingValue != null) {
-                        String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                        String errorMessage =
+                                String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
                                 + "Topic is already being subscribed for in other thread.", topic, topicName);
                         log.warn(errorMessage);
                         subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
@@ -1404,10 +1405,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 newConsumer.resume();
                             }
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] create consumer {} for partitionName: {}",
-                                topicName, newConsumer.getTopic(), partitionName);
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] create consumer {} for partitionName: {}",
+                                        topicName, newConsumer.getTopic(), partitionName);
+                            }
                         }
                         return subFuture;
                     })
