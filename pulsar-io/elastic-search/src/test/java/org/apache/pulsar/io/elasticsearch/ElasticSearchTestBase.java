@@ -73,8 +73,10 @@ public abstract class ElasticSearchTestBase {
     }
 
     protected void configureElasticContainer(ElasticsearchContainer elasticContainer) {
-        elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false")
-                .withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
+        if (getCompatibilityMode() != ElasticSearchConfig.CompatibilityMode.OPENSEARCH) {
+            elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false");
+        }
+        elasticContainer.withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
     }
 
     protected ElasticSearchConfig.CompatibilityMode getCompatibilityMode() {

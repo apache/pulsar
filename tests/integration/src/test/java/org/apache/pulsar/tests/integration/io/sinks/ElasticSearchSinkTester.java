@@ -107,8 +107,14 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
     }
 
     protected void configureElasticContainer(ElasticsearchContainer elasticContainer) {
-        elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false")
-                .withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
+        if (!isOpenSearch()) {
+            elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false");
+        }
+        elasticContainer.withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
+    }
+
+    protected boolean isOpenSearch() {
+        return false;
     }
 
     protected abstract ElasticsearchContainer createElasticContainer();

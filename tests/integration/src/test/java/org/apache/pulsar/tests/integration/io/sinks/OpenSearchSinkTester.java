@@ -54,6 +54,10 @@ public class OpenSearchSinkTester extends ElasticSearchSinkTester {
                 .withEnv("plugins.security.disabled", "true");
     }
 
+    protected boolean isOpenSearch() {
+        return true;
+    }
+
     @Override
     public void prepareSink() throws Exception {
         RestClientBuilder builder = RestClient.builder(
