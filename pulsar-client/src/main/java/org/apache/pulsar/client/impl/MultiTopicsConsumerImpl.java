@@ -1038,8 +1038,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .range(0, numPartitions)
                 .mapToObj(
                     partitionIndex -> {
-                        CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
+                        CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
                                 partitionIndex, subFuture, createIfDoesNotExist, schema);
