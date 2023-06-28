@@ -548,8 +548,6 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Awaitility.await().ignoreExceptions().timeout(10, TimeUnit.SECONDS)
                 .until(() -> pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getTotalMsgExpired() > 0);
 
-        Thread.sleep(2000);
-
         Awaitility.await().ignoreExceptions().timeout(10, TimeUnit.SECONDS).until(() -> {
             pulsar.getBrokerService().updateRates();
             return pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getMsgRateExpired() < 0.001;
