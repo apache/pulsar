@@ -111,6 +111,12 @@ public abstract class PerformanceBaseArguments {
             + "(eg: 32M, 64M)")
     String memoryLimitArgument = null;
 
+    /**
+     * Byte reppresentation of memory limit.
+     * Should be used as actual value for {@link #memoryLimitArgument}.
+     *
+     * @see #memoryLimitArgument
+     */
     protected long memoryLimit = 0L;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
