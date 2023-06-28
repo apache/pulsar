@@ -255,11 +255,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
 
         ledger.addEntry(createMessageWrittenToLedger("msg1"));
-        Thread.sleep(100);
         ledger.addEntry(createMessageWrittenToLedger("msg2"));
-        Thread.sleep(100);
         ledger.addEntry(createMessageWrittenToLedger("msg3"));
-        Thread.sleep(100);
         Position lastPosition = ledger.addEntry(createMessageWrittenToLedger("last-message"));
 
         Thread.sleep(1000);
