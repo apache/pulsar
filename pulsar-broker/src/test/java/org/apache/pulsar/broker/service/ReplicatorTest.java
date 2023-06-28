@@ -737,9 +737,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
 
-        @Cleanup
-        MessageConsumer consumer1 = new MessageConsumer(url3, dest);
-
         // Produce from cluster1 and consume from the rest
         for (int i = 0; i < 10; i++) {
             producer1.produce(2);
@@ -747,17 +744,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
 
-        Position lastPosition = topic.getLastPosition();
-
         PersistentReplicator replicator = (PersistentReplicator) spy(
                 topic.getReplicators().get(topic.getReplicators().keys().get(0)));
 
-        // make replicator backoff readMessage.
-        replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
+        MessageId id = topic.getLastMessageId().get();
+        admin1.topics().expireMessages(dest.getPartitionedTopicName(),
+                replicator.getCursor().getName(),
+                id,false);
 
-        replicator.updateRates(); // for code-coverage
+        replicator.updateRates();
 
-        replicator.expireMessages(lastPosition); // for code-coverage
         ReplicatorStats status = replicator.getStats();
         assertEquals(status.getReplicationBacklog(), 0);
     }
