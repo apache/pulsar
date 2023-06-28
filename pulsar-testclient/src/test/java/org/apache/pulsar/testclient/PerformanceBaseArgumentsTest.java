@@ -169,7 +169,7 @@ public class PerformanceBaseArgumentsTest {
         return new Object[][] { 
                 { new String[]{"-ml","1"}, 1L},
                 { new String[]{"-ml","1K"}, 1024L},
-                { new String[]{"--memory-limit", "1G"}, 1_073_741_824L}
+                { new String[]{"--memory-limit", "1G"}, 1024 * 1024 * 1024}
         };
     }
 

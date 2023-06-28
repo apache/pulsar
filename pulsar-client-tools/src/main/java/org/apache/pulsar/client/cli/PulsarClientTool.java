@@ -77,7 +77,8 @@ public class PulsarClientTool {
         @Parameter(names = { "--tlsTrustCertsFilePath" }, description = "File path to client trust certificates")
         String tlsTrustCertsFilePath;
 
-        @Parameter(names = { "-m", "--memory", }, description = "Configure the Pulsar client memory limit")
+        @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+            + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
         long memoryLimit;
     }
 
@@ -154,6 +155,10 @@ public class PulsarClientTool {
         this.rootParams.authParams = properties.getProperty("authParams");
         this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
         this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
+        this.rootParams.listenerName = StringUtils.trimToNull(properties.getProperty("listenerName"));
+        // setting memory limit
+        this.rootParams.memoryLimit = MemoryUnitToByteConverter.parseBytes(properties.getProperty("memoryLimit"));
+
         String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
         if (proxyProtocolString != null) {
             try {
@@ -164,12 +169,11 @@ public class PulsarClientTool {
                 System.exit(1);
             }
         }
-        this.rootParams.memoryLimit = Long.parseLong(properties.getProperty("memoryLimit", "0"));
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(this.rootParams.memoryLimit, SizeUnit.BYTES);
+                .memoryLimit(rootParams.memoryLimit, SizeUnit.BYTES);
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);
@@ -201,6 +205,7 @@ public class PulsarClientTool {
             }
             clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
         }
+
         this.produceCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);

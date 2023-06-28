@@ -38,8 +38,6 @@ import org.apache.pulsar.client.api.ProxyProtocol;
  */
 public abstract class PerformanceBaseArguments {
 
-    private static Set<Character> sizeUnit = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
-
     @Parameter(names = { "-h", "--help" }, description = "Print help message", help = true)
     boolean help;
 
@@ -108,16 +106,8 @@ public abstract class PerformanceBaseArguments {
     public String deprecatedAuthPluginClassName;
 
     @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)")
-    String memoryLimitArgument = null;
-
-    /**
-     * Byte reppresentation of memory limit.
-     * Should be used as actual value for {@link #memoryLimitArgument}.
-     *
-     * @see #memoryLimitArgument
-     */
-    protected long memoryLimit = 0L;
+            + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
+    public long memoryLimit = 0L;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 
@@ -184,15 +174,8 @@ public abstract class PerformanceBaseArguments {
                 e.printStackTrace();
                 exit(1);
             }
-
         }
-
-        if (StringUtils.isNotEmpty(memoryLimitArgument)) {
-            long memoryLimitArg = validateSizeString(memoryLimitArgument);
-            positiveCheck("memory-limit", memoryLimitArg);
-            memoryLimit = memoryLimitArg;
-        }
-
+        
         fillArgumentsFromProperties(prop);
     }
 
@@ -248,52 +231,5 @@ public abstract class PerformanceBaseArguments {
             System.out.println("error: " + e.getMessage());
             PerfClientUtils.exit(1);
         }
-    }
-
-    /**
-     * @see org.apache.pulsar.admin.cli.CliCommand#validateSizeString(String)
-     */
-    static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        long size;
-        try {
-            size = sizeUnit.contains(last)
-                    ? Long.parseLong(subStr)
-                    : Long.parseLong(s);
-        } catch (IllegalArgumentException e) {
-            throw new ParameterException(String.format("Invalid size '%s'. Valid formats are: %s",
-                    s, "(4096, 100K, 10M, 16G, 2T)"));
-        }
-        switch (last) {
-            case 'k':
-            case 'K':
-                return size * 1024;
-
-            case 'm':
-            case 'M':
-                return size * 1024 * 1024;
-
-            case 'g':
-            case 'G':
-                return size * 1024 * 1024 * 1024;
-
-            case 't':
-            case 'T':
-                return size * 1024 * 1024 * 1024 * 1024;
-
-            default:
-                return size;
-        }
-    }
-
-    /**
-     * @see org.apache.pulsar.admin.cli.CmdNamespaces.SetOffloadPolicies#positiveCheck(String, long)
-     */
-    static boolean positiveCheck(String paramName, long value) {
-        if (value <= 0) {
-            throw new ParameterException(paramName + " is not be negative or 0!");
-        }
-        return true;
     }
 }
