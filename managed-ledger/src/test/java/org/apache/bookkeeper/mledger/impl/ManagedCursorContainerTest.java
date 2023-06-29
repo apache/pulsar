@@ -259,6 +259,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                AsyncCallbacks.FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
+        }
+
+        @Override
         public void asyncResetCursor(final Position position, boolean forceReset,
                 AsyncCallbacks.ResetCursorCallback callback) {
 
