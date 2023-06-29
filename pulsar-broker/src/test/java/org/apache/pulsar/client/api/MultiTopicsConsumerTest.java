@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,8 +37,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.naming.TopicName;
 import org.mockito.AdditionalAnswers;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -63,6 +66,11 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+       clientBuilder.ioThreads(4).connectionsPerBroker(4);
     }
 
     // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
@@ -191,5 +199,20 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             Assert.assertEquals(message.getValue().longValue(), receivedSequenceCounter.getAndIncrement());
         }
         Assert.assertEquals(numPartitions * numMessages, receivedCount);
+    }
+
+    @Test(invocationCount = 10, timeOut = 30000)
+    public void testMultipleIOThreads() throws PulsarAdminException, PulsarClientException {
+        final String topic = TopicName.get(newTopicName()).toString();
+        final int numPartitions = 100;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+        for (int i = 0; i < 100; i++) {
+            admin.topics().createNonPartitionedTopic(topic + "-" + i);
+        }
+        @Cleanup
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topicsPattern(topic + ".*")
+                .subscriptionName("sub").subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+        assertTrue(consumer.isConnected());
     }
 }
