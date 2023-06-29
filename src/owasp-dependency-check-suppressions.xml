@@ -229,72 +229,20 @@
         <cve>CVE-2021-42550</cve>
     </suppress>
 
-    <!-- jetcd matched against ETCD server CVEs-->
     <suppress>
-        <notes><![CDATA[
-       file name: jetcd-api-0.7.5.jar
-       ]]></notes>
-        <sha1>861af62ae22a71d30f401a80049397fe7ff44423</sha1>
-        <cve>CVE-2020-15113</cve>
-    </suppress>
-
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-core-0.7.5.jar
-       ]]></notes>
-        <sha1>663f2ccc0ec7797954c333fa75feeb7d559948b0</sha1>
-        <cve>CVE-2020-15113</cve>
-    </suppress>
-
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-common-0.7.5.jar
-       ]]></notes>
-        <sha1>abd0ffcd4e66046057c3bfb34affc0de870a038b</sha1>
-        <cve>CVE-2020-15113</cve>
-    </suppress>
-
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-grpc-0.7.5.jar
-       ]]></notes>
-        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
-        <cve>CVE-2017-8359</cve>
+        <notes>Ignore etdc CVEs in jetcd</notes>
+        <filePath regex="true">.*jetcd.*</filePath>
+        <cpe>cpe:/a:etcd:etcd</cpe>
     </suppress>
     <suppress>
-        <notes><![CDATA[
-       file name: jetcd-grpc-0.7.5.jar
-       ]]></notes>
-        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
-        <cve>CVE-2020-15113</cve>
+        <notes>Ignore etdc CVEs in jetcd</notes>
+        <filePath regex="true">.*jetcd.*</filePath>
+        <cpe>cpe:/a:redhat:etcd</cpe>
     </suppress>
     <suppress>
-        <notes><![CDATA[
-       file name: jetcd-grpc-0.7.5.jar
-       ]]></notes>
-        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
-        <cve>CVE-2020-7768</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-grpc-0.7.5.jar
-       ]]></notes>
-        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
-        <cve>CVE-2017-7861</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-grpc-0.7.5.jar
-       ]]></notes>
-        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
-        <cve>CVE-2017-9431</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-grpc-0.7.5.jar
-       ]]></notes>
-        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
-        <cve>CVE-2017-7860</cve>
+        <notes>Ignore grpc CVEs in jetcd</notes>
+        <filePath regex="true">.*jetcd-grpc.*</filePath>
+        <cpe>cpe:/a:grpc:grpc</cpe>
     </suppress>
 
     <!-- bouncycastle misdetections -->
@@ -485,5 +433,11 @@
        ]]></notes>
         <cve>CVE-2020-8908</cve>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+       This is a false positive in jackson-databind.
+       See https://github.com/FasterXML/jackson-databind/issues/3972#issuecomment-1596604021
+       ]]></notes>
+        <cve>CVE-2023-35116</cve>
+    </suppress>
 </suppressions>

@@ -214,8 +214,16 @@ public abstract class CliCommand {
             if (item instanceof String) {
                 System.out.println(item);
             } else {
-                System.out.println(writer.writeValueAsString(item));
+                prettyPrint(item);
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    <T> void prettyPrint(T item) {
+        try {
+            System.out.println(writer.writeValueAsString(item));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

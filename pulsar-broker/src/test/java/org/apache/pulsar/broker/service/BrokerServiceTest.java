@@ -33,6 +33,7 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -40,6 +41,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -72,6 +74,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -107,6 +110,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -1152,6 +1156,68 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testConcurrentLoadTopicExceedLimitShouldNotBeAutoCreated() throws Exception {
+        boolean needDeleteTopic = false;
+        final String namespace = "prop/concurrentLoad";
+        try {
+            // set up broker disable auto create and set concurrent load to 1 qps.
+            cleanup();
+            conf.setMaxConcurrentTopicLoadRequest(1);
+            conf.setAllowAutoTopicCreation(false);
+            setup();
+
+            try {
+                admin.namespaces().createNamespace(namespace);
+            } catch (PulsarAdminException.ConflictException e) {
+                // Ok.. (if test fails intermittently and namespace is already created)
+            }
+
+            // create 3 topic
+            String topicName = "persistent://" + namespace + "/my-topic";
+
+            for (int i = 0; i < 3; i++) {
+                admin.topics().createNonPartitionedTopic(topicName + "_" + i);
+            }
+
+            needDeleteTopic = true;
+
+            // try to load 10 topic
+            ArrayList<CompletableFuture<Optional<Topic>>> loadFutures = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                // try to create topic which should fail as bundle is disable
+                CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
+                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null);
+                loadFutures.add(futureResult);
+            }
+
+            CompletableFuture<?>[] o = (CompletableFuture<?>[]) Array.newInstance(CompletableFuture.class, 10);
+            CompletableFuture<?>[] completableFutures = loadFutures.toArray(o);
+            CompletableFuture.allOf(completableFutures).get();
+
+            // check topic load CompletableFuture. only first three topic should be success.
+            for (int i = 0; i < 10; i++) {
+                CompletableFuture<Optional<Topic>> load = loadFutures.get(i);
+                if (i < 3) {
+                    Assert.assertTrue(load.isDone());
+                    Assert.assertFalse(load.isCompletedExceptionally());
+                } else {
+                    // check topic should not be created if disable autoCreateTopic.
+                    Assert.assertTrue(load.isDone());
+                    Assert.assertTrue(load.get().isEmpty());
+                }
+            }
+        } finally {
+            if (needDeleteTopic) {
+                String topicName = "persistent://" + namespace + "/my-topic";
+
+                for (int i = 0; i < 3; i++) {
+                    admin.topics().delete(topicName + "_" + i);
+                }
+            }
+        }
+    }
+
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
@@ -1512,5 +1578,92 @@ public class BrokerServiceTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteTenantAllowed());
         });
+    }
+
+    // this test is disabled since it is flaky
+    @Test(enabled = false)
+    public void testBrokerStatsTopicLoadFailed() throws Exception {
+        admin.namespaces().createNamespace("prop/ns-test");
+
+        String persistentTopic = "persistent://prop/ns-test/topic1_" + UUID.randomUUID();
+        String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + UUID.randomUUID();
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        brokerService = Mockito.spy(brokerService);
+        // mock create persistent topic failed
+        Mockito
+                .doAnswer(invocation -> {
+                    CompletableFuture<ManagedLedgerConfig> f = new CompletableFuture<>();
+                    f.completeExceptionally(new RuntimeException("This is an exception"));
+                    return f;
+                })
+                .when(brokerService).getManagedLedgerConfig(Mockito.eq(TopicName.get(persistentTopic)));
+
+        // mock create non-persistent topic failed
+        Mockito
+                .doAnswer(inv -> {
+                    CompletableFuture<Void> f = new CompletableFuture<>();
+                    f.completeExceptionally(new RuntimeException("This is an exception"));
+                    return f;
+                })
+                .when(brokerService).checkTopicNsOwnership(Mockito.eq(nonPersistentTopic));
+
+
+        PulsarService pulsarService = pulsar;
+        Field field = PulsarService.class.getDeclaredField("brokerService");
+        field.setAccessible(true);
+        field.set(pulsarService, brokerService);
+
+        CompletableFuture<Producer<String>> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(persistentTopic)
+                .createAsync();
+        CompletableFuture<Producer<String>> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(nonPersistentTopic)
+                .createAsync();
+
+        producer.whenComplete((v, t) -> {
+            if (t == null) {
+                try {
+                    v.close();
+                } catch (PulsarClientException e) {
+                    // ignore
+                }
+            }
+        });
+        producer1.whenComplete((v, t) -> {
+            if (t == null) {
+                try {
+                    v.close();
+                } catch (PulsarClientException e) {
+                    // ignore
+                }
+            }
+        });
+
+        Awaitility.waitAtMost(2, TimeUnit.MINUTES).until(() -> {
+            String json = admin.brokerStats().getMetrics();
+            JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
+            AtomicBoolean flag = new AtomicBoolean(false);
+
+            metrics.forEach(ele -> {
+                JsonObject obj = ((JsonObject) ele);
+                JsonObject metrics0 = (JsonObject) obj.get("metrics");
+                JsonPrimitive v = (JsonPrimitive) metrics0.get("brk_topic_load_failed_count");
+                if (null != v && v.getAsDouble() >= 2D) {
+                    flag.set(true);
+                }
+            });
+
+            return flag.get();
+        });
+    }
+
+    @Test
+    public void testIsSystemTopicAllowAutoTopicCreationAsync() throws Exception {
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertFalse(brokerService.isAllowAutoTopicCreationAsync(
+                ServiceUnitStateChannelImpl.TOPIC).get());
+        assertTrue(brokerService.isAllowAutoTopicCreationAsync(
+                "persistent://pulsar/system/my-system-topic").get());
     }
 }

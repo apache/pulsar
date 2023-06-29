@@ -319,45 +319,10 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role, boolean force) {
-        return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
-                policiesOptional -> {
-                    Policies policies = policiesOptional.orElseThrow(() ->
-                            new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                    if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
-                            || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
-                        log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
-                                clientAppId(), role, topicUri);
-                        if (force) {
-                            return CompletableFuture.completedFuture(null);
-                        } else {
-                            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                                    "Permissions are not set at the topic level"));
-                        }
-                    }
-                    // Write the new policies to metadata store
-                    return namespaceResources().setPoliciesAsync(namespaceName, p -> {
-                        p.auth_policies.getTopicAuthentication().computeIfPresent(topicUri, (k, roles) -> {
-                            roles.remove(role);
-                            if (roles.isEmpty()) {
-                                return null;
-                            }
-                            return roles;
-                        });
-                        return p;
-                    }).thenAccept(__ ->
-                            log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
-                            topicUri)
-                    );
-                }
-        );
-    }
-
     protected void internalRevokePermissionsOnTopic(AsyncResponse asyncResponse, String role) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync().thenCompose(unused1 ->
-            getPartitionedTopicMetadataAsync(topicName, true, false)
+                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, true, false)
                 .thenCompose(metadata -> {
                     int numPartitions = metadata.partitions;
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
@@ -365,13 +330,14 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             future = future.thenComposeAsync(unused ->
-                                    revokePermissionsAsync(topicNamePartition.toString(), role, true));
+                                    getAuthorizationService().revokePermissionAsync(topicNamePartition, role));
                         }
                     }
-                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role, false))
-                            .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
-                }))
-            ).exceptionally(ex -> {
+                    return future.thenComposeAsync(unused ->
+                                    getAuthorizationService().revokePermissionAsync(topicName, role))
+                                 .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
+                })
+                ).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicName, realCause);
                     resumeAsyncResponseExceptionally(asyncResponse, realCause);
@@ -1631,7 +1597,9 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        return future.thenCompose(__ -> {
+        return future
+                .thenCompose((__) -> validateTopicOperationAsync(topicName, TopicOperation.UNSUBSCRIBE, subName))
+                .thenCompose(__ -> {
             if (topicName.isPartitioned()) {
                 return internalDeleteSubscriptionForNonPartitionedTopicAsync(subName, authoritative, force);
             } else {
@@ -1674,11 +1642,11 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    // Note: this method expects the caller to check authorization
     private CompletableFuture<Void> internalDeleteSubscriptionForNonPartitionedTopicAsync(String subName,
                                                                                           boolean authoritative,
                                                                                           boolean force) {
         return validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose((__) -> validateTopicOperationAsync(topicName, TopicOperation.UNSUBSCRIBE, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose((topic) -> {
                     Subscription sub = topic.getSubscription(subName);
