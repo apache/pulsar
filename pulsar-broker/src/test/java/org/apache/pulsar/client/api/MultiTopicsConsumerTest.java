@@ -76,6 +76,11 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+       clientBuilder.ioThreads(4).connectionsPerBroker(4);
+    }
+
     // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
     // where closing the consumer leads to an endless receive loop
     @Test
@@ -350,5 +355,20 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                     msgIds.get(partition).subList(numMessagesPerPartition / 2 + 1, numMessagesPerPartition));
         }
         consumer.close();
+    }
+
+    @Test(invocationCount = 10, timeOut = 30000)
+    public void testMultipleIOThreads() throws PulsarAdminException, PulsarClientException {
+        final var topic = TopicName.get(newTopicName()).toString();
+        final var numPartitions = 100;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+        for (int i = 0; i < 100; i++) {
+            admin.topics().createNonPartitionedTopic(topic + "-" + i);
+        }
+        @Cleanup
+        final var consumer = pulsarClient.newConsumer(Schema.INT32).topicsPattern(topic + ".*")
+                .subscriptionName("sub").subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+        assertTrue(consumer.isConnected());
     }
 }
