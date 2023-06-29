@@ -477,7 +477,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                                                            Set<String> excludeBrokerSet) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
-                .thenCompose(availableBrokers -> {
+                .thenComposeAsync(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new ConcurrentHashMap<>(availableBrokers);
@@ -499,6 +499,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     CompletableFuture<Optional<String>> result = new CompletableFuture<>();
                     FutureUtil.waitForAll(futures).whenComplete((__, ex) -> {
                         if (ex != null) {
+                            // TODO: We may need to revisit this error case.
                             log.error("Failed to filter out brokers when select bundle: {}", bundle, ex);
                         }
                         if (availableBrokerCandidates.isEmpty()) {

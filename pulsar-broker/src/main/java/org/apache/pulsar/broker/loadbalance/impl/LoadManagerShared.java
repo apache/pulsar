@@ -195,7 +195,9 @@ public class LoadManagerShared {
             boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
                     ? ((NamespaceBundle) serviceUnit).hasNonPersistentTopic() : false;
             if (isIsolationPoliciesPresent) {
-                LOG.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
+                }
             }
             for (final String broker : availableBrokers) {
                 final String brokerUrlString = String.format("http://%s", broker);
@@ -257,17 +259,21 @@ public class LoadManagerShared {
             if (isIsolationPoliciesPresent) {
                 brokerCandidateCache.addAll(primariesCache);
                 if (policies.shouldFailoverToSecondaries(namespace, primariesCache.size())) {
-                    LOG.debug(
-                            "Not enough of primaries [{}] available for namespace - [{}], "
-                                    + "adding shared [{}] as possible candidate owners",
-                            primariesCache.size(), namespace.toString(), secondaryCache.size());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(
+                                "Not enough of primaries [{}] available for namespace - [{}], "
+                                        + "adding shared [{}] as possible candidate owners",
+                                primariesCache.size(), namespace.toString(), secondaryCache.size());
+                    }
                     brokerCandidateCache.addAll(secondaryCache);
                 }
             } else {
-                LOG.debug(
-                        "Policies not present for namespace - [{}] so only "
-                                + "considering shared [{}] brokers for possible owner",
-                        namespace.toString(), secondaryCache.size());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Policies not present for namespace - [{}] so only "
+                                    + "considering shared [{}] brokers for possible owner",
+                            namespace.toString(), secondaryCache.size());
+                }
                 brokerCandidateCache.addAll(secondaryCache);
             }
             return brokerCandidateCache;
