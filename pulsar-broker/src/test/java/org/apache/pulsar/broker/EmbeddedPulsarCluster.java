@@ -112,7 +112,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setWebServicePort(Optional.of(0));
         conf.setNumExecutorThreadPoolSize(1);
         conf.setNumCacheExecutorThreadPoolSize(1);
-        conf.setNumWorkerThreadsForNonPersistentTopic(1);
+        conf.setTopicOrderedExecutorThreadNum(1);
         conf.setNumIOThreads(1);
         conf.setNumOrderedExecutorThreads(1);
         conf.setBookkeeperClientNumWorkerThreads(1);
