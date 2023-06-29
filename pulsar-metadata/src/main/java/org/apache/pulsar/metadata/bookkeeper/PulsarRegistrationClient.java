@@ -227,11 +227,17 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     log.info("Bookie {} deleted. path: {}", bookieId, n.getPath());
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         readOnlyBookieInfo.remove(bookieId);
-                        return completedFuture(null);
+                        return getReadOnlyBookies().thenAccept(bookies -> {
+                            readOnlyBookiesWatchers.forEach(w ->
+                                    executor.execute(() -> w.onBookiesChanged(bookies)));
+                        });
                     }
                     if (path.startsWith(bookieRegistrationPath)) {
                         writableBookieInfo.remove(bookieId);
-                        return completedFuture(null);
+                        return getWritableBookies().thenAccept(bookies -> {
+                            writableBookiesWatchers.forEach(w ->
+                                    executor.execute(() -> w.onBookiesChanged(bookies)));
+                        });
                     }
                     return completedFuture(null);
                 default:
