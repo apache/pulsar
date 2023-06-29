@@ -1182,6 +1182,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx) {
+        asyncFindNewestMatching(constraint, condition, callback, ctx, false);
+    }
+
+    @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+            FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
         OpFindNewest op;
         PositionImpl startPosition = null;
         long max = 0;
@@ -1203,7 +1209,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                     Optional.empty(), ctx);
             return;
         }
-        op = new OpFindNewest(this, startPosition, condition, max, callback, ctx);
+        if (isFindFromLedger) {
+            op = new OpFindNewest(this.ledger, startPosition, condition, max, callback, ctx);
+        } else {
+            op = new OpFindNewest(this, startPosition, condition, max, callback, ctx);
+        }
         op.find();
     }
 
