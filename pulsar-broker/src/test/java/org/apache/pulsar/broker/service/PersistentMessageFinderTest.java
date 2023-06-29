@@ -258,9 +258,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ledger.addEntry(createMessageWrittenToLedger("msg2"));
         ledger.addEntry(createMessageWrittenToLedger("msg3"));
         Position lastPosition = ledger.addEntry(createMessageWrittenToLedger("last-message"));
-
-        Thread.sleep(1000);
-        long endTimestamp = System.currentTimeMillis();
+        
+        long endTimestamp = System.currentTimeMillis() + 1000;
 
         Result result = new Result();
         // delete last position message
