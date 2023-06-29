@@ -279,9 +279,12 @@ public abstract class NamespacesBase extends AdminResource {
                                         return old;
                                     });
                                 }
-                                allUserCreatedTopics.removeIf(t -> allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
-                                allSystemTopics.removeIf(t -> allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
-                                topicPolicy.removeIf(t -> allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
+                                allUserCreatedTopics.removeIf(t ->
+                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
+                                allSystemTopics.removeIf(t ->
+                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
+                                topicPolicy.removeIf(t ->
+                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
                                 return markDeleteFuture.thenCompose(__ ->
                                                 internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
