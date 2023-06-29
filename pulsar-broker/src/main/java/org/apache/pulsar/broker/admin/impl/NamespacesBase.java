@@ -279,6 +279,9 @@ public abstract class NamespacesBase extends AdminResource {
                                         return old;
                                     });
                                 }
+                                allUserCreatedTopics.removeAll(allUserCreatedPartitionTopics);
+                                allSystemTopics.removeAll(allPartitionedSystemTopics);
+                                topicPolicy.removeAll(partitionedTopicPolicy);
                                 return markDeleteFuture.thenCompose(__ ->
                                                 internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
