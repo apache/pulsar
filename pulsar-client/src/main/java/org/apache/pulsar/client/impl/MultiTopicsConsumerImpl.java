@@ -1062,7 +1062,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
                         return existingValue;
                     } else {
-                        internalConfig.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
                                 -1, subFuture, createIfDoesNotExist, schema);
                         if (paused) {
