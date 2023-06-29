@@ -101,7 +101,13 @@ public class JavaInstanceMain {
                 main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
 
         System.out.println("Starting function instance...");
-        method.invoke(main, args, functionInstanceClsLoader, root);
+        try {
+            method.invoke(main, args, functionInstanceClsLoader, root);
+        } catch (InvocationTargetException e) {
+            System.out.println("Failed to start function instance.");
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     public static Object createInstance(String userClassName,
