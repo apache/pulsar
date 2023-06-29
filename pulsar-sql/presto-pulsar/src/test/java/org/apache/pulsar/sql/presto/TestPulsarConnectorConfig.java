@@ -20,7 +20,7 @@ package org.apache.pulsar.sql.presto;
 
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
-import io.trino.spi.type.TypeManager;
+import io.prestosql.spi.type.TypeManager;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
