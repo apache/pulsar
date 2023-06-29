@@ -118,8 +118,14 @@ public class CmdProduce {
             + "key=value string, like k1=v1,k2=v2.")
     private List<String> properties = new ArrayList<>();
 
-    @Parameter(names = { "-k", "--key"}, description = "message key to add ")
+    @Parameter(names = { "-k", "--key"}, description = "Partitioning key to add to each message")
     private String key;
+    @Parameter(names = { "-kvk", "--key-value-key"}, description = "Value to add as message key in KeyValue schema")
+    private String keyValueKey;
+    @Parameter(names = { "-kvkf", "--key-value-key-file"},
+            description = "Path to file containing the value to add as message key in KeyValue schema. "
+            + "JSON and AVRO files are supported.")
+    private String keyValueKeyFile;
 
     @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
     private String valueSchema = "bytes";
@@ -268,6 +274,25 @@ public class CmdProduce {
                     kvMap.put(kv[0], kv[1]);
                 }
 
+                final byte[] keyValueKeyBytes;
+                if (this.keyValueKey != null) {
+                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
+                        throw new ParameterException(
+                            "Key value encoding type must be set when using --key-value-key");
+                    }
+                    keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
+                } else if (this.keyValueKeyFile != null) {
+                    if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
+                        throw new ParameterException(
+                            "Key value encoding type must be set when using --key-value-key-file");
+                    }
+                    keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
+                } else if (this.key != null) {
+                    keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
+                } else {
+                    keyValueKeyBytes = null;
+                }
+
                 for (int i = 0; i < this.numTimesProduce; i++) {
                     for (byte[] content : messageBodies) {
                         if (limiter != null) {
@@ -290,8 +315,7 @@ public class CmdProduce {
                             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
                             case KEY_VALUE_ENCODING_TYPE_INLINE:
                                 KeyValue kv = new KeyValue<>(
-                                        // TODO: support AVRO encoded key
-                                        key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
+                                        keyValueKeyBytes,
                                         content);
                                 message.value(kv);
                                 break;
