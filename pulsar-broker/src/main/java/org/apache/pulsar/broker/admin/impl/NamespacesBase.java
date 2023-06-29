@@ -523,8 +523,8 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
-                                if (!partitionedTopics.contains(partitionedTopic) &&
-                                        !nonPartitionedTopics.contains(partitionedTopic)) {
+                                if (!partitionedTopics.contains(partitionedTopic)
+                                        && !nonPartitionedTopics.contains(partitionedTopic)) {
                                     partitionedTopics.add(partitionedTopic);
                                 } else {
                                     continue;
@@ -539,8 +539,8 @@ public abstract class NamespacesBase extends AdminResource {
                                 }
                                 continue;
                             }
-                            if (!partitionedTopics.contains(topic) &&
-                                    !nonPartitionedTopics.contains(topic)) {
+                            if (!partitionedTopics.contains(topic)
+                                    && !nonPartitionedTopics.contains(topic)) {
                             nonPartitionedTopics.add(topic);
                             } else {
                                 continue;
