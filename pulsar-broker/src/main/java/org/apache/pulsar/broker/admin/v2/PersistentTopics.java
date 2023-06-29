@@ -1597,7 +1597,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String topic,
-            @ApiParam(value = "Subscription to create position on", required = true)
+            @ApiParam(value = "Name of subscription to be created", required = true)
             @PathParam("subscriptionName") String encodedSubName,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,

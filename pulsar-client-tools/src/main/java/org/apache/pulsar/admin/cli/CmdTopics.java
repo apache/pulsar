@@ -1004,7 +1004,7 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to reset position on", required = true)
+                "--subscription" }, description = "Name of subscription to be created", required = true)
         private String subscriptionName;
 
         @Parameter(names = { "-m" , "--messageId" }, description = "messageId where to create the subscription. "
