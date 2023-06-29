@@ -18,20 +18,22 @@
  */
 package org.apache.pulsar.compaction;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.COMPACT_LEDGER_EMPTY;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.NEWER_THAN_COMPACTED;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.findStartPoint;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 
 public class PulsarTopicCompactionService implements TopicCompactionService {
@@ -54,7 +56,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
         Compactor compactor;
         try {
             compactor = compactorSupplier.get();
-        } catch (CompletionException e) {
+        } catch (Throwable e) {
             return CompletableFuture.failedFuture(e);
         }
         return compactor.compact(topic).thenApply(x -> null);
@@ -63,31 +65,32 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     @Override
     public CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition,
                                                                int numberOfEntriesToRead) {
+        Objects.requireNonNull(startPosition);
+        checkArgument(numberOfEntriesToRead > 0);
+
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
-        CompletableFuture<List<Entry>> optionalCompletableFuture =
-                compactedTopic.getCompactedTopicContextFuture().thenCompose(
-                        (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
-                                context.cache).thenCompose((startPoint) -> {
-                            if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
-                                return CompletableFuture.completedFuture(Collections.emptyList());
-                            }
-                            long endPoint =
-                                    Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
-                            return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
-                        }));
-
-        optionalCompletableFuture.whenComplete((result, ex) -> {
-            if (ex == null) {
-                resultFuture.complete(result);
-            } else {
-                if (ex instanceof NoSuchElementException) {
-                    resultFuture.complete(Collections.emptyList());
-                } else {
-                    resultFuture.completeExceptionally(ex);
-                }
-            }
-        });
+        Objects.requireNonNull(compactedTopic.getCompactedTopicContextFuture()).thenCompose(
+                (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
+                        context.cache).thenCompose((startPoint) -> {
+                    if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
+                        return CompletableFuture.completedFuture(Collections.emptyList());
+                    }
+                    long endPoint =
+                            Math.min(context.ledger.getLastAddConfirmed(), startPoint + numberOfEntriesToRead);
+                    return CompactedTopicImpl.readEntries(context.ledger, startPoint, endPoint);
+                })).whenComplete((result, ex) -> {
+                    if (ex == null) {
+                        resultFuture.complete(result);
+                    } else {
+                        ex = FutureUtil.unwrapCompletionException(ex);
+                        if (ex instanceof NoSuchElementException) {
+                            resultFuture.complete(Collections.emptyList());
+                        } else {
+                            resultFuture.completeExceptionally(ex);
+                        }
+                    }
+                });
 
         return resultFuture;
     }

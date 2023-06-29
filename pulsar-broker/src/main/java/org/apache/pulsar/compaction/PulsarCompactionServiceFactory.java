@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -28,11 +31,16 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
 
     private PulsarService pulsarService;
 
-    private Compactor compactor;
+    private volatile Compactor compactor;
 
-    public synchronized Compactor getCompactor() throws PulsarServerException {
+    @VisibleForTesting
+    public Compactor getCompactor() throws PulsarServerException {
         if (compactor == null) {
-            compactor = newCompactor();
+            synchronized (this) {
+                if (compactor == null) {
+                    compactor = newCompactor();
+                }
+            }
         }
         return compactor;
     }
@@ -49,18 +57,20 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
     }
 
     @Override
-    public CompletableFuture<Void> initialize(PulsarService pulsarService) {
+    public CompletableFuture<Void> initialize(@Nonnull PulsarService pulsarService) {
+        Objects.requireNonNull(pulsarService);
         this.pulsarService = pulsarService;
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(@Nonnull String topic) {
+        Objects.requireNonNull(topic);
         PulsarTopicCompactionService pulsarTopicCompactionService =
                 new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
                     try {
                         return this.getCompactor();
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         throw new CompletionException(e);
                     }
                 });
