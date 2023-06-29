@@ -869,12 +869,14 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
         <version>${swagger.version}</version>
+        <scope>provided</scope>
       </dependency>
 
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-annotations</artifactId>
         <version>${swagger.version}</version>
+        <scope>provided</scope>
       </dependency>
 
       <dependency>

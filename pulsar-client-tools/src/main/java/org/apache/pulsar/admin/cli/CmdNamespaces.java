@@ -22,10 +22,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -2553,14 +2553,16 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get properties of a namespace")
     private class GetPropertiesForNamespace extends CliCommand {
+        private static final ObjectMapper MAPPER = new ObjectMapper();
 
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
-            String namespace = validateNamespace(params);
-            Json.prettyPrint(getAdmin().namespaces().getProperties(namespace));
+            final String namespace = validateNamespace(params);
+            final Map<String, String> properties = getAdmin().namespaces().getProperties(namespace);
+            MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(properties);
         }
     }
 
