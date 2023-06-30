@@ -110,7 +110,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
-        if(readerConfiguration.getMessageCrypto() != null){
+        if (readerConfiguration.getMessageCrypto() != null) {
             consumerConfiguration.setMessageCrypto(readerConfiguration.getMessageCrypto());
         }
         if (readerConfiguration.getKeyHashRanges() != null) {
@@ -130,7 +130,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                 ReaderInterceptorUtil.convertToConsumerInterceptors(
                         this, readerConfiguration.getReaderInterceptorList());
         multiTopicsConsumer = new MultiTopicsConsumerImpl<>(client, consumerConfiguration, executorProvider,
-                consumerFuture, schema,  consumerInterceptors, true,
+                consumerFuture, schema, consumerInterceptors, true,
                 readerConfiguration.getStartMessageId(),
                 readerConfiguration.getStartMessageFromRollbackDurationInSec());
     }
