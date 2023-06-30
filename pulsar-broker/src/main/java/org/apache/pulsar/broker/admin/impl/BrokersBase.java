@@ -546,14 +546,14 @@ public class BrokersBase extends AdminResource {
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
             @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
-            @QueryParam("runSynchronous") @DefaultValue("false") boolean runSynchronous,
+            @QueryParam("runAsync") @DefaultValue("true") boolean runAsync,
             @Suspended final AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        if (runSynchronous) {
-            doShutDownBrokerGracefullySync(maxConcurrentUnloadPerSec, forcedTerminateTopic, asyncResponse);
-        } else {
+        if (runAsync) {
             doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic, asyncResponse);
+        } else {
+            doShutDownBrokerGracefullySync(maxConcurrentUnloadPerSec, forcedTerminateTopic, asyncResponse);
         }
     }
 
