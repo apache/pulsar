@@ -180,7 +180,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             TopicName topicName =  TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
             if (listeners.get(topicName) != null) {
                 for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                    listener.onUpdate(null);
+                    try {
+                        listener.onUpdate(null);
+                    } catch (Throwable error) {
+                        log.error("[{}] call listener error.", topicName, error);
+                    }
                 }
             }
             return;
@@ -195,7 +199,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (listeners.get(topicName) != null) {
             TopicPolicies policies = event.getPolicies();
             for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                listener.onUpdate(policies);
+                try {
+                    listener.onUpdate(policies);
+                } catch (Throwable error) {
+                    log.error("[{}] call listener error.", topicName, error);
+                }
             }
         }
     }
@@ -365,7 +373,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 policiesCache.forEach(((topicName, topicPolicies) -> {
                     if (listeners.get(topicName) != null) {
                         for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                            listener.onUpdate(topicPolicies);
+                            try {
+                                listener.onUpdate(topicPolicies);
+                            } catch (Throwable error) {
+                                log.error("[{}] call listener error.", topicName, error);
+                            }
                         }
                     }
                 }));
