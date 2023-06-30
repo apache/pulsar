@@ -137,7 +137,7 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Trigger the current broker to graceful-shutdown asynchronously")
+    @Parameters(commandDescription = "Shutdown broker gracefully.")
     private class ShutDownBrokerGracefully extends CliCommand {
 
         @Parameter(names = {"--max-concurrent-unload-per-sec", "-m"},
@@ -148,17 +148,15 @@ public class CmdBrokers extends CmdBase {
         @Parameter(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
         private boolean forcedTerminateTopic;
 
-        @Parameter(names = {"--wait-for-broker-response", "-w"}, description = "Wait for Pulsar Service's response"
-                + "to ensure the start of broker's graceful shutdown")
-        private boolean waitForBrokerResponse;
+        @Parameter(names = {"--run-async", "-ra"}, description = "Synchronously run broker graceful shutdown")
+        private boolean runAsync;
 
         @Override
         void run() throws Exception {
-            getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic,
-                    waitForBrokerResponse);
+            getAdmin().brokers()
+                    .shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic, runAsync);
             System.out.println("Successfully triggered broker's graceful shutdown");
         }
-
     }
 
     @Parameters(commandDescription = "Manually trigger backlogQuotaCheck")

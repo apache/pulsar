@@ -545,16 +545,46 @@ public class BrokersBase extends AdminResource {
             @ApiParam(name = "maxConcurrentUnloadPerSec",
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
-            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
+            @QueryParam("runSynchronous") @DefaultValue("false") boolean runSynchronous,
+            @Suspended final AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        if (runSynchronous) {
+            doShutDownBrokerGracefullySync(maxConcurrentUnloadPerSec, forcedTerminateTopic, asyncResponse);
+        } else {
+            doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic, asyncResponse);
+        }
     }
 
-    private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                            boolean forcedTerminateTopic) {
+    private void doShutDownBrokerGracefullyAsync(int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic,
+                                                AsyncResponse asyncResponse) {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-        pulsar().closeAsync();
+        CompletableFuture.runAsync(
+                () -> pulsar()
+                        .closeAsync()
+                        .thenAccept(__ -> LOG.info("Broker graceful shutdown successfully"))
+                        .exceptionally(ex -> {
+                            LOG.error("Broker graceful shutdown failed", ex);
+                            return null;
+                        }));
+        asyncResponse.resume(Response.noContent().build());
+    }
+
+
+    private void doShutDownBrokerGracefullySync(int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic,
+                                                AsyncResponse asyncResponse) {
+        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        pulsar().closeAsync()
+                .thenAccept(__ -> {
+                    LOG.info("Broker shutdown successfully");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    LOG.error("Broker shutdown failed", ex);
+                    asyncResponse.resume(ex);
+                    return null;
+                });
     }
 }
 

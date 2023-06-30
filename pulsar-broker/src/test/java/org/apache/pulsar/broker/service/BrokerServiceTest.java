@@ -177,7 +177,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     /**
      * Testing {@link org.apache.pulsar.client.admin.Brokers#shutDownBrokerGracefully(int, boolean, boolean)}
-     * with {@code waitForBrokerResponse = true}
+     * with {@code runAsync = true}
      */
     @Test
     public void testShutDownWaitTime() throws Exception {
