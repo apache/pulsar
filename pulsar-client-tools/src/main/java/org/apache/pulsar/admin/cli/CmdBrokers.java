@@ -148,15 +148,12 @@ public class CmdBrokers extends CmdBase {
         @Parameter(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
         private boolean forcedTerminateTopic;
 
-        @Parameter(names = {"--run-async", "-ra"}, description = "Asynchronously run broker graceful shutdown")
-        private boolean runAsync;
-
         @Override
         void run() throws Exception {
-            getAdmin().brokers()
-                    .shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-            System.out.println("Successfully triggered broker's graceful shutdown");
+            getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+            System.out.println("Successfully trigger broker shutdown gracefully");
         }
+
     }
 
     @Parameters(commandDescription = "Manually trigger backlogQuotaCheck")
