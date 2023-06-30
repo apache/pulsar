@@ -29,6 +29,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.kafka.KafkaAbstractSource;
 import org.apache.pulsar.io.kafka.KafkaSourceConfig;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
