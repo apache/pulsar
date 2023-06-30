@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.kafka;
 
 import io.jsonwebtoken.io.Encoders;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,7 +67,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
-    private final Executor executor = Executors.newSingleThreadExecutor();
+    private final static Executor executor = Executors.newSingleThreadExecutor(
+            new DefaultThreadFactory("Kafka_source_close_task_thread"));
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
