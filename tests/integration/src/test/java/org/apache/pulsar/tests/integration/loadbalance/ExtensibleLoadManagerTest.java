@@ -261,7 +261,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertNotEquals(broker1, broker);
     }
 
-    // TODO: This test is very flaky and it's disabled for now to unblock CI
     @Test(timeOut = 40 * 1000)
     public void testAntiaffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
