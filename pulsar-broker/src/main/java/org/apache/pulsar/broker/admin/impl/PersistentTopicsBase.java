@@ -4145,31 +4145,43 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
             try {
-                PersistentSubscription sub = topic.getSubscription(subName);
-                if (sub == null) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                            getSubNotFoundErrorMessage(topicName.toString(), subName)));
-                    return;
+                PersistentSubscription sub = null;
+                PersistentReplicator repl = null;
+
+                if (subName.startsWith(topic.getReplicatorPrefix())) {
+                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    repl = (PersistentReplicator)
+                            topic.getPersistentReplicator(remoteCluster);
+                    if (repl == null) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Replicator not found"));
+                        return;
+                    }
+                } else {
+                    sub = topic.getSubscription(subName);
+                    if (sub == null) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                getSubNotFoundErrorMessage(topicName.toString(), subName)));
+                        return;
+                    }
                 }
+
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
+
+                PersistentReplicator finalRepl = repl;
+                PersistentSubscription finalSub = sub;
+
                 batchSizeFuture.thenAccept(bi -> {
                     PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
                     boolean issued;
                     try {
                         if (subName.startsWith(topic.getReplicatorPrefix())) {
-                            String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                            PersistentReplicator repl = (PersistentReplicator)
-                                    topic.getPersistentReplicator(remoteCluster);
-                            if (repl == null) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                        "Replicator not found"));
-                                return;
-                            }
-                            issued = repl.expireMessages(position);
+                            issued = finalRepl.expireMessages(position);
                         } else {
-                            issued = sub.expireMessages(position);
+                            issued = finalSub.expireMessages(position);
                         }
+
                         if (issued) {
                             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
                                     topicName, subName);
