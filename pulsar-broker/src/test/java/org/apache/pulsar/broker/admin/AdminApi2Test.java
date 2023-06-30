@@ -3304,4 +3304,26 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(ns, true);
         Assert.assertFalse(admin.namespaces().getNamespaces(defaultTenant).contains(ns));
     }
+
+    @Test
+    private void testSetBacklogQuotasNamespaceLevelIfRetentionExists() throws Exception {
+        final String ns = defaultTenant + "/ns-testSetBacklogQuotasNamespaceLevel";
+        final long backlogQuotaLimitSize = 100000002;
+        final int backlogQuotaLimitTime = 2;
+        admin.namespaces().createNamespace(ns, 2);
+        // create retention.
+        admin.namespaces().setRetention(ns, new RetentionPolicies(1800, 10000));
+        // set backlog quota.
+        admin.namespaces().setBacklogQuota(ns, BacklogQuota.builder()
+                .limitSize(backlogQuotaLimitSize).limitTime(backlogQuotaLimitTime).build());
+        // Verify result.
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> map = admin.namespaces().getBacklogQuotaMap(ns);
+        assertEquals(map.size(), 1);
+        assertTrue(map.containsKey(BacklogQuota.BacklogQuotaType.destination_storage));
+        BacklogQuota backlogQuota = map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        assertEquals(backlogQuota.getLimitSize(), backlogQuotaLimitSize);
+        assertEquals(backlogQuota.getLimitTime(), backlogQuotaLimitTime);
+        // cleanup.
+        admin.namespaces().deleteNamespace(ns);
+    }
 }
