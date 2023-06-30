@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     private final ManagedCursor cursor;
     private final String subName;
+    private final PersistentTopic topic;
     private final String topicName;
     private final Rate msgExpired;
     private final LongAdder totalMsgExpired;
@@ -57,9 +59,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             expirationCheckInProgressUpdater = AtomicIntegerFieldUpdater
             .newUpdater(PersistentMessageExpiryMonitor.class, "expirationCheckInProgress");
 
-    public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor,
-                                          PersistentSubscription subscription) {
-        this.topicName = topicName;
+    public PersistentMessageExpiryMonitor(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
+                                          @Nullable PersistentSubscription subscription) {
+        this.topic = topic;
+        this.topicName = topic.getName();
         this.cursor = cursor;
         this.subName = subscriptionName;
         this.subscription = subscription;
@@ -98,11 +101,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
 
     public boolean expireMessages(Position messagePosition) {
         // If it's beyond last position of this topic, do nothing.
-        if (((PositionImpl) subscription.getTopic().getLastPosition()).compareTo((PositionImpl) messagePosition) < 0) {
+        PositionImpl topicLastPosition = (PositionImpl) this.topic.getLastPosition();
+        if (topicLastPosition.compareTo((PositionImpl) messagePosition) < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
-                         + "current topic's last position {}", topicName, subName, messagePosition,
-                        subscription.getTopic().getLastPosition());
+                                + "current topic's last position {}", topicName, subName, messagePosition,
+                        topicLastPosition);
             }
             return false;
         }
