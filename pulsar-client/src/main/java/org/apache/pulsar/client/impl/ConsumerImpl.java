@@ -753,16 +753,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void connectionOpened(final ClientCnx cnx) {
+    public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
 
-        if (getState() == State.Closing || getState() == State.Closed) {
+        final State state = getState();
+        if (state == State.Closing || state == State.Closed) {
             setState(State.Closed);
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
             clearReceiverQueue();
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         log.info("[{}][{}] Subscribing to topic on cnx {}, consumerId {}",
@@ -816,6 +817,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
 
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
+        final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             setClientCnx(cnx);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
@@ -837,6 +839,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         deregisterFromClientCnx();
                         client.cleanupConsumer(this);
                         cnx.channel().close();
+                        future.complete(null);
                         return;
                     }
                 }
@@ -849,12 +852,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
                     increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
                 }
+                future.complete(null);
             }).exceptionally((e) -> {
                 deregisterFromClientCnx();
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
                     // drops the consumer on its side
                     cnx.channel().close();
+                    future.complete(null);
                     return null;
                 }
                 log.warn("[{}][{}] Failed to subscribe to topic on {}", topic,
@@ -872,7 +877,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (e.getCause() instanceof PulsarClientException
                         && PulsarClientException.isRetriableError(e.getCause())
                         && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
-                    reconnectLater(e.getCause());
+                    future.completeExceptionally(e.getCause());
                 } else if (!subscribeFuture.isDone()) {
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
@@ -896,11 +901,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             topic, subscription, cnx.channel().remoteAddress());
                 } else {
                     // consumer was subscribed and connected but we got some error, keep trying
-                    reconnectLater(e.getCause());
+                    future.completeExceptionally(e.getCause());
+                }
+
+                if (!future.isDone()) {
+                    future.complete(null);
                 }
                 return null;
             });
         }
+        return future;
     }
 
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
@@ -984,7 +994,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 setState(State.Failed);
                 if (nonRetriableError) {
                     log.info("[{}] Consumer creation failed for consumer {} with unretriableError {}",
-                            topic, consumerId, exception);
+                            topic, consumerId, exception.getMessage());
                 } else {
                     log.info("[{}] Consumer creation failed for consumer {} after timeout", topic, consumerId);
                 }
@@ -2581,10 +2591,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void deregisterFromClientCnx() {
         setClientCnx(null);
-    }
-
-    void reconnectLater(Throwable exception) {
-        this.connectionHandler.reconnectLater(exception);
     }
 
     void grabCnx() {

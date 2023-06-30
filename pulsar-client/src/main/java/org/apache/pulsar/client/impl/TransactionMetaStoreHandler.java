@@ -123,14 +123,17 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     @Override
-    public void connectionOpened(ClientCnx cnx) {
+    public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
                     transactionCoordinatorId);
 
-            if (getState() == State.Closing || getState() == State.Closed) {
+            State state = getState();
+            if (state == State.Closing || state == State.Closed) {
                 setState(State.Closed);
                 failPendingRequest();
+                future.complete(null);
                 return;
             }
 
@@ -146,6 +149,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                             this.connectionHandler.resetBackoff();
                             pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
                         }
+                        future.complete(null);
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
@@ -155,16 +159,19 @@ public class TransactionMetaStoreHandler extends HandlerState
                                 || e.getCause() instanceof PulsarClientException.NotAllowedException) {
                             setState(State.Closed);
                             cnx.channel().close();
+                            future.complete(null);
                         } else {
-                            connectionHandler.reconnectLater(e.getCause());
+                            future.completeExceptionally(e.getCause());
                         }
                     });
                     return null;
                 });
             } else {
                 registerToConnection(cnx);
+                future.complete(null);
             }
         });
+        return future;
     }
 
     private boolean registerToConnection(ClientCnx cnx) {
