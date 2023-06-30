@@ -67,7 +67,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
-    private final static Executor executor = Executors.newSingleThreadExecutor(
+    private final static Executor EXECUTOR = Executors.newSingleThreadExecutor(
             new DefaultThreadFactory("Kafka Source Close Task Thread"));
 
     @Override
@@ -195,7 +195,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         });
         runnerThread.setUncaughtExceptionHandler(
                 (t, e) -> {
-                    executor.execute(() -> {
+                    EXECUTOR.execute(() -> {
                         LOG.error("[{}] Error while consuming records", t.getName(), e);
                         try {
                             this.close();
