@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,7 +66,8 @@ public class TableViewImpl<T> implements TableView<T> {
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
-        this.compactionStrategy = TopicCompactionStrategy.load(conf.getTopicCompactionStrategyClassName());
+        this.compactionStrategy =
+                TopicCompactionStrategy.load(TABLE_VIEW_TAG, conf.getTopicCompactionStrategyClassName());
         ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
@@ -198,6 +200,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                 key,
                                 cur,
                                 prev);
+                        compactionStrategy.handleSkippedMessage(key, cur);
                     }
                 }
 
