@@ -54,6 +54,20 @@ public class JavaInstanceMain {
 
     private static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
+    private static final Method log4j2ShutdownMethod;
+
+    static {
+        // use reflection to find org.apache.logging.log4j.LogManager.shutdown method
+        Method shutdownMethod = null;
+        try {
+            shutdownMethod = Class.forName("org.apache.logging.log4j.LogManager")
+                    .getMethod("shutdown");
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            // ignore
+        }
+        log4j2ShutdownMethod = shutdownMethod;
+    }
+
     public JavaInstanceMain() { }
 
     public static void main(String[] args) throws Exception {
@@ -89,15 +103,27 @@ public class JavaInstanceMain {
 
         System.out.println("Using function root classloader: " + root);
         System.out.println("Using function instance classloader: " + functionInstanceClsLoader);
+        try {
+            // use the function instance classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
+            Object main =
+                    createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter",
+                            functionInstanceClsLoader);
 
-        // use the function instance classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
-        Object main = createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionInstanceClsLoader);
+            // Invoke start method of JavaInstanceStarter to start the function instance code
+            Method method =
+                    main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
 
-        // Invoke start method of JavaInstanceStarter to start the function instance code
-        Method method = main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
-
-        System.out.println("Starting function instance...");
-        method.invoke(main, args, functionInstanceClsLoader, root);
+            System.out.println("Starting function instance...");
+            method.invoke(main, args, functionInstanceClsLoader, root);
+        } catch (Throwable e) {
+            try {
+                shutdownLogging();
+            } finally {
+                System.out.println("Failed to start function instance.");
+                e.printStackTrace();
+                Runtime.getRuntime().halt(1);
+            }
+        }
     }
 
     public static Object createInstance(String userClassName,
@@ -146,6 +172,18 @@ public class JavaInstanceMain {
             return true;
         } else {
             return true;
+        }
+    }
+
+    private static void shutdownLogging() {
+        // flush log buffers and shutdown log4j2 logging to prevent log truncation
+        if (log4j2ShutdownMethod != null) {
+            try {
+                // use reflection to call org.apache.logging.log4j.LogManager.shutdown()
+                log4j2ShutdownMethod.invoke(null);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                // ignore
+            }
         }
     }
 }
