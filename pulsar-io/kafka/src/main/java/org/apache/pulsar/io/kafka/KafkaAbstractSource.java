@@ -68,7 +68,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
     private final static Executor executor = Executors.newSingleThreadExecutor(
-            new DefaultThreadFactory("Kafka_source_close_task_thread"));
+            new DefaultThreadFactory("Kafka Source Close Task Thread"));
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
