@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -179,6 +181,39 @@ public class FutureUtil {
             return ex.getCause();
         } else {
             return ex;
+        }
+    }
+
+    @ThreadSafe
+    public static class Sequencer<T> {
+        private CompletableFuture<T> sequencerFuture = CompletableFuture.completedFuture(null);
+        private final boolean allowExceptionBreakChain;
+
+        public Sequencer(boolean allowExceptionBreakChain) {
+            this.allowExceptionBreakChain = allowExceptionBreakChain;
+        }
+
+        public static <T> Sequencer<T> create(boolean allowExceptionBreakChain) {
+            return new Sequencer<>(allowExceptionBreakChain);
+        }
+        public static <T> Sequencer<T> create() {
+            return new Sequencer<>(false);
+        }
+
+        /**
+         * @throws NullPointerException NPE when param is null
+         */
+        public synchronized CompletableFuture<T> sequential(Supplier<CompletableFuture<T>> newTask) {
+            Objects.requireNonNull(newTask);
+            if (sequencerFuture.isDone()) {
+                if (sequencerFuture.isCompletedExceptionally() && allowExceptionBreakChain) {
+                    return sequencerFuture;
+                }
+                return sequencerFuture = newTask.get();
+            }
+            return sequencerFuture = allowExceptionBreakChain
+                    ? sequencerFuture.thenCompose(__ -> newTask.get())
+                    : sequencerFuture.exceptionally(ex -> null).thenCompose(__ -> newTask.get());
         }
     }
 
