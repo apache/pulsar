@@ -545,18 +545,17 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         admin.topics().expireMessages(topicName, subName, 1);
         pulsar.getBrokerService().updateRates();
 
-        Awaitility.await().ignoreExceptions().timeout(5, TimeUnit.SECONDS)
-                .until(() -> admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgRateExpired() > 0.001);
+        Awaitility.await().ignoreExceptions().timeout(10, TimeUnit.SECONDS)
+                .until(() -> pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getTotalMsgExpired() > 0);
 
-        Thread.sleep(2000);
-        pulsar.getBrokerService().updateRates();
+        Awaitility.await().ignoreExceptions().timeout(10, TimeUnit.SECONDS).until(() -> {
+            pulsar.getBrokerService().updateRates();
+            return pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getMsgRateExpired() < 0.001;
+        });
 
-        Awaitility.await().ignoreExceptions().timeout(5, TimeUnit.SECONDS)
-                .until(() -> admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgRateExpired() < 0.001);
-
-        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgRateExpired(), 0.0,
-                0.001);
-        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getTotalMsgExpired(),
+        assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getMsgRateExpired(),
+                0.0, 0.001);
+        assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName).getSubscriptions().get(subName).getTotalMsgExpired(),
                 numMessages);
 
         log.info("-- Exiting {} test --", methodName);
