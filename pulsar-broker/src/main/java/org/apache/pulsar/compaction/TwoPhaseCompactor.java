@@ -121,47 +121,10 @@ public class TwoPhaseCompactor extends Compactor {
                 () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
         future.thenAcceptAsync(m -> {
-            try {
+            try (m) {
                 MessageId id = m.getMessageId();
-                boolean deletedMessage = false;
-                boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
-                    try {
-                        for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
-                                .extractIdsAndKeysAndSize(m)) {
-                            if (e != null) {
-                                if (e.getRight() > 0) {
-                                    MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
-                                    replaceMessage = old != null;
-                                } else {
-                                    deletedMessage = true;
-                                    latestForKey.remove(e.getMiddle());
-                                }
-                            }
-                            if (replaceMessage || deletedMessage) {
-                                mxBean.addCompactionRemovedEvent(reader.getTopic());
-                            }
-                        }
-                    } catch (IOException ioe) {
-                        log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                                id, ioe);
-                    }
-                } else {
-                    Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
-                    if (keyAndSize != null) {
-                        if (keyAndSize.getRight() > 0) {
-                            MessageId old = latestForKey.put(keyAndSize.getLeft(), id);
-                            replaceMessage = old != null;
-                        } else {
-                            deletedMessage = true;
-                            latestForKey.remove(keyAndSize.getLeft());
-                        }
-                    }
-                    if (replaceMessage || deletedMessage) {
-                        mxBean.addCompactionRemovedEvent(reader.getTopic());
-                    }
-                }
+                boolean deletedMessage = isDeletedMessage(reader, latestForKey, m, id);
                 MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                 MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                 if (id.compareTo(lastMessageId) == 0) {
@@ -174,13 +137,54 @@ public class TwoPhaseCompactor extends Compactor {
                             lastMessageId,
                             latestForKey, loopPromise);
                 }
-            } finally {
-                m.close();
             }
         }, scheduler).exceptionally(ex -> {
             loopPromise.completeExceptionally(ex);
             return null;
         });
+    }
+
+    protected boolean isDeletedMessage(RawReader reader, Map<String, MessageId> latestForKey, RawMessage m,
+                                       MessageId id) {
+        boolean deletedMessage = false;
+        boolean replaceMessage = false;
+        if (RawBatchConverter.isReadableBatch(m)) {
+            try {
+                for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
+                        .extractIdsAndKeysAndSize(m)) {
+                    if (e != null) {
+                        if (e.getRight() > 0) {
+                            MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
+                            replaceMessage = old != null;
+                        } else {
+                            deletedMessage = true;
+                            latestForKey.remove(e.getMiddle());
+                        }
+                    }
+                    if (replaceMessage || deletedMessage) {
+                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                    }
+                }
+            } catch (IOException ioe) {
+                log.info("Error decoding batch for message {}. Whole batch will be included in output",
+                        id, ioe);
+            }
+        } else {
+            Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
+            if (keyAndSize != null) {
+                if (keyAndSize.getRight() > 0) {
+                    MessageId old = latestForKey.put(keyAndSize.getLeft(), id);
+                    replaceMessage = old != null;
+                } else {
+                    deletedMessage = true;
+                    latestForKey.remove(keyAndSize.getLeft());
+                }
+            }
+            if (replaceMessage || deletedMessage) {
+                mxBean.addCompactionRemovedEvent(reader.getTopic());
+            }
+        }
+        return deletedMessage;
     }
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to, MessageId lastReadId,
@@ -232,33 +236,10 @@ public class TwoPhaseCompactor extends Compactor {
                 m.close();
                 return;
             }
-            try {
+            try (m) {
                 MessageId id = m.getMessageId();
-                Optional<RawMessage> messageToAdd = Optional.empty();
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
-                    try {
-                        messageToAdd = RawBatchConverter.rebatchMessage(
-                                m, (key, subid) -> subid.equals(latestForKey.get(key)));
-                    } catch (IOException ioe) {
-                        log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                                id, ioe);
-                        messageToAdd = Optional.of(m);
-                    }
-                } else {
-                    Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
-                    MessageId msg;
-                    if (keyAndSize == null) { // pass through messages without a key
-                        messageToAdd = Optional.of(m);
-                    } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
-                            && msg.equals(id)) { // consider message only if present into latestForKey map
-                        if (keyAndSize.getRight() <= 0) {
-                            promise.completeExceptionally(new IllegalArgumentException(
-                                    "Compaction phase found empty record from sorted key-map"));
-                        }
-                        messageToAdd = Optional.of(m);
-                    }
-                }
+                Optional<RawMessage> messageToAdd = getRawMessage(latestForKey, promise, m, id);
 
                 if (messageToAdd.isPresent()) {
                     RawMessage message = messageToAdd.get();
@@ -300,13 +281,40 @@ public class TwoPhaseCompactor extends Compactor {
                     return;
                 }
                 phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
-            } finally {
-                m.close();
             }
         }, scheduler).exceptionally(ex -> {
             promise.completeExceptionally(ex);
             return null;
         });
+    }
+
+    protected Optional<RawMessage> getRawMessage(Map<String, MessageId> latestForKey, CompletableFuture<Void> promise,
+                                                 RawMessage m, MessageId id) {
+        Optional<RawMessage> messageToAdd = Optional.empty();
+        if (RawBatchConverter.isReadableBatch(m)) {
+            try {
+                messageToAdd = RawBatchConverter.rebatchMessage(
+                        m, (key, subid) -> subid.equals(latestForKey.get(key)));
+            } catch (IOException ioe) {
+                log.info("Error decoding batch for message {}. Whole batch will be included in output",
+                        id, ioe);
+                messageToAdd = Optional.of(m);
+            }
+        } else {
+            Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
+            MessageId msg;
+            if (keyAndSize == null) { // pass through messages without a key
+                messageToAdd = Optional.of(m);
+            } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
+                    && msg.equals(id)) { // consider message only if present into latestForKey map
+                if (keyAndSize.getRight() <= 0) {
+                    promise.completeExceptionally(new IllegalArgumentException(
+                            "Compaction phase found empty record from sorted key-map"));
+                }
+                messageToAdd = Optional.of(m);
+            }
+        }
+        return messageToAdd;
     }
 
     protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
@@ -414,7 +422,7 @@ public class TwoPhaseCompactor extends Compactor {
         }
     }
 
-    public long getPhaseOneLoopReadTimeoutInSeconds() {
+    protected long getPhaseOneLoopReadTimeoutInSeconds() {
         return phaseOneLoopReadTimeout.getSeconds();
     }
 }
