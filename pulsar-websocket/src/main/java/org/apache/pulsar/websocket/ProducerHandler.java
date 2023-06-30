@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,13 @@ package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
-
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -34,11 +34,10 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -48,6 +47,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
@@ -57,7 +57,6 @@ import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Websocket end-point url handler to handle incoming message coming from client. Websocket end-point url handler to
@@ -70,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProducerHandler extends AbstractWebSocketHandler {
 
+    private WebSocketService service;
     private Producer<byte[]> producer;
     private final LongAdder numMsgsSent;
     private final LongAdder numMsgsFailed;
@@ -81,6 +81,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     public static final List<Long> ENTRY_LATENCY_BUCKETS_USEC = Collections.unmodifiableList(Arrays.asList(
             500L, 1_000L, 5_000L, 10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 1000_000L));
+    private final ObjectReader producerMessageReader =
+            ObjectMapperFactory.getMapper().reader().forType(ProducerMessage.class);
 
     public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -88,6 +90,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.numBytesSent = new LongAdder();
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+        this.service = service;
 
         if (!checkAuth(response)) {
             return;
@@ -139,7 +142,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         byte[] rawPayload = null;
         String requestContext = null;
         try {
-            sendRequest = ObjectMapperFactory.getThreadLocal().readValue(message, ProducerMessage.class);
+            sendRequest = producerMessageReader.readValue(message);
             requestContext = sendRequest.context;
             rawPayload = Base64.getDecoder().decode(sendRequest.payload);
         } catch (IOException e) {
@@ -242,12 +245,24 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canProduce(topic, authRole, authenticationData);
+        try {
+            return service.getAuthorizationService()
+                    .allowTopicOperationAsync(topic, TopicOperation.PRODUCE, authRole, authenticationData)
+                    .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     private void sendAckResponse(ProducerAck response) {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
+            String msg = objectWriter().writeValueAsString(response);
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {
@@ -333,6 +348,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             builder.compressionType(CompressionType.valueOf(queryParams.get("compressionType")));
         }
 
+        if (queryParams.containsKey("encryptionKeys")) {
+            builder.cryptoKeyReader(service.getCryptoKeyReader().orElseThrow(() -> new IllegalStateException(
+                    "Can't add encryption key without configuring cryptoKeyReaderFactoryClassName")));
+            String[] keys = queryParams.get("encryptionKeys").split(",");
+            for (String key : keys) {
+                builder.addEncryptionKey(key);
+            }
+        }
         return builder;
     }
 

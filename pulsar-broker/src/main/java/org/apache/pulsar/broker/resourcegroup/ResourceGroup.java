@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -82,7 +82,7 @@ public class ResourceGroup {
         this.setResourceGroupConfigParameters(rgConfig);
         this.setDefaultResourceUsageTransportHandlers();
         this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
-        log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter.toString(), name,
+        log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter, name,
           this.getResourceGroupPublishLimiter());
     }
 
@@ -556,12 +556,16 @@ public class ResourceGroup {
         int idx;
 
         idx = ResourceGroupMonitoringClass.Publish.ordinal();
-        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getPublishRateInBytes();
-        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getPublishRateInMsgs();
+        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getPublishRateInBytes() == null
+                ? -1 : rgConfig.getPublishRateInBytes();
+        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getPublishRateInMsgs() == null
+                ? -1 : rgConfig.getPublishRateInMsgs();
 
         idx = ResourceGroupMonitoringClass.Dispatch.ordinal();
-        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getDispatchRateInBytes();
-        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getDispatchRateInMsgs();
+        this.monitoringClassFields[idx].configValuesPerPeriod.bytes = rgConfig.getDispatchRateInBytes() == null
+                ? -1 : rgConfig.getDispatchRateInBytes();
+        this.monitoringClassFields[idx].configValuesPerPeriod.messages = rgConfig.getDispatchRateInMsgs() == null
+                ? -1 : rgConfig.getDispatchRateInMsgs();
     }
 
     private void setDefaultResourceUsageTransportHandlers() {

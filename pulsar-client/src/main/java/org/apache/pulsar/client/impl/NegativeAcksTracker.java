@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMessageIdsAndRemoveFromSequenceMap;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
-
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMessageIdsAndRemoveFromSequenceMap;
 
 class NegativeAcksTracker implements Closeable {
 
@@ -39,6 +41,7 @@ class NegativeAcksTracker implements Closeable {
     private final Timer timer;
     private final long nackDelayNanos;
     private final long timerIntervalNanos;
+    private final RedeliveryBackoff negativeAckRedeliveryBackoff;
 
     private Timeout timeout;
 
@@ -50,7 +53,14 @@ class NegativeAcksTracker implements Closeable {
         this.timer = consumer.getClient().timer();
         this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
                 MIN_NACK_DELAY_NANOS);
-        this.timerIntervalNanos = nackDelayNanos / 3;
+        this.negativeAckRedeliveryBackoff = conf.getNegativeAckRedeliveryBackoff();
+        if (negativeAckRedeliveryBackoff != null) {
+            this.timerIntervalNanos = Math.max(
+                    TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(0)),
+                    MIN_NACK_DELAY_NANOS) / 3;
+        } else {
+            this.timerIntervalNanos = nackDelayNanos / 3;
+        }
     }
 
     private synchronized void triggerRedelivery(Timeout t) {
@@ -77,22 +87,36 @@ class NegativeAcksTracker implements Closeable {
     }
 
     public synchronized void add(MessageId messageId) {
-        if (messageId instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            messageId = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
-                    batchMessageId.getPartitionIndex());
-        }
+        add(messageId, 0);
+    }
 
+    public synchronized void add(Message<?> message) {
+        add(message.getMessageId(), message.getRedeliveryCount());
+    }
+
+    private synchronized void add(MessageId messageId, int redeliveryCount) {
         if (nackedMessages == null) {
             nackedMessages = new HashMap<>();
         }
-        nackedMessages.put(messageId, System.nanoTime() + nackDelayNanos);
+
+        long backoffNs;
+        if (negativeAckRedeliveryBackoff != null) {
+            backoffNs = TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(redeliveryCount));
+        } else {
+            backoffNs = nackDelayNanos;
+        }
+        nackedMessages.put(MessageIdAdvUtils.discardBatch(messageId), System.nanoTime() + backoffNs);
 
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
             // nack immediately following the current one will be batched into the same redeliver request.
             this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
         }
+    }
+
+    @VisibleForTesting
+    Optional<Integer> getNackedMessagesCount() {
+        return Optional.ofNullable(nackedMessages).map(HashMap::size);
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000 };
-    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_232_896 };
+    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_048_576 };
 
     private final ManagedLedgerImpl managedLedger;
 
@@ -39,6 +39,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final Rate addEntryOpsFailed = new Rate();
     private final Rate readEntriesOps = new Rate();
     private final Rate readEntriesOpsFailed = new Rate();
+    private final Rate readEntriesOpsCacheMisses = new Rate();
     private final Rate markDeleteOps = new Rate();
 
     private final LongAdder dataLedgerOpenOp = new LongAdder();
@@ -63,11 +64,16 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void refreshStats(long period, TimeUnit unit) {
         double seconds = unit.toMillis(period) / 1000.0;
+        if (seconds <= 0.0) {
+            // skip refreshing stats
+            return;
+        }
         addEntryOps.calculateRate(seconds);
         addEntryWithReplicasOps.calculateRate(seconds);
         addEntryOpsFailed.calculateRate(seconds);
         readEntriesOps.calculateRate(seconds);
         readEntriesOpsFailed.calculateRate(seconds);
+        readEntriesOpsCacheMisses.calculateRate(seconds);
         markDeleteOps.calculateRate(seconds);
 
         addEntryLatencyStatsUsec.refresh();
@@ -92,6 +98,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void recordReadEntriesError() {
         readEntriesOpsFailed.recordEvent();
+    }
+
+    public void recordReadEntriesOpsCacheMisses(int count, long totalSize) {
+        readEntriesOpsCacheMisses.recordMultipleEvents(count, totalSize);
     }
 
     public void addAddEntryLatencySample(long latency, TimeUnit unit) {
@@ -222,6 +232,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public long getReadEntriesErrors() {
         return readEntriesOpsFailed.getCount();
+    }
+
+    @Override
+    public double getReadEntriesOpsCacheMissesRate() {
+        return readEntriesOpsCacheMisses.getRate();
     }
 
     @Override

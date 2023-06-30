@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,22 +19,18 @@
 package org.apache.pulsar.websocket.admin.v1;
 
 import static org.apache.pulsar.common.util.Codec.decode;
-
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-
 import java.util.Collection;
 import java.util.Map;
-
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.admin.WebSocketProxyStatsBase;
@@ -47,7 +43,9 @@ public class WebSocketProxyStatsV1 extends WebSocketProxyStatsBase {
 
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics", response = Metrics.class, responseContainer = "List")
+    @ApiOperation(value = "Gets the metrics for Monitoring",
+                  notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics",
+                  response = Metrics.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public Collection<Metrics> internalGetMetrics() throws Exception {
         return super.internalGetMetrics();
@@ -60,7 +58,8 @@ public class WebSocketProxyStatsV1 extends WebSocketProxyStatsBase {
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public ProxyTopicStat getStats(@PathParam("tenant") String tenant, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
-        return super.internalGetStats(TopicName.get("persistent", tenant, cluster, namespace, decode(encodedTopic)));
+        return super.internalGetStats(
+                TopicName.get("persistent", tenant, cluster, namespace, decode(encodedTopic)));
     }
 
     @GET

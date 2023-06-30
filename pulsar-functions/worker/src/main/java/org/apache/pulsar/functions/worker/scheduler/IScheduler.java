@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.functions.worker.scheduler;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
 public interface IScheduler {
 
     /**
-     * Scheduler schedules assignments to appropriate workers and adds into #resultAssignments
-     * 
+     * Scheduler schedules assignments to appropriate workers and adds into #resultAssignments.
      * @param unassignedFunctionInstances
      *            all unassigned instances
      * @param currentAssignments
@@ -41,10 +39,10 @@ public interface IScheduler {
      *            A list of new assignments
      */
     List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment> currentAssignments,
-            Set<String> workers);
+                              Set<String> workers);
 
     /**
-     * Rebalances function instances scheduled to workers
+     * Rebalances function instances scheduled to workers.
      *
      * @param currentAssignments
      *            current assignments
@@ -53,7 +51,7 @@ public interface IScheduler {
      * @return
      *            A list of new assignments
      */
-    default List<Function.Assignment> rebalance(List<Function.Assignment> currentAssignments, Set<String> workers){
+    default List<Function.Assignment> rebalance(List<Function.Assignment> currentAssignments, Set<String> workers) {
         return Collections.emptyList();
     }
 }

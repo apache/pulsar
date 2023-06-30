@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.canal;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-
 import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.FlatMessage;
 import com.alibaba.otter.canal.protocol.Message;
 import com.google.protobuf.ByteString;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A Simple class for mysql binlog message to parse.
@@ -58,7 +56,7 @@ public class MessageUtils {
     }
 
     /**
-     * Message convert to FlatMessage
+     * Message convert to FlatMessage.
      *
      * @param message
      * @return FlatMessage List
@@ -92,7 +90,7 @@ public class MessageUtils {
                 try {
                     rowChange = CanalEntry.RowChange.parseFrom(entry.getStoreValue());
                 } catch (Exception e) {
-                    throw new RuntimeException("ERROR ## parser of eromanga-event has an error , data:"
+                    throw new RuntimeException("ERROR ## parser of eromanga-event has an error, data:"
                             + entry.toString(), e);
                 }
 

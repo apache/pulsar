@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -30,9 +31,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
-
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -43,16 +42,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 
 /**
  * Utils for schemas.
@@ -214,7 +210,7 @@ public final class SchemaUtils {
     }
 
     /**
-     * Jsonify the schema info with verison.
+     * Jsonify the schema info with version.
      *
      * @param schemaInfoWithVersion the schema info
      * @return the jsonified schema info with version
@@ -284,15 +280,15 @@ public final class SchemaUtils {
                 case AVRO:
                 case JSON:
                 case PROTOBUF:
-                    return toJsonObject(schemaInfo.getSchemaDefinition());
+                    return toJsonElement(schemaInfo.getSchemaDefinition());
                 case KEY_VALUE:
                     KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                         DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo);
                     JsonObject obj = new JsonObject();
                     String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey());
                     String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue());
-                    obj.add("key", toJsonObject(keyJson));
-                    obj.add("value", toJsonObject(valueJson));
+                    obj.add("key", toJsonElement(keyJson));
+                    obj.add("value", toJsonElement(valueJson));
                     return obj;
                 default:
                     return new JsonPrimitive(schemaDef);
@@ -300,8 +296,13 @@ public final class SchemaUtils {
         }
     }
 
-    public static JsonObject toJsonObject(String json) {
-        return JsonParser.parseString(json).getAsJsonObject();
+    public static JsonElement toJsonElement(String str) {
+        try {
+            return JsonParser.parseString(str).getAsJsonObject();
+        } catch (IllegalStateException e) {
+            // because str may not a json, so we should use JsonPrimitive
+            return new JsonPrimitive(str);
+        }
     }
 
     private static class SchemaInfoToStringAdapter implements JsonSerializer<SchemaInfo> {
@@ -310,7 +311,8 @@ public final class SchemaUtils {
         public JsonElement serialize(SchemaInfo schemaInfo,
                                      Type type,
                                      JsonSerializationContext jsonSerializationContext) {
-            return toJsonObject(jsonifySchemaInfo(schemaInfo));
+            // schema will not a json, so use toJsonElement
+            return toJsonElement(jsonifySchemaInfo(schemaInfo));
         }
     }
 
@@ -330,45 +332,49 @@ public final class SchemaUtils {
     }
 
     /**
-     * convert the key/value schema info data to string
+     * Convert the key/value schema info data to string.
      *
      * @param kvSchemaInfo the key/value schema info
      * @return the convert schema info data string
      */
-    public static String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
-        ObjectMapper objectMapper = ObjectMapperFactory.create();
-        KeyValue<Object, Object> keyValue = new KeyValue<>(SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
-                : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()), SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ?
-                "" : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
-        return objectMapper.writeValueAsString(keyValue);
+    public static String convertKeyValueSchemaInfoDataToString(
+            KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+        ObjectReader objectReader = ObjectMapperFactory.getMapper().reader();
+        KeyValue<Object, Object> keyValue = new KeyValue<>(
+                SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
+                        : objectReader.readTree(kvSchemaInfo.getKey().getSchema()),
+                SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ? ""
+                        : objectReader.readTree(kvSchemaInfo.getValue().getSchema()));
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
-        return KEY_VALUE_SCHEMA_NULL_STRING.equals(jsonElement.toString()) ?
-                KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
+        return KEY_VALUE_SCHEMA_NULL_STRING.equals(jsonElement.toString())
+                ? KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
     }
 
     /**
-     * convert the key/value schema info data json bytes to key/value schema info data bytes
+     * Convert the key/value schema info data json bytes to key/value schema info data bytes.
      *
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
-        JsonObject jsonObject = toJsonObject(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
+    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(
+            byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+        JsonObject jsonObject = (JsonObject) toJsonElement(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
         byte[] keyBytes = getKeyOrValueSchemaBytes(jsonObject.get("key"));
         byte[] valueBytes = getKeyOrValueSchemaBytes(jsonObject.get("value"));
         int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
         byte[] schema = new byte[dataLength];
         //record the key value schema respective length
-        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.heapBuffer(dataLength);
         byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
         byteBuf.readBytes(schema);
         return schema;
     }
 
     /**
-     * Serialize schema properties
+     * Serialize schema properties.
      *
      * @param properties schema properties
      * @return the serialized schema properties

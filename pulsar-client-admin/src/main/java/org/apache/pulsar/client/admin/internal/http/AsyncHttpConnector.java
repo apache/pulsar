@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin.internal.http;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -50,6 +51,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.WithSNISslEngineFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -95,6 +97,7 @@ public class AsyncHttpConnector implements Connector {
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds, ClientConfigurationData conf) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
         confBuilder.setConnectTimeout(connectTimeoutMs);
@@ -120,14 +123,16 @@ public class AsyncHttpConnector implements Connector {
                 AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
 
                 if (conf.isUseKeyStoreTls()) {
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
+                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                                    conf.getTlsKeyStorePassword());
 
                     final SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
-                            params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
-                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                            params.getKeyStoreType(),
+                            params.getKeyStorePath(),
+                            params.getKeyStorePassword(),
+                            conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
                             conf.getTlsTrustStorePassword(),
@@ -137,25 +142,43 @@ public class AsyncHttpConnector implements Connector {
                     JsseSslEngineFactory sslEngineFactory = new JsseSslEngineFactory(sslCtx);
                     confBuilder.setSslEngineFactory(sslEngineFactory);
                 } else {
+                    SslProvider sslProvider = null;
+                    if (conf.getSslProvider() != null) {
+                        sslProvider = SslProvider.valueOf(conf.getSslProvider());
+                    }
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
                         sslCtx = authData.getTlsTrustStoreStream() == null
                                 ? SecurityUtility.createAutoRefreshSslContextForClient(
-                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
-                                        authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
+                                authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
                                 : SecurityUtility.createNettySslContextForClient(
-                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                        authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
-                                        authData.getTlsPrivateKey());
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
-                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                conf.getTlsTrustCertsFilePath());
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCertificateFilePath(),
+                                conf.getTlsKeyFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
+                    if (!conf.isTlsHostnameVerificationEnable()) {
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
+                                .resolveHostUri().getHost()));
+                    }
                 }
             }
+            confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
         this.readTimeout = Duration.ofMillis(readTimeoutMs);
@@ -187,7 +210,7 @@ public class AsyncHttpConnector implements Connector {
     private URI replaceWithNew(InetSocketAddress address, URI uri) {
         String originalUri = uri.toString();
         String newUri = (originalUri.split(":")[0] + "://")
-                + address.getHostName() + ":"
+                + address.getHostString() + ":"
                 + address.getPort()
                 + uri.getRawPath();
         if (uri.getRawQuery() != null) {
@@ -218,6 +241,9 @@ public class AsyncHttpConnector implements Connector {
 
                     @Override
                     public String getReasonPhrase() {
+                        if (response.hasResponseBody()) {
+                            return response.getResponseBody();
+                        }
                         return response.getStatusText();
                     }
                 });

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
@@ -123,6 +122,8 @@ public class NarUnpacker {
                 if (jarEntry.isDirectory()) {
                     FileUtils.ensureDirectoryExistAndCanReadAndWrite(f);
                 } else {
+                    // The directory entry might appear after the file entry
+                    FileUtils.ensureDirectoryExistAndCanReadAndWrite(f.getParentFile());
                     makeFile(jarFile.getInputStream(jarEntry), f);
                 }
             }

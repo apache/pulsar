@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,11 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
+import java.util.stream.Collectors;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 /**
  * This class represents all data that could be relevant when making a load management decision.
@@ -57,6 +60,13 @@ public class LoadData {
 
     public Map<String, BundleData> getBundleData() {
         return bundleData;
+    }
+
+    public Map<String, BundleData> getBundleDataForLoadShedding() {
+        return bundleData.entrySet().stream()
+                .filter(e -> !NamespaceService.filterNamespaceForShedding(
+                        NamespaceBundle.getBundleNamespace(e.getKey())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     public Map<String, Long> getRecentlyUnloadedBundles() {

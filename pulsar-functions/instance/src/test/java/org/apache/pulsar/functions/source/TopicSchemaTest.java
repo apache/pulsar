@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,7 @@ import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Request;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import java.util.Optional;
 
@@ -37,7 +37,7 @@ public class TopicSchemaTest {
 
     @Test
     public void testGetSchema() {
-        TopicSchema topicSchema = new TopicSchema(null);
+        TopicSchema topicSchema = new TopicSchema(null, Thread.currentThread().getContextClassLoader());
 
         String TOPIC = "public/default/test";
         Schema<?> schema = topicSchema.getSchema(TOPIC + "1", DummyClass.class, Optional.of(SchemaType.JSON));
@@ -50,9 +50,11 @@ public class TopicSchemaTest {
         schema = topicSchema.getSchema(TOPIC + "3", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF));
         assertEquals(schema.getClass(), ProtobufSchema.class);
 
-        schema = topicSchema.getSchema(TOPIC + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
+        schema = topicSchema
+                .getSchema(TOPIC + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
         assertEquals(schema.getClass(), ProtobufNativeSchema.class);
     }
 
-    private static class DummyClass {}
+    private static class DummyClass {
+    }
 }

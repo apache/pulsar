@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Implementation of GenericRecord that wraps objects of non Struct types.
@@ -91,8 +90,8 @@ class GenericObjectWrapper implements GenericRecord {
             return false;
         }
         GenericObjectWrapper gw = (GenericObjectWrapper) other;
-        return this.schemaType == gw.schemaType &&
-                Objects.equals(nativeObject, gw.nativeObject) &&
-                Arrays.equals(schemaVersion, gw.schemaVersion);
+        return this.schemaType == gw.schemaType
+                && Objects.equals(nativeObject, gw.nativeObject)
+                && Arrays.equals(schemaVersion, gw.schemaVersion);
     }
 }

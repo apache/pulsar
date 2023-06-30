@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -70,6 +70,7 @@ public class ProxyExtensionWithClassLoaderTest {
         verify(h, times(1)).start(service);
     }
 
+    @Test
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader loader = mock(NarClassLoader.class);
 

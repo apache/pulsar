@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,22 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.util.Map;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -46,18 +52,148 @@ public interface BrokerInterceptor extends AutoCloseable {
 
     /**
      * Intercept messages before sending them to the consumers.
+     * Deprecated, use {@link #beforeSendMessage(Subscription, Entry, long[], MessageMetadata, Consumer)} instead.
      *
      * @param subscription pulsar subscription
      * @param entry entry
      * @param ackSet entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.
      * @param msgMetadata message metadata. The message metadata will be recycled after this call.
      */
+    @Deprecated
     default void beforeSendMessage(Subscription subscription,
                                    Entry entry,
                                    long[] ackSet,
                                    MessageMetadata msgMetadata) {
     }
 
+    /**
+     * Intercept messages before sending them to the consumers.
+     *
+     * @param subscription pulsar subscription
+     * @param entry entry
+     * @param ackSet entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.
+     * @param msgMetadata message metadata. The message metadata will be recycled after this call.
+     * @param consumer consumer. Consumer which entry are sent to.
+     */
+    default void beforeSendMessage(Subscription subscription,
+                                   Entry entry,
+                                   long[] ackSet,
+                                   MessageMetadata msgMetadata,
+                                   Consumer consumer) {
+    }
+
+    /**
+     * Called by the broker when a new connection is created.
+     */
+    default void onConnectionCreated(ServerCnx cnx){
+    }
+
+    /**
+     * Called by the broker when a new connection is created.
+     */
+    default void producerCreated(ServerCnx cnx, Producer producer,
+                                 Map<String, String> metadata){
+    }
+
+    /**
+     * Called by the broker when a producer is closed.
+     *
+     * @param cnx      client Connection
+     * @param producer Producer object
+     * @param metadata A map of metadata
+     */
+    default void producerClosed(ServerCnx cnx,
+                                Producer producer,
+                                Map<String, String> metadata) {
+    }
+
+    /**
+     * Intercept after a consumer is created.
+     *
+     * @param cnx client Connection
+     * @param consumer Consumer object
+     * @param metadata A map of metadata
+     */
+    default void consumerCreated(ServerCnx cnx,
+                                 Consumer consumer,
+                                 Map<String, String> metadata) {
+    }
+
+    /**
+     *  Called by the broker when a consumer is closed.
+     *
+     * @param cnx client Connection
+     * @param consumer Consumer object
+     * @param metadata A map of metadata
+     */
+    default void consumerClosed(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+    }
+
+    /**
+     * Intercept message when broker receive a send request.
+     *
+     * @param headersAndPayload entry's header and payload
+     * @param publishContext Publish Context
+     */
+    default void onMessagePublish(Producer producer,
+                                  ByteBuf headersAndPayload,
+                                  Topic.PublishContext publishContext) {
+
+    }
+
+    /**
+     * Intercept after a message is produced.
+     *
+     * @param cnx client Connection
+     * @param producer Producer object
+     * @param publishContext Publish Context
+     */
+    default void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
+                                 long entryId, Topic.PublishContext publishContext) {
+    }
+
+    /**
+     * Intercept after a message is dispatched to consumer.
+     *
+     * @param cnx client Connection
+     * @param consumer Consumer object
+     * @param ledgerId Ledger ID
+     * @param entryId Entry ID
+     * @param headersAndPayload Data
+     */
+    default void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
+                                   long entryId, ByteBuf headersAndPayload) {
+    }
+
+    /**
+     * Intercept after a message ack is processed.
+     *
+     * @param cnx client Connection
+     * @param ackCmd Command object
+     */
+    default void messageAcked(ServerCnx cnx, Consumer consumer,
+                              CommandAck ackCmd) {
+    }
+
+    /**
+     * Intercept when a transaction begins.
+     *
+     * @param tcId Transaction Coordinator Id
+     * @param txnID Transaction ID
+     */
+    default void txnOpened(long tcId, String txnID) {
+    }
+
+    /**
+     * Intercept when a transaction ends.
+     *
+     * @param txnID Transaction ID
+     * @param txnAction Transaction Action
+     */
+    default void txnEnded(String txnID, long txnAction) {
+    }
     /**
      * Called by the broker while new command incoming.
      */
@@ -94,44 +230,6 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @throws Exception when fail to initialize the broker interceptor.
      */
     void initialize(PulsarService pulsarService) throws Exception;
-
-    BrokerInterceptor DISABLED = new BrokerInterceptorDisabled();
-
-    /**
-     * Broker interceptor disabled implementation.
-     */
-    class BrokerInterceptorDisabled implements BrokerInterceptor {
-
-        @Override
-        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
-            // no-op
-        }
-
-        @Override
-        public void onConnectionClosed(ServerCnx cnx) {
-            // no-op
-        }
-
-        @Override
-        public void onWebserviceRequest(ServletRequest request) {
-            // no-op
-        }
-
-        @Override
-        public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
-            // no-op
-        }
-
-        @Override
-        public void initialize(PulsarService pulsarService) throws Exception {
-            // no-op
-        }
-
-        @Override
-        public void close() {
-            // no-op
-        }
-    }
 
     /**
      * Close this broker interceptor.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.sink;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SinkContext;
@@ -94,6 +94,11 @@ public class KafkaAbstractSinkTest {
 
             @Override
             public Collection<String> getInputTopics() {
+                return null;
+            }
+
+            @Override
+            public SinkConfig getSinkConfig() {
                 return null;
             }
 

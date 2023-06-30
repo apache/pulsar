@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
@@ -46,25 +45,36 @@ public class PositionAckSetUtil {
         if (currentPosition == null || otherPosition == null) {
             return;
         }
-        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(currentPosition.getAckSet());
-        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(otherPosition.getAckSet());
+        currentPosition.setAckSet(andAckSet(currentPosition.getAckSet(), otherPosition.getAckSet()));
+    }
+
+    //This method is do `and` operation for ack set
+    public static long[] andAckSet(long[] firstAckSet, long[] secondAckSet) {
+        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(firstAckSet);
+        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(secondAckSet);
         thisAckSet.and(otherAckSet);
-        currentPosition.setAckSet(thisAckSet.toLongArray());
+        long[] ackSet = thisAckSet.toLongArray();
         thisAckSet.recycle();
         otherAckSet.recycle();
+        return ackSet;
+    }
+
+    public static boolean isAckSetEmpty(long[] ackSet) {
+        BitSetRecyclable bitSet =  BitSetRecyclable.create().resetWords(ackSet);
+        boolean isEmpty = bitSet.isEmpty();
+        bitSet.recycle();
+        return isEmpty;
     }
 
     //This method is compare two position which position is bigger than another one.
     //When the ledgerId and entryId in this position is same to another one and two position all have ack set, it will
     //compare the ack set next bit index is bigger than another one.
-    public static int compareToWithAckSet(PositionImpl currentPosition,PositionImpl otherPosition) {
-        if (currentPosition == null || otherPosition ==null) {
-            throw new NullPointerException("Two positions can't be null! " +
-                    "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
+    public static int compareToWithAckSet(PositionImpl currentPosition, PositionImpl otherPosition) {
+        if (currentPosition == null || otherPosition == null) {
+            throw new IllegalArgumentException("Two positions can't be null! "
+                    + "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
         }
-        int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),
-                otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
-                .result();
+        int result = currentPosition.compareTo(otherPosition);
         if (result == 0) {
             BitSetRecyclable otherAckSet;
             BitSetRecyclable currentAckSet;

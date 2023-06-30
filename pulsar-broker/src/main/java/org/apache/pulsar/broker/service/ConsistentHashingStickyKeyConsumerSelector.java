@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,15 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
@@ -54,7 +53,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public void addConsumer(Consumer consumer) throws ConsumerAssignException {
+    public CompletableFuture<Void> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             // Insert multiple points on the hash ring for every consumer
@@ -74,6 +73,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 });
             }
+            return CompletableFuture.completedFuture(null);
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -91,7 +91,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     if (v == null) {
                         return null;
                     } else {
-                        v.removeIf(c -> c.consumerName().equals(consumer.consumerName()));
+                        v.removeIf(c -> c.equals(consumer));
                         if (v.isEmpty()) {
                             v = null;
                         }
@@ -143,9 +143,5 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             rwLock.readLock().unlock();
         }
         return result;
-    }
-
-    Map<Integer, List<Consumer>> getRangeConsumer() {
-        return Collections.unmodifiableMap(hashRing);
     }
 }

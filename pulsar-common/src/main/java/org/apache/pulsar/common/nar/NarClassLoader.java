@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
 package org.apache.pulsar.common.nar;
-
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -36,7 +32,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -45,6 +40,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
@@ -141,19 +138,10 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir") != null
+            ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
-                                                String narExtractionDirectory) throws IOException {
-        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
-                                                narExtractionDirectory);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
@@ -192,18 +180,14 @@ public class NarClassLoader extends URLClassLoader {
         // process the classpath
         updateClasspath(narWorkingDirectory);
 
-        for (String jar : additionalJars) {
-            if (jar.startsWith("/")) {
-                addURL(new URL("file://" + jar));
-            } else {
-                Path currentRelativePath = Paths.get("");
-                String cwd = currentRelativePath.toAbsolutePath().toString();
-                addURL(new URL("file://" + cwd + "/" + jar));
+        if (additionalJars != null) {
+            for (String jar : additionalJars) {
+                addURL(Paths.get(jar).toUri().toURL());
             }
         }
 
         if (log.isDebugEnabled()) {
-            log.info("Created class loader with paths: {}", Arrays.toString(getURLs()));
+            log.debug("Created class loader with paths: {}", Arrays.toString(getURLs()));
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.jose4j.json.internal.json_simple.JSONObject;
@@ -28,9 +30,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.testng.AssertJUnit.assertTrue;
+
+@Slf4j
 public class RuntimeUtilsTest {
 
     @Test
@@ -67,6 +73,13 @@ public class RuntimeUtilsTest {
         instanceConfig.setPort(1337);
         instanceConfig.setMetricsPort(60000);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationToken")
+                .clientAuthenticationParameters("file:///secret/token.jwt")
+                .tlsTrustCertsFilePath("/secret/ca.cert.pem")
+                .tlsHostnameVerificationEnable(true)
+                .tlsAllowInsecureConnection(false)
+                .build();
 
         JSONObject userConfig = new JSONObject();
         userConfig.put("word-of-the-day", "der Weltschmerz");
@@ -99,6 +112,7 @@ public class RuntimeUtilsTest {
                 .setName("go-func")
                 .setLogTopic("go-func-log")
                 .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
+                .setRuntime(Function.FunctionDetails.Runtime.GO)
                 .setSecretsMap(secretsMap.toJSONString())
                 .setParallelism(1)
                 .setSource(sources)
@@ -108,8 +122,9 @@ public class RuntimeUtilsTest {
                 .build();
 
         instanceConfig.setFunctionDetails(functionDetails);
+        instanceConfig.setExposePulsarAdminClientEnabled(true);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",  "http://localhost:8080", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -137,7 +152,9 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("autoAck"), true);
         Assert.assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
         Assert.assertEquals(goInstanceConfig.get("pulsarServiceURL"), "pulsar://localhost:6650");
-        Assert.assertEquals(goInstanceConfig.get("runtime"), 0);
+        Assert.assertEquals(goInstanceConfig.get("stateStorageServiceUrl"), "bk://localhost:4181");
+        Assert.assertEquals(goInstanceConfig.get("pulsarWebServiceUrl"), "http://localhost:8080");
+        Assert.assertEquals(goInstanceConfig.get("runtime"), 3);
         Assert.assertEquals(goInstanceConfig.get("cpu"), 2.0);
         Assert.assertEquals(goInstanceConfig.get("funcID"), "func-7734");
         Assert.assertEquals(goInstanceConfig.get("funcVersion"), "1.0.0");
@@ -153,6 +170,11 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
         Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "file:///secret/token.jwt");
+        Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
+        Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);
+        Assert.assertEquals(goInstanceConfig.get("tlsAllowInsecureConnection"), false);
     }
 
     @DataProvider(name = "k8sRuntime")
@@ -165,5 +187,52 @@ public class RuntimeUtilsTest {
                         false
                 }
         };
+    }
+
+    @Test(dataProvider = "k8sRuntime")
+    public void getAdditionalJavaRuntimeArguments(boolean k8sRuntime) throws Exception {
+
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setClusterName("kluster");
+        instanceConfig.setInstanceId(3000);
+        instanceConfig.setFunctionId("func-7734");
+        instanceConfig.setFunctionVersion("1.0.0");
+        instanceConfig.setMaxBufferedTuples(5);
+        instanceConfig.setPort(1337);
+        instanceConfig.setFunctionDetails(Function.FunctionDetails.newBuilder().build());
+        instanceConfig.setAdditionalJavaRuntimeArguments(Arrays.asList("-XX:+ExitOnOutOfMemoryError"));
+
+        List<String> cmd = RuntimeUtils.getCmd(instanceConfig, "instanceFile",
+                "extraDependenciesDir", /* extra dependencies for running instances */
+                "logDirectory",
+                "originalCodeFileName",
+                "originalExtraFileName",
+                "pulsarServiceUrl",
+                "stateStorageServiceUrl",
+                AuthenticationConfig.builder().build(),
+                "shardId",
+                23,
+                1234L,
+                "logConfigFile",
+                "secretsProviderClassName",
+                "secretsProviderConfig",
+                false,
+                null,
+                null,
+                "narExtractionDirectory",
+                "functionInstanceClassPath",
+                false,
+                "");
+
+        log.info("cmd {}", cmd);
+
+        assertTrue(cmd.contains("-XX:+ExitOnOutOfMemoryError"));
+
+        // verify that the additional runtime arguments are passed before the Java class
+        int indexJavaClass = cmd.indexOf("org.apache.pulsar.functions.instance.JavaInstanceMain");
+        int indexAdditionalArguments = cmd.indexOf("-XX:+ExitOnOutOfMemoryError");
+        assertTrue(indexJavaClass > 0);
+        assertTrue(indexAdditionalArguments > 0);
+        assertTrue(indexAdditionalArguments < indexJavaClass);
     }
 }

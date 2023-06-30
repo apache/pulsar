@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -73,7 +73,7 @@ public class BundlesQuotas {
     }
 
     public CompletableFuture<ResourceQuota> getResourceQuota(String bundle) {
-        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle.toString())
+        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle)
                 .thenCompose(optResourceQuota -> {
                     if (optResourceQuota.isPresent()) {
                         return CompletableFuture.completedFuture(optResourceQuota.get());

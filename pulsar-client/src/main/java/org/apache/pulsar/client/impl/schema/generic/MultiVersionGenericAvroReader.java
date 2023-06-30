@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -26,8 +27,6 @@ import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 
 /**
  * A multi version generic avro reader.

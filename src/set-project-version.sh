@@ -34,7 +34,7 @@ TERRAFORM_DIR=${ROOT_DIR}/deployment/terraform-ansible
 pushd ${ROOT_DIR}
 
 # Get the current version
-OLD_VERSION=`python ${ROOT_DIR}/src/get-project-version.py`
+OLD_VERSION=`python3 ${ROOT_DIR}/src/get-project-version.py`
 
 mvn versions:set -DnewVersion=$NEW_VERSION
 mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools

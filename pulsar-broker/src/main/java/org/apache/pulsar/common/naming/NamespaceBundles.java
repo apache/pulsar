@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,18 +19,16 @@
 package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedSet;
 import java.util.stream.Collectors;
@@ -47,8 +45,8 @@ public class NamespaceBundles {
 
     public static final Long FULL_LOWER_BOUND = 0x00000000L;
     public static final Long FULL_UPPER_BOUND = 0xffffffffL;
-    private final NamespaceBundle fullBundle;
 
+    private final NamespaceBundle fullBundle;
     private final Optional<Pair<LocalPolicies, Long>> localPolicies;
 
     public NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
@@ -64,13 +62,13 @@ public class NamespaceBundles {
     NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
                      Optional<Pair<LocalPolicies, Long>> localPolicies, long[] partitions) {
         // check input arguments
-        this.nsname = checkNotNull(nsname);
-        this.factory = checkNotNull(factory);
+        this.nsname = Objects.requireNonNull(nsname);
+        this.factory = Objects.requireNonNull(factory);
         this.localPolicies = localPolicies;
         checkArgument(partitions.length > 0, "Can't create bundles w/o partition boundaries");
 
         // calculate bundles based on partition boundaries
-        this.bundles = Lists.newArrayList();
+        this.bundles = new ArrayList<>();
         fullBundle = new NamespaceBundle(nsname,
                 Range.range(FULL_LOWER_BOUND, BoundType.CLOSED, FULL_UPPER_BOUND, BoundType.CLOSED), factory);
 
@@ -96,13 +94,8 @@ public class NamespaceBundles {
     }
 
     public NamespaceBundle findBundle(TopicName topicName) {
-        checkArgument(this.nsname.equals(topicName.getNamespaceObject()));
-        long hashCode = factory.getLongHashCode(topicName.toString());
-        NamespaceBundle bundle = getBundle(hashCode);
-        if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
-            bundle.setHasNonPersistentTopic(true);
-        }
-        return bundle;
+        checkArgument(nsname.equals(topicName.getNamespaceObject()));
+        return factory.getTopicBundleAssignmentStrategy().findBundle(topicName, this);
     }
 
     public List<NamespaceBundle> getBundles() {
@@ -131,7 +124,7 @@ public class NamespaceBundles {
     }
 
     private static long[] convertPartitions(SortedSet<Long> partitionsSet) {
-        checkNotNull(partitionsSet);
+        Objects.requireNonNull(partitionsSet);
         long[] partitions = new long[partitionsSet.size()];
         int idx = 0;
         for (long p : partitionsSet) {
@@ -143,14 +136,14 @@ public class NamespaceBundles {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(nsname, bundles);
+        return Objects.hash(nsname, bundles);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj != null && obj instanceof NamespaceBundles) {
             NamespaceBundles other = (NamespaceBundles) obj;
-            return (Objects.equal(this.nsname, other.nsname) && Objects.equal(this.bundles, other.bundles));
+            return (Objects.equals(this.nsname, other.nsname) && Objects.equals(this.bundles, other.bundles));
         }
         return false;
     }

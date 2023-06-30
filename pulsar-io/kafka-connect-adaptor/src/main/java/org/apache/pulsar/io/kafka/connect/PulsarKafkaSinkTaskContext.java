@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,23 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.connect.sink.SinkTaskContext;
-import org.apache.kafka.connect.storage.OffsetBackingStore;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.util.MessageIdUtils;
-import org.apache.pulsar.io.core.SinkContext;
-
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,11 +32,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
+import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.connect.sink.SinkTaskContext;
+import org.apache.kafka.connect.storage.OffsetBackingStore;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.util.MessageIdUtils;
+import org.apache.pulsar.io.core.SinkContext;
 
 @Slf4j
 public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
@@ -55,6 +50,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     private final SinkContext ctx;
 
     private final OffsetBackingStore offsetStore;
+    private Function<String, String> desanitizeTopicName;
     private final String topicNamespace;
     private final Consumer<Collection<TopicPartition>> onPartitionChange;
     private final AtomicBoolean runRepartition = new AtomicBoolean(false);
@@ -63,17 +59,19 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     public PulsarKafkaSinkTaskContext(Map<String, String> config,
                                       SinkContext ctx,
-                                      Consumer<Collection<TopicPartition>> onPartitionChange) {
+                                      Consumer<Collection<TopicPartition>> onPartitionChange,
+                                      Function<String, String> desanitizeTopicName) {
         this.config = config;
         this.ctx = ctx;
 
         offsetStore = new PulsarOffsetBackingStore(ctx.getPulsarClient());
+        this.desanitizeTopicName = desanitizeTopicName;
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(config);
         offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();
 
         this.onPartitionChange = onPartitionChange;
-        this.topicNamespace = pulsarKafkaWorkerConfig.getString(TOPIC_NAMESPACE_CONFIG);
+        this.topicNamespace = pulsarKafkaWorkerConfig.getString(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG);
     }
 
     public void close() {
@@ -118,7 +116,8 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
                 throw new RuntimeException("error getting initial state of " + topicPartition, e);
             } catch (ExecutionException e) {
                 log.error("error getting initial state of {}", topicPartition, e);
-                throw new RuntimeException("error getting initial state of " + topicPartition, e);            }
+                throw new RuntimeException("error getting initial state of " + topicPartition, e);
+            }
         });
         return offset;
     }
@@ -135,7 +134,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     }
 
     private ByteBuffer topicPartitionAsKey(TopicPartition topicPartition) {
-        return ByteBuffer.wrap((topicNamespace + "/" + topicPartition.toString()).getBytes(UTF_8));
+        return ByteBuffer.wrap((topicNamespace + "/" + topicPartition.toString()).getBytes(StandardCharsets.UTF_8));
 
     }
 
@@ -149,7 +148,9 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private void seekAndUpdateOffset(TopicPartition topicPartition, long offset) {
         try {
-            ctx.seek(topicPartition.topic(), topicPartition.partition(), MessageIdUtils.getMessageId(offset));
+            ctx.seek(desanitizeTopicName.apply(topicPartition.topic()),
+                    topicPartition.partition(),
+                    MessageIdUtils.getMessageId(offset));
         } catch (PulsarClientException e) {
             log.error("Failed to seek topic {} partition {} offset {}",
                     topicPartition.topic(), topicPartition.partition(), offset, e);
@@ -207,7 +208,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     public void pause(TopicPartition... topicPartitions) {
         for (TopicPartition tp: topicPartitions) {
             try {
-                ctx.pause(tp.topic(), tp.partition());
+                ctx.pause(desanitizeTopicName.apply(tp.topic()), tp.partition());
             } catch (PulsarClientException e) {
                 log.error("Failed to pause topic {} partition {}", tp.topic(), tp.partition(), e);
                 throw new RuntimeException("Failed to pause topic " + tp.topic() + " partition " + tp.partition(), e);
@@ -219,7 +220,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     public void resume(TopicPartition... topicPartitions) {
         for (TopicPartition tp: topicPartitions) {
             try {
-                ctx.resume(tp.topic(), tp.partition());
+                ctx.resume(desanitizeTopicName.apply(tp.topic()), tp.partition());
             } catch (PulsarClientException e) {
                 log.error("Failed to resume topic {} partition {}", tp.topic(), tp.partition(), e);
                 throw new RuntimeException("Failed to resume topic " + tp.topic() + " partition " + tp.partition(), e);

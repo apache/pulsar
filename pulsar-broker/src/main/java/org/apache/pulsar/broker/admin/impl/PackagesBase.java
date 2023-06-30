@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import java.io.InputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javax.ws.rs.WebApplicationException;
@@ -27,7 +28,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -39,8 +39,6 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 
 @Slf4j
 public class PackagesBase extends AdminResource {
-
-    private AuthorizationService authorizationService;
 
     private PackagesManagement getPackagesManagement() {
         return pulsar().getPackagesManagement();
@@ -65,6 +63,10 @@ public class PackagesBase extends AdminResource {
             asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, throwable.getMessage()));
         } else if (throwable instanceof WebApplicationException) {
             asyncResponse.resume(throwable);
+        } else if (throwable instanceof UnsupportedOperationException) {
+            asyncResponse.resume(new RestException(Response.Status.SERVICE_UNAVAILABLE, throwable.getMessage()));
+        } else if (throwable instanceof FileAlreadyExistsException) {
+            asyncResponse.resume(new RestException(Response.Status.CONFLICT, throwable.getMessage()));
         } else {
             log.error("Encountered unexpected error", throwable);
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
@@ -116,6 +118,8 @@ public class PackagesBase extends AdminResource {
                     } else {
                         throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
                     }
+                } catch (UnsupportedOperationException e) {
+                    throw new RestException(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
                 }
             };
         } catch (IllegalArgumentException illegalArgumentException) {
@@ -192,13 +196,5 @@ public class PackagesBase extends AdminResource {
             future.complete(null);
         }
         return future;
-    }
-
-    private AuthorizationService getAuthorizationService() {
-        if (authorizationService == null) {
-            authorizationService = pulsar().getBrokerService().getAuthorizationService();
-            return authorizationService;
-        }
-        return authorizationService;
     }
 }

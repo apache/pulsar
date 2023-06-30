@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.WriterAppender;
@@ -77,7 +76,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testTraceId() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         Event e = log.newRootEvent();
         e.newChildEvent().log("child");
@@ -98,7 +97,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testParentId() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         Event e1 = log.newRootEvent();
         Event e2 = e1.newChildEvent();
@@ -125,7 +124,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testResources() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         EventResources res = log.newEventResources()
             .resource("r1", "v1")
@@ -168,7 +167,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testResourcesNullTest() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         EventResources res = log.newEventResources()
             .resource(null, "v1")
@@ -206,7 +205,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testAttributes() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         Event e1 = log.newRootEvent()
             .attr("a1", "v1")
@@ -239,7 +238,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testAttributedNullTest() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent()
             .attr(null, "v1")
@@ -263,7 +262,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testInfoLevel() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent().log("info1");
         log.newRootEvent().atInfo().log("info2");
@@ -282,7 +281,7 @@ public class StructuredEventLogTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testInfoLevelException() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent().exception(new Throwable("cause1")).log("info1");
         log.newRootEvent().atInfo().exception(new Throwable("cause2")).log("info2");
@@ -297,7 +296,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testWarnLevel() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent().atWarn().log("warn1");
 
@@ -309,7 +308,7 @@ public class StructuredEventLogTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testWarnLevelException() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent().atWarn().exception(new Throwable("cause1")).log("warn1");
 
@@ -320,7 +319,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testErrorLevel() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent().atError().log("error1");
 
@@ -332,7 +331,7 @@ public class StructuredEventLogTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testErrorLevelException() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
 
         log.newRootEvent().atError().exception(new Throwable("cause1")).log("error1");
 
@@ -345,8 +344,8 @@ public class StructuredEventLogTest {
     @Test
     public void testTimedEvent() throws Exception {
         MockClock clock = new MockClock();
-        StructuredEventLog log = StructuredEventLog.newLogger();
-        ((Slf4jStructuredEventLog)log).clock = clock;
+        Slf4jStructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
+        log.clock = clock;
         Event e = log.newRootEvent().timed();
         clock.advanceTime(1234, TimeUnit.MILLISECONDS);
         e.log("timed");
@@ -364,7 +363,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testEventGroups() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
         log.newRootEvent().log(Events.TEST_EVENT);
 
         List<Map<String, Object>> logged = getLogged();
@@ -380,7 +379,7 @@ public class StructuredEventLogTest {
 
     @Test
     public void testBareEnum() throws Exception {
-        StructuredEventLog log = StructuredEventLog.newLogger();
+        StructuredEventLog log = Slf4jStructuredEventLog.INSTANCE;
         log.newRootEvent().log(BareEvents.BARE_EVENT);
 
         List<Map<String, Object>> logged = getLogged();

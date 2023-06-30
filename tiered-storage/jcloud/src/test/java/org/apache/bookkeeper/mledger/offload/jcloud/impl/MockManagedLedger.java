@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import com.google.common.base.Predicate;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -105,7 +106,8 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                    Map<String, Long> properties) throws InterruptedException, ManagedLedgerException {
+                                    Map<String, Long> properties, Map<String, String> cursorProperties)
+            throws InterruptedException, ManagedLedgerException {
         return null;
     }
 
@@ -122,8 +124,8 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
-                                             CommandSubscribe.InitialPosition initialPosition) throws
-            ManagedLedgerException {
+                                             CommandSubscribe.InitialPosition initialPosition,
+                                             boolean isReadCompacted) throws ManagedLedgerException {
         return null;
     }
 
@@ -134,6 +136,11 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public void deleteCursor(String name) throws InterruptedException, ManagedLedgerException {
+
+    }
+
+    @Override
+    public void removeWaitingCursor(ManagedCursor cursor) {
 
     }
 
@@ -150,7 +157,8 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public void asyncOpenCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                Map<String, Long> properties, AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
+                                Map<String, Long> properties, Map<String, String> cursorProperties,
+                                AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
 
     }
 
@@ -182,6 +190,11 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public long getEstimatedBacklogSize() {
         return 0;
+    }
+
+    @Override
+    public CompletableFuture<Long> getEarliestMessagePublishTimeInBacklog() {
+        return CompletableFuture.completedFuture(0L);
     }
 
     @Override
@@ -328,7 +341,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -343,12 +356,40 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
+        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        return Optional.of(build);
+    }
+
+    @Override
     public CompletableFuture<Void> asyncTruncate() {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public void checkInactiveLedgerAndRollOver() {
+
+    }
+
+    @Override
+    public void checkCursorsToCacheEntries() {
+        // no-op
+    }
+
+    @Override
+    public CompletableFuture<Position> asyncMigrate() {
+        // no-op
         return null;
+    }
+
+    @Override
+    public boolean isMigrated() {
+        // no-op
+        return false;
     }
 }

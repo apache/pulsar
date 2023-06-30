@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.source;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-
-import java.io.IOException;
-import java.util.Map;
 
 @Data
 public class SingleConsumerPulsarSourceConfig extends PulsarSourceConfig {
@@ -34,7 +32,7 @@ public class SingleConsumerPulsarSourceConfig extends PulsarSourceConfig {
     private ConsumerConfig consumerConfig;
 
     public static SingleConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), SingleConsumerPulsarSourceConfig.class);
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        return mapper.readValue(mapper.writeValueAsString(map), SingleConsumerPulsarSourceConfig.class);
     }
 }

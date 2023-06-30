@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.flow.FlowControlHandler;
+import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import java.net.SocketAddress;
-import java.util.concurrent.TimeUnit;
+import io.netty.handler.ssl.SslProvider;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -54,14 +51,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private SslContextAutoRefreshBuilder<SslContext> sslCtxRefresher;
     private final ServiceConfiguration brokerConf;
     private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
-
-    // This cache is used to maintain a list of active connections to iterate over them
-    // We keep weak references to have the cache to be auto cleaned up when the connections
-    // objects are GCed.
-    private final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
-            .weakKeys()
-            .weakValues()
-            .build();
 
     /**
      * @param pulsar
@@ -92,10 +81,18 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                         serviceConfig.getTlsProtocols(),
                         serviceConfig.getTlsCertRefreshCheckDurationSec());
             } else {
-                sslCtxRefresher = new NettyServerSslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                SslProvider sslProvider = null;
+                if (serviceConfig.getTlsProvider() != null) {
+                    sslProvider = SslProvider.valueOf(serviceConfig.getTlsProvider());
+                }
+                sslCtxRefresher = new NettyServerSslContextBuilder(
+                        sslProvider,
+                        serviceConfig.isTlsAllowInsecureConnection(),
+                        serviceConfig.getTlsTrustCertsFilePath(),
+                        serviceConfig.getTlsCertificateFilePath(),
                         serviceConfig.getTlsKeyFilePath(),
-                        serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                        serviceConfig.getTlsCiphers(),
+                        serviceConfig.getTlsProtocols(),
                         serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
                         serviceConfig.getTlsCertRefreshCheckDurationSec());
             }
@@ -103,14 +100,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             this.sslCtxRefresher = null;
         }
         this.brokerConf = pulsar.getConfiguration();
-
-        pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::refreshAuthenticationCredentials),
-                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(),
-                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(), TimeUnit.SECONDS);
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+        ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
         if (this.enableTls) {
             if (this.tlsEnabledWithKeyStore) {
                 ch.pipeline().addLast(TLS_HANDLER,
@@ -136,18 +130,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         ch.pipeline().addLast("flowController", new FlowControlHandler());
         ServerCnx cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
-
-        connections.put(ch.remoteAddress(), cnx);
-    }
-
-    private void refreshAuthenticationCredentials() {
-        connections.asMap().values().forEach(cnx -> {
-            try {
-                cnx.refreshAuthenticationCredentials();
-            } catch (Throwable t) {
-                log.warn("[{}] Failed to refresh auth credentials", cnx.clientAddress());
-            }
-        });
     }
 
     @VisibleForTesting

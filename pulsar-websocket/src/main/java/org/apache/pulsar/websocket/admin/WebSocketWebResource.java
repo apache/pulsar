@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -51,7 +52,7 @@ public class WebSocketWebResource {
     private WebSocketService socketService;
 
     private String clientId;
-    private AuthenticationDataHttps authData;
+    private AuthenticationDataSource authenticationDataSource;
 
     protected WebSocketService service() {
         if (socketService == null) {
@@ -61,14 +62,25 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Gets a caller id (IP + role)
+     * Gets a caller id (IP + role).
      *
      * @return the web service caller identification
      */
     public String clientAppId() {
         if (isBlank(clientId)) {
             try {
-                clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
+                String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
+                if (authMethodName != null
+                    && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+                    authenticationDataSource = service().getAuthenticationService()
+                            .getAuthenticationProvider(authMethodName)
+                            .newHttpAuthState(httpRequest).getAuthDataSource();
+                    clientId = service().getAuthenticationService().authenticateHttpRequest(
+                            httpRequest, authenticationDataSource);
+                } else {
+                    clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
+                    authenticationDataSource = new AuthenticationDataHttps(httpRequest);
+                }
             } catch (AuthenticationException e) {
                 if (service().getConfig().isAuthenticationEnabled()) {
                     throw new RestException(Status.UNAUTHORIZED, "Failed to get clientId from request");
@@ -82,11 +94,8 @@ public class WebSocketWebResource {
         return clientId;
     }
 
-    public AuthenticationDataHttps authData() {
-        if (authData == null) {
-            authData = new AuthenticationDataHttps(httpRequest);
-        }
-        return authData;
+    public AuthenticationDataSource authData() throws AuthenticationException {
+        return authenticationDataSource;
     }
 
     /**
@@ -109,7 +118,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Checks if user has super-user access or user is authorized to produce/consume on a given topic
+     * Checks if user has super-user access or user is authorized to produce/consume on a given topic.
      *
      * @param topic
      * @throws RestException
@@ -134,7 +143,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Checks if user is authorized to produce/consume on a given topic
+     * Checks if user is authorized to produce/consume on a given topic.
      *
      * @param topic
      * @return

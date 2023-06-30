@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,15 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.google.common.collect.Maps;
+import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test {@link org.apache.pulsar.common.schema.SchemaInfo}.
@@ -40,6 +37,7 @@ public class SchemaInfoTest {
         + "  \"name\": \"INT32\",\n"
         + "  \"schema\": \"\",\n"
         + "  \"type\": \"INT32\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {}\n"
         + "}";
 
@@ -47,6 +45,7 @@ public class SchemaInfoTest {
         + "  \"name\": \"String\",\n"
         + "  \"schema\": \"\",\n"
         + "  \"type\": \"STRING\",\n"
+            + "  \"timestamp\": 0,\n"
         + "  \"properties\": {}\n"
         + "}";
 
@@ -64,6 +63,7 @@ public class SchemaInfoTest {
         + "    ]\n"
         + "  },\n"
         + "  \"type\": \"JSON\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"__alwaysAllowNull\": \"true\",\n"
         + "    \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -136,6 +136,7 @@ public class SchemaInfoTest {
         + "    ]\n"
         + "  },\n"
         + "  \"type\": \"AVRO\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"__alwaysAllowNull\": \"false\",\n"
         + "    \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -211,6 +212,7 @@ public class SchemaInfoTest {
         + "        ]\n"
         + "      },\n"
         + "      \"type\": \"AVRO\",\n"
+        + "      \"timestamp\": 0,\n"
         + "      \"properties\": {\n"
         + "        \"__alwaysAllowNull\": \"false\",\n"
         + "        \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -233,6 +235,7 @@ public class SchemaInfoTest {
         + "        ]\n"
         + "      },\n"
         + "      \"type\": \"JSON\",\n"
+        + "      \"timestamp\": 0,\n"
         + "      \"properties\": {\n"
         + "        \"__alwaysAllowNull\": \"true\",\n"
         + "        \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -243,6 +246,7 @@ public class SchemaInfoTest {
         + "    }\n"
         + "  },\n"
         + "  \"type\": \"KEY_VALUE\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"key.schema.name\": \"\",\n"
         + "    \"key.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"false\\\",\\\"__jsr310ConversionEnabled\\\":\\\"false\\\",\\\"foo1\\\":\\\"foo-value1\\\",\\\"foo2\\\":\\\"foo-value2\\\",\\\"foo3\\\":\\\"foo-value3\\\"}\",\n"
@@ -289,7 +293,7 @@ public class SchemaInfoTest {
 
         @Test
         public void testUnsetProperties() {
-            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -298,14 +302,14 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap());
+            assertEquals(schemaInfo.getProperties(), new HashMap<>());
         }
 
         @Test
         public void testSetProperties() {
-            final Map<String, String> map = Maps.newHashMap();
+            final Map<String, String> map = new HashMap<>();
             map.put("test", "value");
-            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -315,7 +319,7 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
+            assertEquals(schemaInfo.getProperties(), new HashMap<>(map));
         }
 
         @Test
@@ -323,7 +327,7 @@ public class SchemaInfoTest {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);
 
-            SchemaInfo si = SchemaInfoImpl.builder()
+            SchemaInfo si = SchemaInfo.builder()
                     .name("INT32")
                     .schema(new byte[0])
                     .type(SchemaType.INT32)

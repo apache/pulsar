@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,14 +23,11 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
-
 import com.google.protobuf.ByteString;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,8 +37,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
@@ -50,20 +46,20 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
-import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sources;
-import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 @Slf4j
@@ -81,8 +77,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                final FormDataContentDisposition fileDetail,
                                final String sourcePkgUrl,
                                final SourceConfig sourceConfig,
-                               final String clientRole,
-                               AuthenticationDataHttps clientAuthenticationDataHttps) {
+                               final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -101,16 +96,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
         }
 
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.warn("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
-                        sourceName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sourceName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sourceName, "register", authParams);
 
         try {
             // Check tenant exists
@@ -127,8 +113,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
-            log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
-                    sourceName, clientRole, ComponentTypeUtils.toString(componentType));
+            log.error("{}/{}/{} Client is not authorized to operate {} on tenant", tenant, namespace,
+                    sourceName, ComponentTypeUtils.toString(componentType));
             throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
             log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, sourceName, tenant);
@@ -141,8 +127,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         if (functionMetaDataManager.containsFunction(tenant, namespace, sourceName)) {
-            log.error("{} {}/{}/{} already exists", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName);
-            throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s already exists", ComponentTypeUtils.toString(componentType), sourceName));
+            log.error("{} {}/{}/{} already exists", ComponentTypeUtils.toString(componentType), tenant, namespace,
+                    sourceName);
+            throw new RestException(Response.Status.BAD_REQUEST,
+                    String.format("%s %s already exists", ComponentTypeUtils.toString(componentType), sourceName));
         }
 
         Function.FunctionDetails functionDetails = null;
@@ -153,18 +141,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    if (Utils.hasPackageTypePrefix(sourcePkgUrl)) {
-                        componentPackageFile = downloadPackageFile(sourcePkgUrl);
-                    } else {
-                        if (!Utils.isFunctionPackageUrlSupported(sourcePkgUrl)) {
-                            throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
-                        }
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sourcePkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
-                        }
-                    }
+                    componentPackageFile = getPackageFile(sourcePkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
                             sourceConfig, componentPackageFile);
                 } else {
@@ -173,20 +150,26 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
                             sourceConfig, componentPackageFile);
-                    if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
-                        throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
+                    if (!isFunctionCodeBuiltin(functionDetails)
+                            && (componentPackageFile == null || fileDetail == null)) {
+                        throw new IllegalArgumentException(
+                                ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
                 }
             } catch (Exception e) {
-                log.error("Invalid register {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
+                log.error("Invalid register {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant,
+                        namespace, sourceName, e);
                 throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
             }
 
             try {
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
-                log.error("{} {}/{}/{} cannot be admitted by the runtime factory", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName);
-                throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", ComponentTypeUtils.toString(componentType), sourceName, e.getMessage()));
+                log.error("{} {}/{}/{} cannot be admitted by the runtime factory",
+                        ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName);
+                throw new RestException(Response.Status.BAD_REQUEST,
+                        String.format("%s %s cannot be admitted:- %s", ComponentTypeUtils.toString(componentType),
+                                sourceName, e.getMessage()));
             }
 
             // function state
@@ -201,11 +184,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
-                    if (clientAuthenticationDataHttps != null) {
+                    if (authParams.getClientAuthenticationDataSource() != null) {
 
                         try {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
-                                    .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
+                                    .cacheAuthData(finalFunctionDetails,
+                                            authParams.getClientAuthenticationDataSource());
 
                             functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
                                     Function.FunctionAuthenticationSpec.newBuilder()
@@ -216,8 +200,9 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                     ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
 
 
-                            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s",
-                                    ComponentTypeUtils.toString(componentType), sourceName, e.getMessage()));
+                            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR,
+                                    String.format("Error caching authentication data for %s %s:- %s",
+                                            ComponentTypeUtils.toString(componentType), sourceName, e.getMessage()));
                         }
                     }
                 });
@@ -228,7 +213,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
                         sourcePkgUrl, fileDetail, componentPackageFile);
             } catch (Exception e) {
-                log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
+                log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType), tenant,
+                        namespace, sourceName, e);
                 throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
 
@@ -251,8 +237,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                final FormDataContentDisposition fileDetail,
                                final String sourcePkgUrl,
                                final SourceConfig sourceConfig,
-                               final String clientRole,
-                               AuthenticationDataHttps clientAuthenticationDataHttps,
+                               final AuthenticationParameters authParams,
                                UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
@@ -272,32 +257,27 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
         }
 
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.warn("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
-                        sourceName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sourceName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sourceName, "update", authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         if (!functionMetaDataManager.containsFunction(tenant, namespace, sourceName)) {
-            throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), sourceName));
+            throw new RestException(Response.Status.BAD_REQUEST,
+                    String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), sourceName));
         }
 
-        Function.FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, sourceName);
+        Function.FunctionMetaData existingComponent =
+                functionMetaDataManager.getFunctionMetaData(tenant, namespace, sourceName);
 
         if (!InstanceUtils.calculateSubjectType(existingComponent.getFunctionDetails()).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, sourceName, ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), sourceName));
+            log.error("{}/{}/{} is not a {}", tenant, namespace, sourceName,
+                    ComponentTypeUtils.toString(componentType));
+            throw new RestException(Response.Status.NOT_FOUND,
+                    String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), sourceName));
         }
 
-        SourceConfig existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+        SourceConfig existingSourceConfig =
+                SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
         // The rest end points take precedence over whatever is there in functionconfig
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -309,76 +289,49 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null) {
+        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null
+            && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sourceName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails = null;
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isNotBlank(sourcePkgUrl)) {
-                    if (Utils.hasPackageTypePrefix(sourcePkgUrl)) {
-                        componentPackageFile = downloadPackageFile(sourcePkgUrl);
-                    } else {
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sourcePkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
-                        }
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
-                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingComponent.getPackageLocation().getPackagePath());
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-                } else if (uploadedInputStream != null) {
-
-                    componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-                    if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
-                        throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
-                    }
-                } else {
-
-                    componentPackageFile = FunctionCommon.createPkgTempFile();
-                    componentPackageFile.deleteOnExit();
-                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
-
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
+                componentPackageFile = getPackageFile(
+                        sourcePkgUrl,
+                        existingComponent.getPackageLocation().getPackagePath(),
+                        uploadedInputStream);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                        mergedConfig, componentPackageFile);
+                if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)
+                        && !isFunctionCodeBuiltin(functionDetails)
+                        && (componentPackageFile == null || fileDetail == null)) {
+                    throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType)
+                            + " Package is not provided");
                 }
             } catch (Exception e) {
-                log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
+                log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant,
+                        namespace, sourceName, e);
                 throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
             }
 
             try {
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
-                log.error("Updated {} {}/{}/{} cannot be submitted to runtime factory", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName);
+                log.error("Updated {} {}/{}/{} cannot be submitted to runtime factory",
+                        ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName);
                 throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
                         ComponentTypeUtils.toString(componentType), sourceName, e.getMessage()));
             }
 
             // merge from existing metadata
-            Function.FunctionMetaData.Builder functionMetaDataBuilder = Function.FunctionMetaData.newBuilder().mergeFrom(existingComponent)
-                    .setFunctionDetails(functionDetails);
+            Function.FunctionMetaData.Builder functionMetaDataBuilder =
+                    Function.FunctionMetaData.newBuilder().mergeFrom(existingComponent)
+                            .setFunctionDetails(functionDetails);
 
             // update auth data if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
@@ -386,17 +339,19 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
-                    if (clientAuthenticationDataHttps != null && updateOptions != null && updateOptions.isUpdateAuthData()) {
+                    if (authParams.getClientAuthenticationDataSource() != null && updateOptions != null
+                            && updateOptions.isUpdateAuthData()) {
                         // get existing auth data if it exists
                         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
                         if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
-                            existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
+                            existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(
+                                    Optional.ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
                         }
 
                         try {
                             Optional<FunctionAuthData> newFunctionAuthData = functionAuthProvider
                                     .updateAuthData(finalFunctionDetails, existingFunctionAuthData,
-                                            clientAuthenticationDataHttps);
+                                            authParams.getClientAuthenticationDataSource());
 
                             if (newFunctionAuthData.isPresent()) {
                                 functionMetaDataBuilder.setFunctionAuthSpec(
@@ -407,8 +362,11 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                 functionMetaDataBuilder.clearFunctionAuthSpec();
                             }
                         } catch (Exception e) {
-                            log.error("Error updating authentication data for {} {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
-                            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", ComponentTypeUtils.toString(componentType), sourceName, e.getMessage()));
+                            log.error("Error updating authentication data for {} {}/{}/{}",
+                                    ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
+                            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR,
+                                    String.format("Error caching authentication data for %s %s:- %s",
+                                            ComponentTypeUtils.toString(componentType), sourceName, e.getMessage()));
                         }
                     }
                 });
@@ -416,15 +374,19 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(sourcePkgUrl) || uploadedInputStream != null) {
+                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
+                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
                             sourcePkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
-                    log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
+                    log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
+                            tenant, namespace, sourceName, e);
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
             } else {
-                packageLocationMetaDataBuilder = Function.PackageLocationMetaData.newBuilder().mergeFrom(existingComponent.getPackageLocation());
+                packageLocationMetaDataBuilder =
+                        Function.PackageLocationMetaData.newBuilder().mergeFrom(existingComponent.getPackageLocation());
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
@@ -439,12 +401,13 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         }
     }
 
-    private class GetSourceStatus extends GetStatus<SourceStatus, SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> {
+    private class GetSourceStatus extends GetStatus<SourceStatus,
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> {
 
         @Override
         public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData notScheduledInstance() {
-            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
-                    = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData =
+                    new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
             sourceInstanceStatusData.setRunning(false);
             sourceInstanceStatusData.setError("Source has not been scheduled");
             return sourceInstanceStatusData;
@@ -454,8 +417,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData fromFunctionStatusProto(
                 InstanceCommunication.FunctionStatus status,
                 String assignedWorkerId) {
-            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
-                    = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData =
+                    new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
             sourceInstanceStatusData.setRunning(status.getRunning());
             sourceInstanceStatusData.setError(status.getFailureException());
             sourceInstanceStatusData.setNumRestarts(status.getNumRestarts());
@@ -463,9 +426,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
 
             sourceInstanceStatusData.setNumSourceExceptions(status.getNumSourceExceptions());
             List<ExceptionInformation> sourceExceptionInformationList = new LinkedList<>();
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
+                    status.getLatestSourceExceptionsList()) {
+                ExceptionInformation exceptionInformation =
+                        new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
                 sourceExceptionInformationList.add(exceptionInformation);
@@ -476,25 +440,28 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             sourceInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
                     + status.getNumUserExceptions() + status.getNumSinkExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
+                    status.getLatestUserExceptionsList()) {
+                ExceptionInformation exceptionInformation =
+                        new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
                 systemExceptionInformationList.add(exceptionInformation);
             }
 
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
+                    status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation =
+                        new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
                 systemExceptionInformationList.add(exceptionInformation);
             }
 
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
+                    status.getLatestSinkExceptionsList()) {
+                ExceptionInformation exceptionInformation =
+                        new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
                 systemExceptionInformationList.add(exceptionInformation);
@@ -509,9 +476,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         }
 
         @Override
-        public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData notRunning(String assignedWorkerId, String error) {
-            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
-                    = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+        public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData
+        notRunning(String assignedWorkerId, String error) {
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData =
+                    new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
             sourceInstanceStatusData.setRunning(false);
             if (error != null) {
                 sourceInstanceStatusData.setError(error);
@@ -532,9 +500,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
                 SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData;
                 if (isOwner) {
-                    sourceInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
+                    sourceInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name,
+                            assignment.getInstance().getInstanceId(), null);
                 } else {
-                    sourceInstanceStatusData = worker().getFunctionAdmin().source().getSourceStatus(
+                    sourceInstanceStatusData = worker().getFunctionAdmin().sources().getSourceStatus(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
@@ -563,10 +532,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                               final int parallelism) {
             SourceStatus sinkStatus = new SourceStatus();
             for (int i = 0; i < parallelism; ++i) {
-                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
-                        = getComponentInstanceStatus(tenant, namespace, name, i, null);
-                SourceStatus.SourceInstanceStatus sourceInstanceStatus
-                        = new SourceStatus.SourceInstanceStatus();
+                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData =
+                        getComponentInstanceStatus(tenant, namespace, name, i, null);
+                SourceStatus.SourceInstanceStatus sourceInstanceStatus =
+                        new SourceStatus.SourceInstanceStatus();
                 sourceInstanceStatus.setInstanceId(i);
                 sourceInstanceStatus.setStatus(sourceInstanceStatusData);
                 sinkStatus.addInstance(sourceInstanceStatus);
@@ -589,8 +558,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             for (int i = 0; i < parallelism; i++) {
                 SourceStatus.SourceInstanceStatus sourceInstanceStatus = new SourceStatus.SourceInstanceStatus();
                 sourceInstanceStatus.setInstanceId(i);
-                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
-                        = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData =
+                        new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
                 sourceInstanceStatusData.setRunning(false);
                 sourceInstanceStatusData.setError("Source has not been scheduled");
                 sourceInstanceStatus.setStatus(sourceInstanceStatusData);
@@ -606,10 +575,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
     public SourceStatus getSourceStatus(final String tenant,
                                         final String namespace,
                                         final String componentName,
-                                        final URI uri, final String clientRole,
-                                        final AuthenticationDataSource clientAuthenticationDataHttps) {
+                                        final URI uri,
+                                        final AuthenticationParameters authParams) {
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
 
         SourceStatus sourceStatus;
         try {
@@ -625,15 +594,15 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
     }
 
     @Override
-    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(final String tenant,
-                                                                                              final String namespace,
-                                                                                              final String sourceName,
-                                                                                              final String instanceId,
-                                                                                              final URI uri,
-                                                                                              final String clientRole,
-                                                                                              final AuthenticationDataSource clientAuthenticationDataHttps) {
+    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData
+    getSourceInstanceStatus(final String tenant,
+                            final String namespace,
+                            final String sourceName,
+                            final String instanceId,
+                            final URI uri,
+                            final AuthenticationParameters authParams) {
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId), clientRole, clientAuthenticationDataHttps);
+        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId), authParams);
 
         SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData;
         try {
@@ -651,32 +620,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
     @Override
     public SourceConfig getSourceInfo(final String tenant,
                                       final String namespace,
-                                      final String componentName) {
-
-        if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
-        }
-
-        // validate parameters
-        try {
-            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid get {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
-            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName);
-            throw new RestException(Response.Status.NOT_FOUND, String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
-        }
-        Function.FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!InstanceUtils.calculateSubjectType(functionMetaData.getFunctionDetails()).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.NOT_FOUND, String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
-        }
-        SourceConfig config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-        return config;
+                                      final String componentName,
+                                      final AuthenticationParameters authParams) {
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
+        Function.FunctionMetaData functionMetaData =
+                worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, componentName);
+        return SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
     }
 
     @Override
@@ -730,23 +679,27 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             }
         }
 
-        // if source is not builtin, attempt to extract classloader from package file if it exists
-        if (classLoader == null && sourcePackageFile != null) {
-            classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
-                    sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+        boolean shouldCloseClassLoader = false;
+        try {
+            // if source is not builtin, attempt to extract classloader from package file if it exists
+            if (classLoader == null && sourcePackageFile != null) {
+                classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
+                        sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                shouldCloseClassLoader = true;
+            }
+
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Source package is not provided");
+            }
+
+            SourceConfigUtils.ExtractedSourceDetails sourceDetails =
+                    SourceConfigUtils.validateAndExtractDetails(
+                            sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+            return SourceConfigUtils.convert(sourceConfig, sourceDetails);
+        } finally {
+            if (shouldCloseClassLoader) {
+                ClassLoaderUtils.closeClassLoader(classLoader);
+            }
         }
-
-        if (classLoader == null) {
-            throw new IllegalArgumentException("Source package is not provided");
-        }
-
-        SourceConfigUtils.ExtractedSourceDetails sourceDetails
-                = SourceConfigUtils.validateAndExtractDetails(
-                        sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
-        return SourceConfigUtils.convert(sourceConfig, sourceDetails);
-    }
-
-    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return FunctionsImpl.downloadPackageFile(worker(), packageName);
     }
 }

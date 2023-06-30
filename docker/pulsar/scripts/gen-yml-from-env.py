@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -47,7 +47,9 @@ SET_KEYS = [
     'proxyRoles',
     'schemaRegistryCompatibilityCheckers',
     'brokerClientTlsCiphers',
-    'brokerClientTlsProtocols'
+    'brokerClientTlsProtocols',
+    'webServiceTlsCiphers',
+    'webServiceTlsProtocols',
 ]
 
 PF_ENV_PREFIX = 'PF_'
@@ -104,6 +106,6 @@ for conf_filename in conf_files:
         conf.pop('processContainerFactory', None)
 
     # Store back the updated config in the same file
-    f = open(conf_filename , 'w')
+    f = open(conf_filename, 'w')
     yaml.dump(conf, f, default_flow_style=False)
     f.close()

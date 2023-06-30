@@ -62,7 +62,7 @@ variable "num_proxy_nodes" {
 }
 
 variable "instance_types" {
-  type = "map"
+  type = map(string)
 }
 
 variable "base_cidr_block" {

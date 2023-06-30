@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 
 import com.google.common.collect.Sets;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -44,7 +45,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -92,6 +92,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
+        conf.setProxyRoles(Collections.singleton("Proxy"));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
@@ -113,6 +114,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));

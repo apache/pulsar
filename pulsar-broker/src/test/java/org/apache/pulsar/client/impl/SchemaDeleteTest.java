@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,11 +26,14 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -89,6 +92,27 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         try (Reader<DummyPojo> reader = pulsarClient.newReader(Schema.AVRO(DummyPojo.class))
                 .topic(topic).startMessageId(MessageId.latest).create()) {
         }
+    }
+
+    @Test
+    public void schemaForceDeleteTest() throws Exception {
+        String namespace = "my-property/my-ns";
+        String topic = namespace + "/topic1";
+        String foobar = "foo";
+
+        try (Producer<String> producer =
+                     pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
+            producer.send(foobar);
+        }
+        SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topic);
+        Assert.assertSame(schemaInfo.getType(), SchemaType.STRING);
+
+        String schemaPath = "/schemas/" + TopicName.get(topic).getSchemaName();
+
+        admin.schemas().deleteSchema(topic, false);
+        Assert.assertTrue(pulsar.getLocalMetadataStore().get(schemaPath).get().isPresent());
+        admin.schemas().deleteSchema(topic, true);
+        Assert.assertFalse(pulsar.getLocalMetadataStore().get(schemaPath).get().isPresent());
     }
 
     public static class DummyPojo {

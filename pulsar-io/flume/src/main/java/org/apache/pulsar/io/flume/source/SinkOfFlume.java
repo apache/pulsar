@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.io.flume.source;
 
-import org.apache.flume.*;
-import org.apache.flume.conf.BatchSizeSupported;
-import org.apache.flume.conf.Configurable;
-import org.apache.flume.instrumentation.SinkCounter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import static org.apache.flume.source.SpoolDirectorySourceConfigurationConstants.BATCH_SIZE;
+import org.apache.flume.Channel;
+import org.apache.flume.Context;
+import org.apache.flume.Event;
+import org.apache.flume.EventDeliveryException;
+import org.apache.flume.Transaction;
+import org.apache.flume.conf.BatchSizeSupported;
+import org.apache.flume.conf.Configurable;
+import org.apache.flume.instrumentation.SinkCounter;
+import org.apache.flume.source.SpoolDirectorySourceConfigurationConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, BatchSizeSupported {
 
@@ -41,7 +43,7 @@ public class SinkOfFlume extends AbstractSinkOfFlume implements Configurable, Ba
 
     @Override
     public void configure(Context context) {
-        batchSize = context.getInteger(BATCH_SIZE, 1000);
+        batchSize = context.getInteger(SpoolDirectorySourceConfigurationConstants.BATCH_SIZE, 1000);
     }
 
     @Override

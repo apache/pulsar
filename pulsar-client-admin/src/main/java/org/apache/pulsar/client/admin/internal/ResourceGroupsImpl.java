@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,18 +20,13 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.common.util.RestException;
 
 
 public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
@@ -44,82 +39,28 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
 
     @Override
     public List<String> getResourceGroups() throws PulsarAdminException {
-        try {
-            return getResourceGroupsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getResourceGroupsAsync());
     }
 
     @Override
     public CompletableFuture<List<String>> getResourceGroupsAsync() {
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(adminResourceGroups,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> resourcegroups) {
-                        future.complete(resourcegroups);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(this.adminResourceGroups, new FutureCallback<List<String>>(){});
     }
 
     @Override
     public ResourceGroup getResourceGroup(String resourcegroup) throws PulsarAdminException {
-        try {
-            return getResourceGroupAsync(resourcegroup).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getResourceGroupAsync(resourcegroup));
     }
 
     @Override
     public CompletableFuture<ResourceGroup> getResourceGroupAsync(String name) {
         WebTarget path = adminResourceGroups.path(name);
-        final CompletableFuture<ResourceGroup> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<ResourceGroup>() {
-                    @Override
-                    public void completed(ResourceGroup resourcegroup) {
-                        future.complete(resourcegroup);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<ResourceGroup>(){});
     }
 
     @Override
     public void createResourceGroup(String name, ResourceGroup resourcegroup) throws PulsarAdminException {
-        try {
-            createResourceGroupAsync(name, resourcegroup)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createResourceGroupAsync(name, resourcegroup));
     }
 
     @Override
@@ -130,17 +71,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
 
     @Override
     public void updateResourceGroup(String name, ResourceGroup resourcegroup) throws PulsarAdminException {
-        try {
-            getResourceGroup(name);
-            updateResourceGroupAsync(name, resourcegroup).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException | RestException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateResourceGroupAsync(name, resourcegroup));
     }
 
     @Override
@@ -151,16 +82,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
 
     @Override
     public void deleteResourceGroup(String name) throws PulsarAdminException {
-        try {
-            deleteResourceGroupAsync(name).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteResourceGroupAsync(name));
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.util.Timeout;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
-
-import io.netty.util.Timeout;
 
 public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     private static final long serialVersionUID = 1L;

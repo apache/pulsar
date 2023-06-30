@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.common.util.Reflections;
 
 /**
  * Provider of transaction pending ack store.
@@ -35,15 +35,11 @@ public interface TransactionPendingAckStoreProvider {
      * @return an instance of transaction buffer provider.
      */
     static TransactionPendingAckStoreProvider newProvider(String providerClassName) throws IOException {
-        Class<?> providerClass;
         try {
-            providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.getDeclaredConstructor().newInstance();
-            checkArgument(obj instanceof TransactionPendingAckStoreProvider,
-                    "The factory has to be an instance of "
-                            + TransactionPendingAckStoreProvider.class.getName());
-
-            return (TransactionPendingAckStoreProvider) obj;
+            TransactionPendingAckStoreProvider ackStoreProvider = Reflections.createInstance(providerClassName,
+                    TransactionPendingAckStoreProvider.class,
+                    Thread.currentThread().getContextClassLoader());
+            return ackStoreProvider;
         } catch (Exception e) {
             throw new IOException(e);
         }

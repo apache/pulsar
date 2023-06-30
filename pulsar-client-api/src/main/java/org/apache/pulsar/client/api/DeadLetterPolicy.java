@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -30,6 +32,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @Builder
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public class DeadLetterPolicy {
@@ -49,4 +53,11 @@ public class DeadLetterPolicy {
      */
     private String deadLetterTopic;
 
+    /**
+     * Name of the initial subscription name of the dead letter topic.
+     * If this field is not set, the initial subscription for the dead letter topic will not be created.
+     * If this field is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail
+     * to be created.
+     */
+    private String initialSubscriptionName;
 }

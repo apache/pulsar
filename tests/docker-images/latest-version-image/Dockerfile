@@ -19,28 +19,7 @@
 
 # build go lang examples first in a separate layer
 
-FROM apachepulsar/pulsar:latest as pulsar-function-go
-
-USER root
-
-RUN rm -rf /var/lib/apt/lists/* && apt-get update
-RUN apt-get install -y procps curl git
-
-ENV GOLANG_VERSION 1.13.3
-
-RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
-		| tar -C /usr/local -xz
-
-# RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
-# RUN export GOROOT=/usr/local/go && export GOPATH=$HOME/go && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-# RUN echo "export GOROOT=/usr/local/go" >> ~/.profile && echo "export GOPATH=$HOME/go" >> ~/.profile && echo "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH" >> ~/.profile
-
-ENV PATH /usr/local/go/bin:$PATH
-
-RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
-ENV GOROOT /usr/local/go
-ENV GOPATH /go
-ENV PATH /go/bin:$PATH
+FROM golang:1.15.8 as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
@@ -55,29 +34,32 @@ FROM apachepulsar/pulsar-all:latest as pulsar-all
 ########################################
 FROM apachepulsar/pulsar:latest
 
+# Switch to run as the root user to simplify building container and then running
+# supervisord. Each of the pulsar components are spawned by supervisord and their
+# process configuration files specify that the process will be run with UID 10000.
+# However, any processes exec'ing into the containers will run as root, by default.
+USER root
+
+# We need to define the user in order for supervisord to work correctly
+# We don't need a user defined in the public docker image, though.
+RUN adduser -u 10000 --gid 0 --disabled-login --disabled-password --gecos '' pulsar
+
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
 RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl
 
-RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
+RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
 
 COPY conf/supervisord.conf /etc/supervisord.conf
 COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
-     conf/proxy.conf conf/presto_worker.conf /etc/supervisord/conf.d/
-
-COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
-     ssl/admin.key-pk8.pem ssl/admin.cert.pem \
-     ssl/user1.key-pk8.pem ssl/user1.cert.pem \
-     ssl/proxy.key-pk8.pem ssl/proxy.cert.pem \
-     ssl/superproxy.key-pk8.pem ssl/superproxy.cert.pem \
-     /pulsar/ssl/
+     conf/proxy.conf conf/presto_worker.conf conf/websocket.conf /etc/supervisord/conf.d/
 
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
-     scripts/run-standalone.sh \
+     scripts/run-standalone.sh scripts/run-websocket.sh \
      /pulsar/bin/
 
-COPY conf/presto/jvm.config /pulsar/conf/presto/
+COPY conf/presto/jvm.config /pulsar/trino/conf
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps
@@ -94,6 +76,13 @@ COPY target/java-test-functions.jar /pulsar/examples/
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 
+# TLS certificates
+RUN mkdir -p /pulsar/certificate-authority
+COPY target/certificate-authority /pulsar/certificate-authority/
+
+# copy broker plugins
+COPY target/plugins/ /pulsar/examples/
+
 # Include all offloaders
 COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
 
@@ -106,6 +95,7 @@ COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-batch-data-generator-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kinesis-*.nar /pulsar/connectors/
 
 # download Oracle JDBC driver for Oracle Debezium Connector tests
 RUN mkdir -p META-INF/bundled-dependencies
@@ -120,6 +110,5 @@ RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remo
 RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/xmlparserv2/19.3.0.0/xmlparserv2-19.3.0.0.jar
 
 RUN jar uf connectors/pulsar-io-debezium-oracle-*.nar META-INF/bundled-dependencies/ojdbc8-19.3.0.0.jar META-INF/bundled-dependencies/ucp-19.3.0.0.jar META-INF/bundled-dependencies/oraclepki-19.3.0.0.jar META-INF/bundled-dependencies/osdt_cert-19.3.0.0.jar META-INF/bundled-dependencies/osdt_core-19.3.0.0.jar META-INF/bundled-dependencies/simplefan-19.3.0.0.jar META-INF/bundled-dependencies/orai18n-19.3.0.0.jar META-INF/bundled-dependencies/xdb-19.3.0.0.jar META-INF/bundled-dependencies/xmlparserv2-19.3.0.0.jar
-
 
 CMD bash

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,13 +21,19 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +61,15 @@ public interface LoadManager {
      * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific.
      */
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
+
+    default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+        throw new UnsupportedOperationException();
+    }
+
+    default CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Generate the load report.
@@ -115,6 +130,10 @@ public interface LoadManager {
      */
     Set<String> getAvailableBrokers() throws Exception;
 
+    CompletableFuture<Set<String>> getAvailableBrokersAsync();
+
+    String setNamespaceBundleAffinity(String bundle, String broker);
+
     void stop() throws PulsarServerException;
 
     /**
@@ -128,15 +147,20 @@ public interface LoadManager {
     static LoadManager create(final PulsarService pulsar) {
         try {
             final ServiceConfiguration conf = pulsar.getConfiguration();
-            final Class<?> loadManagerClass = Class.forName(conf.getLoadManagerClassName());
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = loadManagerClass.getDeclaredConstructor().newInstance();
+            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
+                    Thread.currentThread().getContextClassLoader());
             if (loadManagerInstance instanceof LoadManager) {
                 final LoadManager casted = (LoadManager) loadManagerInstance;
                 casted.initialize(pulsar);
                 return casted;
             } else if (loadManagerInstance instanceof ModularLoadManager) {
                 final LoadManager casted = new ModularLoadManagerWrapper((ModularLoadManager) loadManagerInstance);
+                casted.initialize(pulsar);
+                return casted;
+            } else if (loadManagerInstance instanceof ExtensibleLoadManager) {
+                final LoadManager casted =
+                        new ExtensibleLoadManagerWrapper((ExtensibleLoadManagerImpl) loadManagerInstance);
                 casted.initialize(pulsar);
                 return casted;
             }

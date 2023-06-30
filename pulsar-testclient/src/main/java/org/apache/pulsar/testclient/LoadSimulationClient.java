@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
@@ -39,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -47,6 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -320,6 +318,7 @@ public class LoadSimulationClient {
                     .serviceHttpUrl(arguments.serviceURL)
                     .build();
         client = PulsarClient.builder()
+                    .memoryLimit(0, SizeUnit.BYTES)
                     .serviceUrl(arguments.serviceURL)
                     .connectionsPerBroker(4)
                     .ioThreads(Runtime.getRuntime().availableProcessors())
@@ -344,7 +343,7 @@ public class LoadSimulationClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         PerfClientUtils.printJVMInformation(log);
         (new LoadSimulationClient(mainArguments)).run();

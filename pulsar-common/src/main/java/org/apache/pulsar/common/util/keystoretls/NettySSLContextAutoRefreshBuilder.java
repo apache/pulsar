@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,7 +47,6 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
     protected String tlsKeyStorePassword;
     protected FileModifiedTimeUpdater tlsKeyStore;
 
-    protected AuthenticationDataProvider authData;
     protected final boolean isServer;
 
     // for server
@@ -89,6 +88,9 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
                                              String trustStoreTypeString,
                                              String trustStore,
                                              String trustStorePassword,
+                                             String keyStoreTypeString,
+                                             String keyStore,
+                                             String keyStorePassword,
                                              Set<String> ciphers,
                                              Set<String> protocols,
                                              long certRefreshInSec,
@@ -98,7 +100,17 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
         this.tlsAllowInsecureConnection = allowInsecureConnection;
         this.tlsProvider = sslProviderString;
 
-        this.authData = authData;
+        if (authData != null) {
+            KeyStoreParams authParams = authData.getTlsKeyStoreParams();
+            if (authParams != null) {
+                keyStoreTypeString = authParams.getKeyStoreType();
+                keyStore = authParams.getKeyStorePath();
+                keyStorePassword = authParams.getKeyStorePassword();
+            }
+        }
+        this.tlsKeyStoreType = keyStoreTypeString;
+        this.tlsKeyStore = new FileModifiedTimeUpdater(keyStore);
+        this.tlsKeyStorePassword = keyStorePassword;
 
         this.tlsTrustStoreType = trustStoreTypeString;
         this.tlsTrustStore = new FileModifiedTimeUpdater(trustStore);
@@ -119,11 +131,10 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsRequireTrustedClientCertOnConnect, tlsCiphers, tlsProtocols);
         } else {
-            KeyStoreParams authParams = authData.getTlsKeyStoreParams();
             this.keyStoreSSLContext = KeyStoreSSLContext.createClientKeyStoreSslContext(tlsProvider,
-                    authParams != null ? authParams.getKeyStoreType() : null,
-                    authParams != null ? authParams.getKeyStorePath() : null,
-                    authParams != null ? authParams.getKeyStorePassword() : null,
+                    tlsKeyStoreType,
+                    tlsKeyStore.getFileName(),
+                    tlsKeyStorePassword,
                     tlsAllowInsecureConnection,
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsCiphers, tlsProtocols);

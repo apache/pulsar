@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,36 +18,33 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
 
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
-        super(client, consumerBase, ackTimeoutMillis);
-    }
-
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationMillis) {
-        super(client, consumerBase, ackTimeoutMillis, tickDurationMillis);
+    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
+                                      ConsumerConfigurationData<?> conf) {
+        super(client, consumerBase, conf);
     }
 
     public int removeTopicMessages(String topicName) {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<MessageId> iterator = messageIdPartitionMap.keySet().iterator();
+            Iterator<Entry<MessageId, HashSet<MessageId>>> iterator = messageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                MessageId messageId = iterator.next();
-                if (messageId instanceof TopicMessageIdImpl &&
-                        ((TopicMessageIdImpl)messageId).getTopicPartitionName().contains(topicName)) {
-                    ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.get(messageId);
-                    if (exist != null) {
-                        exist.remove(messageId);
-                    }
+                Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
+                MessageId messageId = entry.getKey();
+                if (messageId instanceof TopicMessageId
+                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
+                    entry.getValue().remove(messageId);
                     iterator.remove();
-                    removed ++;
+                    removed++;
                 }
             }
             return removed;

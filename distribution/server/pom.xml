@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>distribution</artifactId>
-    <version>2.10.0-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -43,6 +43,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-proxy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker-auth-oidc</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -68,6 +74,20 @@
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper-prometheus-metrics</artifactId>
       <version>${zookeeper.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-tcnative</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -80,6 +100,12 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-filesystem-storage</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -98,11 +124,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-testclient</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-1.2-api</artifactId>
     </dependency>
 
     <dependency>
@@ -231,6 +252,10 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
 
     <dependency>

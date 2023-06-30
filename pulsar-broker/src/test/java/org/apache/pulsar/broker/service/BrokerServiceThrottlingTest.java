@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,9 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -41,7 +38,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -50,10 +46,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -264,7 +257,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
         upsertLookupPermits(100);
-        List<Consumer<byte[]>> consumers = Collections.synchronizedList(Lists.newArrayList());
+        List<Consumer<byte[]>> consumers = Collections.synchronizedList(new ArrayList<>());
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 8;

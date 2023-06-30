@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ import org.objenesis.ObjenesisStd;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 /**
- * mock zookeeper with different session based on {@link MockZooKeeper}
+ * mock zookeeper with different session based on {@link MockZooKeeper}.
  */
 public class MockZooKeeperSession extends ZooKeeper {
 
@@ -44,14 +44,21 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private static final Objenesis objenesis = new ObjenesisStd();
 
-    private static final AtomicInteger sessionIdGenerator = new AtomicInteger(0);
+    private static final AtomicInteger sessionIdGenerator = new AtomicInteger(1000);
+
+    private boolean closeMockZooKeeperOnClose;
 
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
+        return newInstance(mockZooKeeper, true);
+    }
+
+    public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper, boolean closeMockZooKeeperOnClose) {
         ObjectInstantiator<MockZooKeeperSession> instantiator = objenesis.getInstantiatorOf(MockZooKeeperSession.class);
         MockZooKeeperSession mockZooKeeperSession = instantiator.newInstance();
 
         mockZooKeeperSession.mockZooKeeper = mockZooKeeper;
         mockZooKeeperSession.sessionId = sessionIdGenerator.getAndIncrement();
+        mockZooKeeperSession.closeMockZooKeeperOnClose = closeMockZooKeeperOnClose;
         return mockZooKeeperSession;
     }
 
@@ -80,13 +87,23 @@ public class MockZooKeeperSession extends ZooKeeper {
     @Override
     public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode)
             throws KeeperException, InterruptedException {
-        return mockZooKeeper.create(path, data, acl, createMode);
+        try {
+            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            return mockZooKeeper.create(path, data, acl, createMode);
+        } finally {
+            mockZooKeeper.removeEpheralOwnerOverride();
+        }
     }
 
     @Override
     public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
                        final AsyncCallback.StringCallback cb, final Object ctx) {
-        mockZooKeeper.create(path, data, acl, createMode, cb, ctx);
+        try {
+            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.create(path, data, acl, createMode, cb, ctx);
+        } finally {
+            mockZooKeeper.removeEpheralOwnerOverride();
+        }
     }
 
     @Override
@@ -202,11 +219,15 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public void close() throws InterruptedException {
-        mockZooKeeper.close();
+        if (closeMockZooKeeperOnClose) {
+            mockZooKeeper.close();
+        }
     }
 
     public void shutdown() throws InterruptedException {
-        mockZooKeeper.shutdown();
+        if (closeMockZooKeeperOnClose) {
+            mockZooKeeper.shutdown();
+        }
     }
 
     Optional<KeeperException.Code> programmedFailure(MockZooKeeper.Op op, String path) {
@@ -240,8 +261,6 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public String toString() {
-        return "MockZooKeeperSession{" +
-                "sessionId=" + sessionId +
-                '}';
+        return "MockZooKeeperSession{" + "sessionId=" + sessionId + '}';
     }
 }

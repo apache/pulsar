@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,30 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.google.common.collect.Maps;
+import static com.google.common.base.Preconditions.checkState;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.avro.Schema.Type.RECORD;
+import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Auto detect schema, returns only GenericRecord instances.
@@ -53,8 +57,14 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private SchemaInfoProvider schemaInfoProvider;
 
+    public static final SchemaInfo SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("AutoConsume")
+            .type(SchemaType.AUTO_CONSUME)
+            .schema(new byte[0])
+            .build();
+
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
-        ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = Maps.newConcurrentMap();
+        ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
         // The Schema.BYTES will not be uploaded to the broker and store in the schema storage,
         // if the schema version in the message metadata is empty byte[], it means its schema is Schema.BYTES.
         schemaMap.put(BytesSchemaVersion.of(new byte[0]), Schema.BYTES);
@@ -118,6 +128,14 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
+    public GenericRecord decode(ByteBuffer buffer, byte[] schemaVersion) {
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
+        fetchSchemaIfNeeded(sv);
+        ensureSchemaInitialized(sv);
+        return adapt(schemaMap.get(sv).decode(buffer, schemaVersion), schemaVersion);
+    }
+
+    @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
         this.schemaInfoProvider = schemaInfoProvider;
         for (Schema<?> schema : schemaMap.values()) {
@@ -172,11 +190,33 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         switch (schemaInfo.getType()) {
             case JSON:
             case AVRO:
-                return GenericSchemaImpl.of(schemaInfo,useProvidedSchemaAsReaderSchema);
+                return extractFromAvroSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:
                 return getSchema(schemaInfo);
+        }
+    }
+
+    private static Schema<?> extractFromAvroSchema(SchemaInfo schemaInfo,
+                                                   final boolean useProvidedSchemaAsReaderSchema) {
+        org.apache.avro.Schema avroSchema = SchemaUtil.parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
+        // if avroSchema type is RECORD we can use GenericSchema, otherwise use its own schema and decode return
+        // `GenericObjectWrapper`
+        if (avroSchema.getType() == RECORD) {
+            return GenericSchemaImpl.of(schemaInfo, useProvidedSchemaAsReaderSchema);
+        } else {
+            // because of we use json primitive schema or avro primitive schema generated data
+            // different from the data generated using the primitive schema of pulsar itself.
+            // so we should use the original schema of this data
+            if (schemaInfo.getType() == SchemaType.JSON) {
+                // It should be generated and used POJO, otherwise json cannot be parsed correctly
+                return Schema.JSON(SchemaDefinition.builder()
+                        .withPojo(ReflectData.get().getClass(avroSchema)).build());
+            } else {
+                return Schema.AVRO(SchemaDefinition.builder()
+                        .withJsonDef(new String(schemaInfo.getSchema(), UTF_8)).build());
+            }
         }
     }
 
@@ -274,6 +314,18 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     /**
+     * Get a specific schema version, fetching from the Registry if it is not loaded yet.
+     * This method is not intended to be used by applications.
+     * @param schemaVersion the version
+     * @return the Schema at the specific version
+     * @see #atSchemaVersion(byte[])
+     */
+    public Schema<?> unwrapInternalSchema(byte[] schemaVersion) {
+        fetchSchemaIfNeeded(BytesSchemaVersion.of(schemaVersion));
+        return getInternalSchema(schemaVersion);
+    }
+
+    /**
      * It may happen that the schema is not loaded but we need it, for instance in order to call getSchemaInfo()
      * We cannot call this method in getSchemaInfo, because getSchemaInfo is called in many
      * places and we will introduce lots of deadlocks.
@@ -284,8 +336,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
         if (!schemaMap.containsKey(schemaVersion)) {
             if (schemaInfoProvider == null) {
-                throw new SchemaSerializationException("Can't get accurate schema information for topic " + topicName +
-                                                "using AutoConsumeSchema because SchemaInfoProvider is not set yet");
+                throw new SchemaSerializationException("Can't get accurate schema information for topic " + topicName
+                        + "using AutoConsumeSchema because SchemaInfoProvider is not set yet");
             } else {
                 SchemaInfo schemaInfo = null;
                 try {

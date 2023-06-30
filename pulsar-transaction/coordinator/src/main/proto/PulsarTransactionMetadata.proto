@@ -51,4 +51,10 @@ message TransactionMetadataEntry {
   optional uint64 start_time      = 9;
   optional uint64 last_modification_time = 10;
   optional uint64 max_local_txn_id = 11;
+  optional string owner          = 12;
+}
+
+message BatchedTransactionMetadataEntry{
+  // Array for buffer transaction log data.
+  repeated TransactionMetadataEntry transaction_logs = 1;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,7 +40,7 @@ public class EventResourcesImpl implements EventResources {
 
     @Override
     public EventResources resource(String key, Supplier<String> value) {
-        resource(key, (Object)value);
+        resource(key, (Object) value);
         return this;
     }
 
@@ -77,7 +77,7 @@ public class EventResourcesImpl implements EventResources {
             String key = String.valueOf(list.get(i));
             Object value = list.get(i + 1);
             if (value instanceof Supplier) {
-                value = ((Supplier<?>)value).get();
+                value = ((Supplier<?>) value).get();
             }
             process.accept(key, String.valueOf(value));
         }

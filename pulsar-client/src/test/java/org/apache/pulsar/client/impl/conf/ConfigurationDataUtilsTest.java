@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -60,6 +60,8 @@ public class ConfigurationDataUtilsTest {
         config.put("maxLookupRedirects", 50);
         config.put("authParams", "testAuthParams");
         config.put("authParamMap", authParamMap);
+        config.put("dnsLookupBindAddress", "0.0.0.0");
+        config.put("dnsLookupBindPort", 0);
 
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
@@ -69,6 +71,8 @@ public class ConfigurationDataUtilsTest {
         assertEquals("testAuthParams", confData.getAuthParams());
         assertEquals("v1", confData.getAuthParamMap().get("k1"));
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
+        assertEquals("0.0.0.0", confData.getDnsLookupBindAddress());
+        assertEquals(0, confData.getDnsLookupBindPort());
     }
 
     @Test
@@ -148,7 +152,9 @@ public class ConfigurationDataUtilsTest {
         assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
 
         assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
-        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(), 1, "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(),
+                Runtime.getRuntime().availableProcessors(), "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getNumIoThreads(), Runtime.getRuntime().availableProcessors());
         assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
                 "builder default should override if set explicitly");
     }

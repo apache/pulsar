@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
 
-public class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
+public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
 	PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
 		super(functionRuntimeType);
@@ -46,22 +46,27 @@ public class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false, false, false);
+        testExclamationFunction(Runtime.PYTHON, false, false, false, false);
     }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationFunctionWithExtraDeps() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false, false, true);
+        testExclamationFunction(Runtime.PYTHON, false, false, false, true);
     }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationZipFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false, true, false);
+        testExclamationFunction(Runtime.PYTHON, false, true, false, false);
     }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, true, false, false);
+        testExclamationFunction(Runtime.PYTHON, true, false, false, false);
+    }
+
+    @Test(groups = {"python_function", "function"})
+    public void testAvroSchemaFunctionTest() throws Exception {
+        testAvroSchemaFunction(Runtime.PYTHON);
     }
 
 }

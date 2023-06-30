@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -53,22 +53,26 @@ public class CmdGenerateDocumentation {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();
         cmdClassMap.put("produce", Class.forName("org.apache.pulsar.testclient.PerformanceProducer$Arguments"));
         cmdClassMap.put("consume", Class.forName("org.apache.pulsar.testclient.PerformanceConsumer$Arguments"));
+        cmdClassMap.put("transaction", Class.forName("org.apache.pulsar.testclient.PerformanceTransaction$Arguments"));
         cmdClassMap.put("read", Class.forName("org.apache.pulsar.testclient.PerformanceReader$Arguments"));
         cmdClassMap.put("monitor-brokers", Class.forName("org.apache.pulsar.testclient.BrokerMonitor$Arguments"));
-        cmdClassMap.put("simulation-client", Class.forName("org.apache.pulsar.testclient.LoadSimulationClient$MainArguments"));
-        cmdClassMap.put("simulation-controller", Class.forName("org.apache.pulsar.testclient.LoadSimulationController$MainArguments"));
-        cmdClassMap.put("websocket-producer", Class.forName("org.apache.pulsar.proxy.socket.client.PerformanceClient$Arguments"));
+        cmdClassMap.put("simulation-client",
+                Class.forName("org.apache.pulsar.testclient.LoadSimulationClient$MainArguments"));
+        cmdClassMap.put("simulation-controller",
+                Class.forName("org.apache.pulsar.testclient.LoadSimulationController$MainArguments"));
+        cmdClassMap.put("websocket-producer",
+                Class.forName("org.apache.pulsar.proxy.socket.client.PerformanceClient$Arguments"));
         cmdClassMap.put("managed-ledger", Class.forName("org.apache.pulsar.testclient.ManagedLedgerWriter$Arguments"));
 
         for (Map.Entry<String, Class<?>> entry : cmdClassMap.entrySet()) {
@@ -93,23 +97,16 @@ public class CmdGenerateDocumentation {
     private static String generateDocument(String module, JCommander parentCmd) {
         StringBuilder sb = new StringBuilder();
         JCommander cmd = parentCmd.getCommands().get(module);
-        sb.append("------------\n\n");
-        sb.append("# ").append(module).append("\n\n");
-        sb.append("### Usage\n\n");
-        sb.append("`$").append(module).append("`\n\n");
-        sb.append("------------\n\n");
+        sb.append("## ").append(module).append("\n\n");
         sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
-        sb.append("\n\n```bdocs-tab:example_shell\n")
+        sb.append("\n\n```shell\n")
                 .append("$ pulsar-perf ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
-        for (String s : cmd.getCommands().keySet()) {
-            sb.append("* `").append(s).append("`\n");
-        }
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();
-        options.forEach((option) ->
+        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
                 sb.append("| `").append(option.getNames())
                         .append("` | ").append(option.getDescription().replace("\n", " "))
                         .append("|").append(option.getDefault()).append("|\n")

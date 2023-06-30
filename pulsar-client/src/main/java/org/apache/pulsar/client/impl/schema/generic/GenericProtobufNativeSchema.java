@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import static org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericProtobufNativeReader.parseProtobufSchema;
-
 import com.google.protobuf.Descriptors;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;

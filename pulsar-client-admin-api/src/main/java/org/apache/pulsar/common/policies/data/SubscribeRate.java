@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,16 @@ public class SubscribeRate {
     public SubscribeRate(int subscribeThrottlingRatePerConsumer, int ratePeriodInSecond) {
         this.subscribeThrottlingRatePerConsumer = subscribeThrottlingRatePerConsumer;
         this.ratePeriodInSecond = ratePeriodInSecond;
+    }
+
+    public static SubscribeRate normalize(SubscribeRate subscribeRate) {
+        if (subscribeRate != null
+            && subscribeRate.subscribeThrottlingRatePerConsumer > 0
+            && subscribeRate.ratePeriodInSecond > 0) {
+            return subscribeRate;
+        } else {
+            return null;
+        }
     }
 
     @Override

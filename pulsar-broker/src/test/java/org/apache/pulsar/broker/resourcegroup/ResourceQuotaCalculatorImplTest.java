@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -109,6 +109,16 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         final long[] allUsage = { 0 };
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
         Assert.assertEquals(newQuota, config);
+    }
+
+    @Test
+    public void testNeedToReportLocalUsage() {
+        // If the percentage change (increase or decrease) in usage is more than 5% for
+        // either bytes or messages, send a report.
+        Assert.assertFalse(rqCalc.needToReportLocalUsage(1040, 1000, 104, 100, System.currentTimeMillis()));
+        Assert.assertFalse(rqCalc.needToReportLocalUsage(950, 1000, 95, 100, System.currentTimeMillis()));
+        Assert.assertTrue(rqCalc.needToReportLocalUsage(1060, 1000, 106, 100, System.currentTimeMillis()));
+        Assert.assertTrue(rqCalc.needToReportLocalUsage(940, 1000, 94, 100, System.currentTimeMillis()));
     }
 
     private ResourceQuotaCalculatorImpl rqCalc;

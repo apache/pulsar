@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,11 +24,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -50,16 +51,20 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The index name that the connector writes messages to, the default is the topic name"
+        help = "The index name to which the connector writes messages. The default value is the topic name."
+                + " It accepts date formats in the name to support event time based index with"
+                + " the pattern %{+<date-format>}. For example, suppose the event time of the record"
+                + " is 1645182000000L, the indexName is \"logs-%{+yyyy-MM-dd}\", then the formatted"
+                + " index name would be \"logs-2022-02-18\"."
     )
     private String indexName;
 
     @FieldDoc(
         required = false,
         defaultValue = "_doc",
-        help = "The type name that the connector writes messages to, with the default value set to _doc." +
-                " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2," +
-                " and left to the default value otherwise."
+        help = "The type name that the connector writes messages to, with the default value set to _doc."
+                + " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2,"
+                + " and left to the default value otherwise."
     )
     private String typeName = "_doc";
 
@@ -79,14 +84,14 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "true",
+            defaultValue = "false",
             help = "Create the index if it does not exist"
     )
     private boolean createIndexIfNeeded = false;
 
     @FieldDoc(
         required = false,
-        defaultValue = "1",
+        defaultValue = "0",
         help = "The number of replicas of the index"
     )
     private int indexNumberOfReplicas = 0;
@@ -109,7 +114,23 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "-1",
+            defaultValue = "",
+            sensitive = true,
+            help = "The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
+    )
+    private String token;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
+    )
+    private String apiKey;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "1",
             help = "The maximum number of retries for elasticsearch requests. Use -1 to disable it."
     )
     private int maxRetries = 1;
@@ -164,10 +185,10 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "-1",
-            help = "The bulk flush interval flushing any bulk request pending if the interval passes. Default is -1 meaning not set."
+            defaultValue = "1000",
+            help = "The bulk flush interval flushing any bulk request pending if the interval passes. -1 or zero means the scheduled flushing is disabled."
     )
-    private long bulkFlushIntervalInMs = -1;
+    private long bulkFlushIntervalInMs = 1000L;
 
     // connection settings, see https://www.elastic.co/guide/en/elasticsearch/client/java-rest/current/java-rest-low-config.html
     @FieldDoc(
@@ -193,10 +214,10 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "5",
-            help = "Idle connection timeout to prevent a read timeout."
+            defaultValue = "30000",
+            help = "Idle connection timeout to prevent a connection timeout due to inactivity."
     )
-    private int connectionIdleTimeoutInMs = 5;
+    private int connectionIdleTimeoutInMs = 30000;
 
     @FieldDoc(
             required = false,
@@ -216,11 +237,16 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "id",
+            defaultValue = "",
             help = "The comma separated ordered list of field names used to build the Elasticsearch document _id from the record value. If this list is a singleton, the field is converted as a string. If this list has 2 or more fields, the generated _id is a string representation of a JSON array of the field values."
     )
     private String primaryFields = "";
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "The SSL config for elastic search."
+    )
     private ElasticSearchSslConfig ssl = new ElasticSearchSslConfig();
 
     @FieldDoc(
@@ -244,6 +270,51 @@ public class ElasticSearchConfig implements Serializable {
     )
     private boolean stripNulls = true;
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "AUTO",
+            help = "Specify compatibility mode with the ElasticSearch cluster. "
+                    + "'AUTO' value will try to auto detect the correct compatibility mode to use. "
+                    + "Use 'ELASTICSEARCH_7' if the target cluster is running ElasticSearch 7 or prior. "
+                    + "Use 'ELASTICSEARCH' if the target cluster is running ElasticSearch 8 or higher. "
+                    + "Use 'OPENSEARCH' if the target cluster is running OpenSearch."
+    )
+    private CompatibilityMode compatibilityMode = CompatibilityMode.AUTO;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "If canonicalKeyFields is true and record key schema is JSON or AVRO, the serialized object will "
+                    + "not consider the properties order."
+    )
+    private boolean canonicalKeyFields = false;
+
+    @FieldDoc(
+            defaultValue = "true",
+            help = "If stripNonPrintableCharacters is true, all non-printable characters will be removed from the document."
+    )
+    private boolean stripNonPrintableCharacters = true;
+
+    @FieldDoc(
+            defaultValue = "NONE",
+            help = "Hashing algorithm to use for the document id. This is useful in order to be compliant with "
+                    + "the ElasticSearch _id hard limit of 512 bytes."
+    )
+    private IdHashingAlgorithm idHashingAlgorithm = IdHashingAlgorithm.NONE;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "This option only works if idHashingAlgorithm is set."
+                    + "If enabled, the hashing is performed only if the id is greater than 512 bytes otherwise "
+                    + "the hashing is performed on each document in any case."
+    )
+    private boolean conditionalIdHashing = false;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "When the message key schema is AVRO or JSON, copy the message key fields into the Elasticsearch _source."
+    )
+    private boolean copyKeyFields = false;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
@@ -256,14 +327,26 @@ public class ElasticSearchConfig implements Serializable {
         FAIL
     }
 
+    public enum CompatibilityMode {
+        AUTO,
+        ELASTICSEARCH_7,
+        ELASTICSEARCH,
+        OPENSEARCH
+    }
+
+    public enum IdHashingAlgorithm {
+        NONE,
+        SHA256,
+        SHA512
+    }
+
     public static ElasticSearchConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), ElasticSearchConfig.class);
     }
 
-    public static ElasticSearchConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), ElasticSearchConfig.class);
+    public static ElasticSearchConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, ElasticSearchConfig.class, sinkContext);
     }
 
     public void validate() {
@@ -273,22 +356,32 @@ public class ElasticSearchConfig implements Serializable {
 
         if (StringUtils.isNotEmpty(indexName) && createIndexIfNeeded) {
             // see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
-            if (!indexName.toLowerCase(Locale.ROOT).equals(indexName)) {
-                throw new IllegalArgumentException("indexName should be lowercase only.");
-            }
+            // date format may contain upper cases, so we need to valid against parsed index name
+            IndexNameFormatter.validate(indexName);
             if (indexName.startsWith("-") || indexName.startsWith("_") || indexName.startsWith("+")) {
                 throw new IllegalArgumentException("indexName start with an invalid character.");
             }
             if (indexName.equals(".") || indexName.equals("..")) {
-                throw new IllegalArgumentException("indexName cannot be . or ..");            }
+                throw new IllegalArgumentException("indexName cannot be . or ..");
+            }
             if (indexName.getBytes(StandardCharsets.UTF_8).length > 255) {
                 throw new IllegalArgumentException("indexName cannot be longer than 255 bytes.");
             }
         }
 
         if ((StringUtils.isNotEmpty(username) && StringUtils.isEmpty(password))
-           || (StringUtils.isEmpty(username) && StringUtils.isNotEmpty(password))) {
+                || (StringUtils.isEmpty(username) && StringUtils.isNotEmpty(password))) {
             throw new IllegalArgumentException("Values for both Username & password are required.");
+        }
+
+        boolean basicAuthSet = StringUtils.isNotEmpty(username) && StringUtils.isNotEmpty(password);
+        boolean tokenAuthSet = StringUtils.isNotEmpty(token);
+        boolean apiKeySet = StringUtils.isNotEmpty(apiKey);
+        if ((basicAuthSet && tokenAuthSet && apiKeySet)
+                || (basicAuthSet && tokenAuthSet)
+                || (basicAuthSet && apiKeySet)
+                || (tokenAuthSet && apiKeySet)) {
+            throw new IllegalArgumentException("Only one between basic/token/apiKey authentication mode must be configured.");
         }
 
         if (indexNumberOfShards <= 0) {

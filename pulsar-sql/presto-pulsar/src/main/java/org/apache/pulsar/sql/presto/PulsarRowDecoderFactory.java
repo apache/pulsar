@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.spi.connector.ColumnMetadata;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
 import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.common.naming.TopicName;

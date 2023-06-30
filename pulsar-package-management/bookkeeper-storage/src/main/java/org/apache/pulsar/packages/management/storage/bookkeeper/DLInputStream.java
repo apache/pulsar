@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -75,15 +75,13 @@ class DLInputStream {
                     }
                     return;
                 }
-                CompletableFuture.runAsync(() -> {
-                    logRecordWithDLSNS.forEach(logRecord -> {
-                        try {
-                            outputStream.write(logRecord.getPayload());
-                        } catch (IOException e) {
-                            readFuture.completeExceptionally(e);
-                        }
-                    });
-                }).thenRun(() -> read(outputStream, readFuture, num));
+                CompletableFuture.runAsync(() -> logRecordWithDLSNS.forEach(logRecord -> {
+                    try {
+                        outputStream.write(logRecord.getPayload());
+                    } catch (IOException e) {
+                        readFuture.completeExceptionally(e);
+                    }
+                })).thenRun(() -> read(outputStream, readFuture, num));
             });
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
@@ -84,20 +85,20 @@ public class PackagesManagementImpl implements PackagesManagement {
                     future.completeExceptionally(throwable);
                     return;
                 }
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                try (ByteArrayInputStream in = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
                     storage.deleteAsync(metadataPath)
-                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, inputStream))
+                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, in))
                         .whenComplete((aVoid, t) -> {
                             if (t != null) {
                                 future.completeExceptionally(new PackagesManagementException(
-                                    String.format("Update package '%s' metadata failed", packageName.toString()), t));
+                                    String.format("Update package '%s' metadata failed", packageName), t));
                             } else {
                                 future.complete(null);
                             }
                         });
                 } catch (IOException e) {
                     future.completeExceptionally(new PackagesManagementException(
-                        String.format("Read package '%s' metadata failed", packageName.toString()), e));
+                        String.format("Read package '%s' metadata failed", packageName), e));
                 }
             });
         return future;
@@ -187,8 +188,8 @@ public class PackagesManagementImpl implements PackagesManagement {
                 if (!exist) {
                     future.complete(null);
                 } else {
-                    future.completeExceptionally(
-                        new NotFoundException(String.format("Package '%s' metadata already exists", packageName)));
+                    future.completeExceptionally(new FileAlreadyExistsException(
+                            String.format("Package '%s' metadata already exists", packageName)));
                 }
             });
         return future;
@@ -243,12 +244,12 @@ public class PackagesManagementImpl implements PackagesManagement {
         return future;
     }
 
-    private String metadataPath(PackageName packageName) {
+    protected String metadataPath(PackageName packageName) {
         return packageName.toRestPath() + "/meta";
     }
 
-    private String packagePath(PackageName packageName) {
-        return packageName.toRestPath();
+    protected String packagePath(PackageName packageName) {
+        return packageName.toRestPath() + storage.dataPath();
     }
 
     private String packageWithoutVersionPath(PackageName packageName) {

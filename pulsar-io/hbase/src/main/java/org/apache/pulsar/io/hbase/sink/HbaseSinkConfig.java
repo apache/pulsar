@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,16 +21,15 @@ package org.apache.pulsar.io.hbase.sink;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.apache.pulsar.io.hbase.HbaseAbstractConfig;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -60,7 +59,7 @@ public class HbaseSinkConfig extends HbaseAbstractConfig {
     @FieldDoc(
        defaultValue = "1000l",
        help = "The hbase operation time in milliseconds")
-    private long batchTimeMs = 1000l;
+    private long batchTimeMs = 1000L;
 
     @FieldDoc(
         defaultValue = "200",
@@ -75,7 +74,7 @@ public class HbaseSinkConfig extends HbaseAbstractConfig {
 
     public static HbaseSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), HbaseSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), HbaseSinkConfig.class);
     }
 
     @Override

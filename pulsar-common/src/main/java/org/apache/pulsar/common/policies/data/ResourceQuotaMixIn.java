@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,5 +22,5 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public abstract class ResourceQuotaMixIn {
     @JsonIgnore
-    abstract public boolean isValid();
+    public abstract boolean isValid();
 }

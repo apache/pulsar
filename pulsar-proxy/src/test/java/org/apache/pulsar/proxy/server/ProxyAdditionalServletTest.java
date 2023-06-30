@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -72,9 +72,10 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 

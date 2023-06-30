@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,17 +20,14 @@ package org.apache.pulsar.io.hdfs3.sink;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
-
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.hdfs3.AbstractHdfsConfig;
 
 /**
@@ -80,7 +77,7 @@ public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
 
     public static HdfsSinkConfig load(Map<String, Object> map) throws IOException {
        ObjectMapper mapper = new ObjectMapper();
-       return mapper.readValue(new ObjectMapper().writeValueAsString(map), HdfsSinkConfig.class);
+       return mapper.readValue(mapper.writeValueAsString(map), HdfsSinkConfig.class);
     }
 
     @Override

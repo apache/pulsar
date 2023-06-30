@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -102,7 +102,7 @@ public interface RawMessage {
     Optional<String> getKey();
 
     /**
-     * Get the schema verison of the message.
+     * Get the schema version of the message.
      *
      * @return the schema version of the message
      */
@@ -121,4 +121,33 @@ public interface RawMessage {
      * @return true if the key is base64 encoded, false otherwise
      */
     boolean hasBase64EncodedKey();
+
+    /**
+     * Get uuid of chunked message.
+     *
+     * @return uuid
+     */
+    String getUUID();
+
+    /**
+     * Get chunkId of chunked message.
+     *
+     * @return chunkId
+     */
+    int getChunkId();
+
+    /**
+     * Get chunk num of chunked message.
+     *
+     * @return chunk num
+     */
+    int getNumChunksFromMsg();
+
+    /**
+     * Get chunk message total size in bytes.
+     *
+     * @return chunked message total size in bytes
+     */
+    int getTotalChunkMsgSize();
+
 }

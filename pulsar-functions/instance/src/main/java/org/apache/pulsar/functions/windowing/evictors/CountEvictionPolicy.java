@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.windowing.evictors;
 
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionContext;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * An eviction policy that tracks event counts and can

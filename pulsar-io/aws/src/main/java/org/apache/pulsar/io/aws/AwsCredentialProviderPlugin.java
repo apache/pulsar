@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.aws;
-
-import java.io.Closeable;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
+import java.io.Closeable;
 
 /**
  * Kinesis source/sink calls credential-provider while refreshing aws accessKey and secreKey. So, implementation
@@ -35,7 +33,6 @@ public interface AwsCredentialProviderPlugin extends Closeable {
 
     /**
      * accepts aws-account related param and initialize credential provider.
-     * 
      * @param param
      */
     void init(String param);
@@ -44,7 +41,6 @@ public interface AwsCredentialProviderPlugin extends Closeable {
      * Returned {@link AWSCredentialsProvider} can give {@link AWSCredentials} in case credential belongs to IAM user or
      * it can return {@link BasicSessionCredentials} if user wants to generate temporary credential for a given IAM
      * role.
-     * 
      * @return
      */
     AWSCredentialsProvider getCredentialProvider();

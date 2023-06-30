@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,21 +32,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.pulsar.broker.TimeAverageBrokerData;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.testclient.utils.FixedColumnLengthTableMaker;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
 
 /**
  * Monitors brokers and prints to the console information about their system resource usages, their topic and bundle
@@ -56,7 +61,7 @@ public class BrokerMonitor {
     private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 30000;
     private static final int GLOBAL_STATS_PRINT_PERIOD_MILLIS = 60000;
-    private final ZooKeeper zkClient;
+    private ZooKeeper zkClient;
     private static final Gson gson = new Gson();
 
     // Fields common for message rows.
@@ -79,7 +84,7 @@ public class BrokerMonitor {
     private static final Object[] ALLOC_MESSAGE_ROW = makeMessageRow("ALLOC MSG");
     private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "LONG/S", "KB/S", "MAX %" };
 
-    private final Map<String, Object> loadData;
+    private Map<String, Object> loadData;
 
     private static final FixedColumnLengthTableMaker localTableMaker = new FixedColumnLengthTableMaker();
     static {
@@ -121,7 +126,8 @@ public class BrokerMonitor {
     // Helper method to initialize rows which hold message data.
     private static void initMessageRow(final Object[] row, final double messageRateIn, final double messageRateOut,
             final double messageThroughputIn, final double messageThroughputOut) {
-        initRow(row, messageRateIn, messageRateOut, messageRateIn + messageRateOut, messageThroughputIn / 1024,
+        initRow(row, messageRateIn, messageRateOut, messageRateIn + messageRateOut,
+                messageThroughputIn / 1024,
                 messageThroughputOut / 1024, (messageThroughputIn + messageThroughputOut) / 1024);
     }
 
@@ -169,9 +175,11 @@ public class BrokerMonitor {
                     final String timeAveragePath = ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
                     try {
                         final TimeAverageBrokerData timeAverageData = gson.fromJson(
-                                new String(zkClient.getData(timeAveragePath, false, null)), TimeAverageBrokerData.class);
-                        longTermMessageRate = timeAverageData.getLongTermMsgRateIn() + timeAverageData.getLongTermMsgRateOut();
-                    } catch ( Exception x ) {
+                                new String(zkClient.getData(timeAveragePath, false, null)),
+                                TimeAverageBrokerData.class);
+                        longTermMessageRate = timeAverageData.getLongTermMsgRateIn()
+                                + timeAverageData.getLongTermMsgRateOut();
+                    } catch (Exception x) {
                         throw new RuntimeException(x);
                     }
                     messageThroughput = (localData.getMsgThroughputIn() + localData.getMsgThroughputOut()) / 1024;
@@ -218,9 +226,8 @@ public class BrokerMonitor {
 
         /**
          * Creates a watch for a newly acquired broker so that its data is printed whenever it is updated.
-         * 
-         * @param event
-         *            The watched event.
+         *
+         * @param event The watched event.
          */
         public synchronized void process(final WatchedEvent event) {
             try {
@@ -275,9 +282,8 @@ public class BrokerMonitor {
 
         /**
          * Print the local and historical broker data in a tabular format, and put this back as a watcher.
-         * 
-         * @param event
-         *            The watched event.
+         *
+         * @param event The watched event.
          */
         public synchronized void process(final WatchedEvent event) {
             try {
@@ -429,21 +435,23 @@ public class BrokerMonitor {
     }
 
     // JCommander arguments class.
-    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system resource usages," +
-            "\ntheir topic and bundle counts, their message rates, and other metrics.")
+    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system "
+            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
     private static class Arguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--connect-string" }, description = "Zookeeper connect string", required = true)
+        @Parameter(names = { "--connect-string" }, description = "Zookeeper or broker connect string", required = true)
         public String connectString = null;
+
+        @Parameter(names = { "--extensions" }, description = "true to monitor Load Balance Extensions.")
+        boolean extensions = false;
     }
 
     /**
      * Create a broker monitor from the given ZooKeeper client.
-     * 
-     * @param zkClient
-     *            Client to create this from.
+     *
+     * @param zkClient Client to create this from.
      */
     public BrokerMonitor(final ZooKeeper zkClient) {
         loadData = new ConcurrentHashMap<>();
@@ -466,11 +474,75 @@ public class BrokerMonitor {
         }
     }
 
+    private TableView<BrokerLoadData> brokerLoadDataTableView;
+
+    private BrokerMonitor(String brokerServiceUrl) {
+        try {
+            PulsarClient client = PulsarClient.builder()
+                    .memoryLimit(0, SizeUnit.BYTES)
+                    .serviceUrl(brokerServiceUrl)
+                    .connectionsPerBroker(4)
+                    .ioThreads(Runtime.getRuntime().availableProcessors())
+                    .statsInterval(0, TimeUnit.SECONDS)
+                    .build();
+            this.brokerLoadDataTableView = client
+                    .newTableView(Schema.JSON(BrokerLoadData.class))
+                    .topic(BROKER_LOAD_DATA_STORE_TOPIC).create();
+        } catch (Throwable e) {
+            log.info("Failed to start BrokerMonitor", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private synchronized void printBrokerLoadData(final String broker, final BrokerLoadData brokerLoadData) {
+
+        // Initialize the constant rows.
+        final Object[][] rows = new Object[6][];
+        rows[0] = SYSTEM_ROW;
+        rows[2] = COUNT_ROW;
+        rows[4] = LATEST_ROW;
+
+        // First column is a label, so start at the second column at index 1.
+        // System row.
+        rows[1] = new Object[SYSTEM_ROW.length];
+        initRow(rows[1], brokerLoadData.getCpu().percentUsage(), brokerLoadData.getMemory().percentUsage(),
+                brokerLoadData.getDirectMemory().percentUsage(), brokerLoadData.getBandwidthIn().percentUsage(),
+                brokerLoadData.getBandwidthOut().percentUsage(), brokerLoadData.getMaxResourceUsage() * 100);
+
+        // Count row.
+        rows[3] = new Object[COUNT_ROW.length];
+        initRow(rows[3], null, brokerLoadData.getBundleCount(),
+                null, null,
+                null, null);
+
+        // Latest message data row.
+        rows[5] = new Object[LATEST_ROW.length];
+        initMessageRow(rows[5], brokerLoadData.getMsgRateIn(), brokerLoadData.getMsgRateOut(),
+                brokerLoadData.getMsgThroughputIn(), brokerLoadData.getMsgThroughputOut());
+
+        final String table = localTableMaker.make(rows);
+        log.info("\nBroker Data for {}:\n{}\n", broker, table);
+    }
+
+    private synchronized void printBrokerLoadDataStore() {
+        brokerLoadDataTableView.forEach(this::printBrokerLoadData);
+    }
+
+    private void startBrokerLoadDataStoreMonitor() {
+        try {
+            while (true) {
+                Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
+                printBrokerLoadDataStore();
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
     /**
      * Run a monitor from command line arguments.
-     * 
-     * @param args
-     *            Arguments for the monitor.
+     *
+     * @param args Arguments for the monitor.
      */
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
@@ -482,10 +554,17 @@ public class BrokerMonitor {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
-        final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
-        final BrokerMonitor monitor = new BrokerMonitor(zkClient);
-        monitor.start();
+
+
+        if (arguments.extensions) {
+            final BrokerMonitor monitor = new BrokerMonitor(arguments.connectString);
+            monitor.startBrokerLoadDataStoreMonitor();
+        } else {
+            final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
+            final BrokerMonitor monitor = new BrokerMonitor(zkClient);
+            monitor.start();
+        }
     }
 }

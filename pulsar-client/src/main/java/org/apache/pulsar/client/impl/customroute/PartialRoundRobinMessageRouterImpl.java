@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.customroute;
 
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

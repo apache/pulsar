@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,8 @@ package org.apache.pulsar.client.impl.auth;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-
 import java.util.Set;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataAthenz implements AuthenticationDataProvider {
     private static final long serialVersionUID = 1L;

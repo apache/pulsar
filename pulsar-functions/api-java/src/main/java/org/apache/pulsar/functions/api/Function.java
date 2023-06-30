@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,11 +31,27 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 @FunctionalInterface
-public interface Function<I, O> {
+public interface Function<X, T> {
     /**
      * Process the input.
      *
      * @return the output
      */
-    O process(I input, Context context) throws Exception;
+    T process(X input, Context context) throws Exception;
+
+    /**
+     * Called once to initialize resources when function instance is started.
+     *
+     * @param context The Function context
+     *
+     * @throws Exception if an error occurs
+     */
+    default void initialize(Context context) throws Exception {}
+
+    /**
+     * Called once to properly close resources when function instance is stopped.
+     *
+     * @throws Exception if an error occurs
+     */
+    default void close() throws Exception {}
 }

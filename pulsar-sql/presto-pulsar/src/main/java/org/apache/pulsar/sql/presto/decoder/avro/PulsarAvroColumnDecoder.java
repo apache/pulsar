@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,55 +21,59 @@ package org.apache.pulsar.sql.presto.decoder.avro;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.prestosql.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
-import static io.prestosql.spi.StandardErrorCode.GENERIC_USER_ERROR;
-import static io.prestosql.spi.type.Varchars.truncateToLength;
+import static io.trino.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
+import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
+import static io.trino.spi.type.Varchars.truncateToLength;
 import static java.lang.Float.floatToIntBits;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.block.BlockBuilder;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DateType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.MapType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.RowType.Field;
-import io.prestosql.spi.type.SmallintType;
-import io.prestosql.spi.type.TimeType;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.TinyintType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.Int128;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.RowType.Field;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
+import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
 /**
- * Copy from {@link io.prestosql.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345)
- * with A little bit pulsar's extensions.
- * 1) support {@link io.prestosql.spi.type.TimestampType},{@link io.prestosql.spi.type.DateType}DATE,
- *  * {@link io.prestosql.spi.type.TimeType}.
- * 2) support {@link io.prestosql.spi.type.RealType}.
+ * Copy from {@link io.trino.decoder.avro.AvroColumnDecoder}
+ * with A little pulsar's extensions.
+ * 1) support date and time types.
+ *  {@link io.trino.spi.type.TimestampType}
+ *  {@link io.trino.spi.type.DateType}
+ *  {@link io.trino.spi.type.TimeType}
+ * 2) support {@link io.trino.spi.type.RealType}.
+ * 3) support {@link io.trino.spi.type.DecimalType}.
  */
 public class PulsarAvroColumnDecoder {
     private static final Set<Type> SUPPORTED_PRIMITIVE_TYPES = ImmutableSet.of(
@@ -80,9 +84,9 @@ public class PulsarAvroColumnDecoder {
             BigintType.BIGINT,
             RealType.REAL,
             DoubleType.DOUBLE,
-            TimestampType.TIMESTAMP,
+            TimestampType.TIMESTAMP_MILLIS,
             DateType.DATE,
-            TimeType.TIME,
+            TimeType.TIME_MILLIS,
             VarbinaryType.VARBINARY);
 
     private final Type columnType;
@@ -106,7 +110,7 @@ public class PulsarAvroColumnDecoder {
             checkArgument(isSupportedType(columnType),
                     "Unsupported column type '%s' for column '%s'", columnType, columnName);
         } catch (IllegalArgumentException e) {
-            throw new PrestoException(GENERIC_USER_ERROR, e);
+            throw new TrinoException(GENERIC_USER_ERROR, e);
         }
     }
 
@@ -142,7 +146,7 @@ public class PulsarAvroColumnDecoder {
     }
 
     private boolean isSupportedPrimitive(Type type) {
-        return type instanceof VarcharType || SUPPORTED_PRIMITIVE_TYPES.contains(type);
+        return type instanceof VarcharType || type instanceof DecimalType || SUPPORTED_PRIMITIVE_TYPES.contains(type);
     }
 
     public FieldValueProvider decodeField(GenericRecord avroRecord) {
@@ -183,7 +187,7 @@ public class PulsarAvroColumnDecoder {
             if (value instanceof Double || value instanceof Float) {
                 return ((Number) value).doubleValue();
             }
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
@@ -193,7 +197,7 @@ public class PulsarAvroColumnDecoder {
             if (value instanceof Boolean) {
                 return (Boolean) value;
             }
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
@@ -201,14 +205,28 @@ public class PulsarAvroColumnDecoder {
         @Override
         public long getLong() {
             if (value instanceof Long || value instanceof Integer) {
-                return ((Number) value).longValue();
+                final long payload = ((Number) value).longValue();
+                if (TimestampType.TIMESTAMP_MILLIS.equals(columnType)) {
+                    return payload * Timestamps.MICROSECONDS_PER_MILLISECOND;
+                }
+                if (TimeType.TIME_MILLIS.equals(columnType)) {
+                    return payload * Timestamps.PICOSECONDS_PER_MILLISECOND;
+                }
+                return payload;
             }
 
             if (columnType instanceof RealType) {
                 return floatToIntBits((Float) value);
             }
 
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            if (columnType instanceof DecimalType) {
+                ByteBuffer buffer = (ByteBuffer) value;
+                byte[] bytes = new byte[buffer.remaining()];
+                buffer.get(bytes);
+                return new BigInteger(bytes).longValue();
+            }
+
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
@@ -237,7 +255,7 @@ public class PulsarAvroColumnDecoder {
             }
         }
 
-        throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+        throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                 format("cannot decode object of '%s' as '%s' for column '%s'",
                         value.getClass(), type, columnName));
     }
@@ -251,6 +269,9 @@ public class PulsarAvroColumnDecoder {
         }
         if (type instanceof RowType) {
             return serializeRow(builder, value, type, columnName);
+        }
+        if (type instanceof DecimalType && !((DecimalType) type).isShort()) {
+            return serializeLongDecimal(builder, value, type, columnName);
         }
         serializePrimitive(builder, value, type, columnName);
         return null;
@@ -277,6 +298,22 @@ public class PulsarAvroColumnDecoder {
         return blockBuilder.build();
     }
 
+    private static Block serializeLongDecimal(
+            BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
+        final BlockBuilder blockBuilder;
+        if (parentBlockBuilder != null) {
+            blockBuilder = parentBlockBuilder;
+        } else {
+            blockBuilder = type.createBlockBuilder(null, 1);
+        }
+        final ByteBuffer buffer = (ByteBuffer) value;
+        type.writeObject(blockBuilder, Int128.fromBigEndian(buffer.array()));
+        if (parentBlockBuilder == null) {
+            return blockBuilder.getSingleValueBlock(0);
+        }
+        return null;
+    }
+
     private static void serializePrimitive(BlockBuilder blockBuilder, Object value, Type type, String columnName) {
         requireNonNull(blockBuilder, "parent blockBuilder is null");
 
@@ -290,11 +327,21 @@ public class PulsarAvroColumnDecoder {
             return;
         }
 
-        if ((value instanceof Integer || value instanceof Long)
-                && (type instanceof BigintType || type instanceof IntegerType
-                || type instanceof SmallintType || type instanceof TinyintType)) {
-            type.writeLong(blockBuilder, ((Number) value).longValue());
-            return;
+        if (value instanceof Integer || value instanceof Long) {
+            final long payload = ((Number) value).longValue();
+            if (type instanceof BigintType || type instanceof IntegerType
+                    || type instanceof SmallintType || type instanceof TinyintType) {
+                type.writeLong(blockBuilder, payload);
+                return;
+            }
+            if (TimestampType.TIMESTAMP_MILLIS.equals(type)) {
+                type.writeLong(blockBuilder, payload * Timestamps.MICROSECONDS_PER_MILLISECOND);
+                return;
+            }
+            if (TimeType.TIME_MILLIS.equals(type)) {
+                type.writeLong(blockBuilder, payload * Timestamps.PICOSECONDS_PER_MILLISECOND);
+                return;
+            }
         }
 
         if (type instanceof DoubleType) {
@@ -312,12 +359,7 @@ public class PulsarAvroColumnDecoder {
             return;
         }
 
-        if (type instanceof TimestampType) {
-            type.writeLong(blockBuilder, (Long) value);
-            return;
-        }
-
-        throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+        throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                 format("cannot decode object of '%s' as '%s' for column '%s'",
                         value.getClass(), type, columnName));
     }

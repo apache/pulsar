@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,9 @@
 package org.apache.pulsar.io.kinesis;
 
 import java.io.Serializable;
-
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import software.amazon.awssdk.regions.Region;
-
 import lombok.Data;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+import software.amazon.awssdk.regions.Region;
 
 @Data
 public abstract class BaseKinesisConfig implements Serializable {
@@ -37,6 +34,7 @@ public abstract class BaseKinesisConfig implements Serializable {
         help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
     )
     private String awsEndpoint = "";
+
 
     @FieldDoc(
         required = false,
@@ -62,7 +60,7 @@ public abstract class BaseKinesisConfig implements Serializable {
     private String awsCredentialPluginName = "";
 
     @FieldDoc(
-        required = false,
+        required = true,
         defaultValue = "",
         sensitive = true,
         help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")

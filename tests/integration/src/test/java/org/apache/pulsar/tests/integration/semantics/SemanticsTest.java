@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,8 +40,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
@@ -219,7 +219,7 @@ public class SemanticsTest extends PulsarTestSuite {
                     Message<String> m = consumer.receive();
                     int topicIdx;
                     if (numTopics > 1) {
-                        String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicPartitionName();
+                        String topic = ((TopicMessageId) m.getMessageId()).getOwnerTopic();
 
                         String[] topicParts = StringUtils.split(topic, '-');
                         topicIdx = Integer.parseInt(topicParts[topicParts.length - 1]);
@@ -262,8 +262,8 @@ public class SemanticsTest extends PulsarTestSuite {
                     for (int i = 0; i < numMessages; i++) {
                         sendFutures.add(producer.sendAsync("batch-message-" + i));
                     }
-                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture[numMessages])).get();
-                    producedMsgIds = sendFutures.stream().map(future -> future.join()).collect(Collectors.toList());
+                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture<?>[numMessages])).get();
+                    producedMsgIds = sendFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
                 }
 
                 for (int i = 0; i < numMessages; i++) {

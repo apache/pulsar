@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.Data;
-import lombok.experimental.Accessors;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -74,6 +72,39 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             help = "In case of Record<KeyValue<>> data use key from KeyValue<> instead of one from Record.")
     private boolean unwrapKeyValueIfAvailable = true;
 
+    @FieldDoc(
+            defaultValue = "true",
+            help = "Allows use of message index instead of message sequenceId as offset, if available.\n"
+                    + "Requires AppendIndexMetadataInterceptor and "
+                    + "exposingBrokerEntryMetadataToClientEnabled=true on brokers.")
+    private boolean useIndexAsOffset = true;
+
+    @FieldDoc(
+            defaultValue = "12",
+            help = "Number of bits (0 to 20) to use for index of message in the batch for translation into an offset.\n"
+                    + "0 to disable this behavior (Messages from the same batch will have the same "
+                    + "offset which can affect some connectors.)")
+    private int maxBatchBitsForOffset = 12;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Some connectors cannot handle pulsar topic names like persistent://a/b/topic"
+                    + " and do not sanitize the topic name themselves. \n"
+                    + "If enabled, all non alpha-digital characters in topic name will be replaced with underscores. \n"
+                    + "In some cases it may result in topic name collisions (topic_a and topic.a will become the same)")
+    private boolean sanitizeTopicName = false;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Supply kafka record with topic name without -partition- suffix for partitioned topics.")
+    private boolean collapsePartitionedTopics = false;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Pulsar schema does not contain information whether the Schema is optional, Kafka's does. \n"
+                    + "This provides a way to force all primitive schemas to be optional for Kafka. \n")
+    private boolean useOptionalPrimitives = false;
+
     public static PulsarKafkaConnectSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), PulsarKafkaConnectSinkConfig.class);
@@ -81,6 +112,6 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
 
     public static PulsarKafkaConnectSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), PulsarKafkaConnectSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), PulsarKafkaConnectSinkConfig.class);
     }
 }

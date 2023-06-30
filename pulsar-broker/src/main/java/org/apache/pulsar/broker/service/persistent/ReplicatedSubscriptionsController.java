@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
@@ -58,7 +59,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final String localCluster;
 
     // The timestamp of when the last snapshot was initiated
-    private long lastCompletedSnapshotStartTime = 0;
+    private volatile long lastCompletedSnapshotStartTime = 0;
 
     private String lastCompletedSnapshotId;
 
@@ -78,7 +79,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         this.topic = topic;
         this.localCluster = localCluster;
         timer = topic.getBrokerService().pulsar().getExecutor()
-                .scheduleAtFixedRate(this::startNewSnapshot, 0,
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
                         topic.getBrokerService().pulsar().getConfiguration()
                                 .getReplicatedSubscriptionsSnapshotFrequencyMillis(),
                         TimeUnit.MILLISECONDS);
@@ -194,14 +195,15 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subcription",
                     topic, update.getSubscriptionName(), updatedMessageId.getLedgerId(), pos);
             topic.createSubscription(update.getSubscriptionName(),
-                    InitialPosition.Latest, true /* replicateSubscriptionState */);
+                    InitialPosition.Latest, true /* replicateSubscriptionState */, null);
         }
     }
 
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
-        if (topic.getLastDataMessagePublishedTimestamp() < lastCompletedSnapshotStartTime) {
+        if (topic.getLastDataMessagePublishedTimestamp() < lastCompletedSnapshotStartTime
+                || topic.getLastDataMessagePublishedTimestamp() == 0) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot
             if (log.isDebugEnabled()) {
                 log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());

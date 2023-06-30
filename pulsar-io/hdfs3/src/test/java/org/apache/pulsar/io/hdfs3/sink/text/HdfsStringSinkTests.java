@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,19 +20,18 @@ package org.apache.pulsar.io.hdfs3.sink.text;
 
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import org.apache.pulsar.io.hdfs3.sink.AbstractHdfsSinkTest;
-import org.apache.pulsar.io.hdfs3.sink.text.HdfsStringSink;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
-	
+
     @Override
     protected void createSink() {
         sink = new HdfsStringSink();
     }
-    
-    @Test(enabled = false)
+
+    @Test
     public final void write5000Test() throws Exception {
         map.put("filenamePrefix", "write5000Test");
         map.put("fileExtension", ".txt");
@@ -41,9 +40,9 @@ public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
         send(5000);
         sink.close();
         verify(mockRecord, times(5000)).ack();
-	}
-	
-    @Test(enabled = false)
+    }
+
+    @Test
     public final void fiveByTwoThousandTest() throws Exception {
         map.put("filenamePrefix", "fiveByTwoThousandTest");
         map.put("fileExtension", ".txt");
@@ -51,34 +50,34 @@ public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
         sink.open(map, mockSinkContext);
 
         for (int idx = 1; idx < 6; idx++) {
-           send(2000);
+            send(2000);
         }
         sink.close();
         verify(mockRecord, times(2000 * 5)).ack();
     }
-	
-    @Test(enabled = false)
+
+    @Test
     public final void tenSecondTest() throws Exception {
         map.put("filenamePrefix", "tenSecondTest");
         map.put("fileExtension", ".txt");
         map.put("separator", '\n');
         sink.open(map, mockSinkContext);
-        runFor(10);	
+        runFor(10);
         sink.close();
     }
 
-    @Test(enabled = false)
+    @Test
     public final void maxPendingRecordsTest() throws Exception {
         map.put("filenamePrefix", "maxPendingRecordsTest");
         map.put("fileExtension", ".txt");
         map.put("separator", '\n');
         map.put("maxPendingRecords", 500);
         sink.open(map, mockSinkContext);
-        runFor(10);	
+        runFor(10);
         sink.close();
     }
 
-    @Test(enabled = false)
+    @Test
     public final void bzip2CompressionTest() throws Exception {
         map.put("filenamePrefix", "bzip2CompressionTest");
         map.put("compression", "BZIP2");
@@ -90,11 +89,26 @@ public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
         verify(mockRecord, times(5000)).ack();
     }
 
-    @Test(enabled = false)
+    @Test
     public final void deflateCompressionTest() throws Exception {
         map.put("filenamePrefix", "deflateCompressionTest");
         map.put("compression", "DEFLATE");
         map.put("fileExtension", ".deflate");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        send(50000);
+        sink.close();
+        verify(mockRecord, times(50000)).ack();
+    }
+
+    @Test
+    public final void zStandardCompressionTest() throws Exception {
+        if (System.getenv("LD_LIBRARY_PATH") == null) {
+            throw new SkipException("Skip zStandardCompressionTest since LD_LIBRARY_PATH is not set");
+        }
+        map.put("filenamePrefix", "zStandardCompressionTest");
+        map.put("compression", "ZSTANDARD");
+        map.put("fileExtension", ".zstandard");
         map.put("separator", '\n');
         sink.open(map, mockSinkContext);
         send(50000);

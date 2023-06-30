@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -32,10 +33,24 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 
 public abstract class PulsarTestBase extends TestRetrySupport {
+
+    @DataProvider(name = "TopicDomain")
+    public Object[][] topicDomain() {
+        return new Object[][] {
+                {"persistent"},
+                {"non-persistent"}
+        };
+    }
+
+    public static String randomName() {
+        return randomName(6);
+    }
 
     public static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
@@ -67,7 +82,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("testpubconsume", isPersistent);
 
         int numMessages = 10;
@@ -98,7 +113,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    public void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("test-batch-publish-consume", isPersistent);
 
         final int numMessages = 10000;
@@ -133,7 +148,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    public void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
+    protected void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
         String topicName = generateTopicName("test-batch-index-ack-disabled", true);
         final int numMessages = 100;
         try (PulsarClient client = PulsarClient.builder()
@@ -175,4 +190,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
+    protected ObjectMapper jsonMapper () {
+        return ObjectMapperFactory.getMapper().getObjectMapper();
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.functions.worker.scheduler;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class RoundRobinSchedulerTest {

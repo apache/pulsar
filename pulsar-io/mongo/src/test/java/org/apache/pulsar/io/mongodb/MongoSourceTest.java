@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.mongodb;
 
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
@@ -33,10 +32,8 @@ import org.bson.BsonTimestamp;
 import org.bson.Document;
 import org.mockito.Mock;
 import org.reactivestreams.Subscriber;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 import java.util.Map;
@@ -76,16 +73,10 @@ public class MongoSourceTest {
 
     private Map<String, Object> map;
 
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
-
     @BeforeMethod
     public void setUp() {
 
-        map = TestHelper.createMap(true);
+        map = TestHelper.createCommonConfigMap();
 
         mockSourceContext = mock(SourceContext.class);
         mockMongoClient = mock(MongoClient.class);

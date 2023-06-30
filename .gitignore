@@ -5,6 +5,7 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+packages-storage
 pulsar-broker/data/
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
@@ -25,10 +26,12 @@ pulsar-functions/worker/src/test/resources/
 .recommenders/
 .factorypath
 
-# Intellij
-.idea/
+# IntelliJ
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
+.fleet/*
 
 # NetBeans
 nb-configuration.xml
@@ -43,9 +46,11 @@ nb-configuration.xml
 # Maven
 log/
 target/
+.mvn/wrapper/maven-wrapper.jar
 
 # Python
 *.pyc
+.python-version
 
 # Perf tools
 *.hgrm
@@ -65,11 +70,6 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 
 # Vagrant
 **/.vagrant
-
-
-pulsar-client-cpp/python/pkg/osx/*/*.bak
-pulsar-client-cpp/python/pkg/osx/*/*.whl
-pulsar-client-cpp/python/wheelhouse
 
 # CI generated files
 .repository
@@ -92,3 +92,8 @@ examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated
 pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
 /build/
+
+test-reports/
+
+# Gradle Enterprise
+.mvn/.gradle-enterprise/

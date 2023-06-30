@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,34 +18,30 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
-
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -53,14 +49,11 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -82,12 +75,9 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 
 @Test(groups = "websocket")
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
@@ -108,9 +98,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
-        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
-        service = spy(new WebSocketService(config));
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -118,7 +109,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
         if (service != null) {
             service.close();
@@ -178,16 +168,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             int retry = 0;
             int maxRetry = 400;
-            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
-                    || readSocket.getReceivedMessagesCount() < 10) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms",
-                            (maxRetry * 10));
-                    log.warn(msg);
-                    throw new IllegalStateException(msg);
-                }
-            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 10
+                        || consumeSocket2.getReceivedMessagesCount() >= 10);
+                assertTrue(readSocket.getReceivedMessagesCount() >= 10);
+            });
 
             // if the subscription type is exclusive (default), either of the consumer sessions has already been closed
             assertTrue(consumerFuture1.get().isOpen());
@@ -295,14 +281,14 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
             consumerFuture.get();
             List<String> subs = admin.topics().getSubscriptions(topic);
-            Assert.assertEquals(subs.size(), 1);
-            Assert.assertEquals(subs.get(0), subscription);
+            assertEquals(subs.size(), 1);
+            assertEquals(subs.get(0), subscription);
             // do unsubscribe
             consumeSocket.unsubscribe();
             //wait for delete
-            Thread.sleep(1000);
-            subs = admin.topics().getSubscriptions(topic);
-            Assert.assertEquals(subs.size(), 0);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(admin.topics().getSubscriptions(topic).size(), 0);
+            });
         } finally {
             stopWebSocketClient(consumeClient);
         }
@@ -643,17 +629,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             assertTrue(producerFuture.get().isOpen());
 
             // sleep so, proxy can deliver few messages to consumers for stats
-            int retry = 0;
-            int maxRetry = 400;
-            while (consumeSocket1.getReceivedMessagesCount() < 2) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms", (maxRetry * 10));
-                    log.warn(msg);
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 2);
+            });
 
+            @Cleanup
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getSafeWebServiceAddress()
                     .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()),
@@ -765,11 +745,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeSocket2.sendPermits(2);
             consumeSocket2.sendPermits(2);
 
-            Thread.sleep(500);
-
-            assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
-            assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
-
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
+                assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
+            });
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
         }
@@ -927,11 +906,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             producer.flush();
             consumeSocket.sendPermits(messages);
             Awaitility.await().untilAsserted(() ->
-                    Assert.assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
 
             // The message should not be acked since we only acked 1 message of the batch message
             Awaitility.await().untilAsserted(() ->
-                    Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions()
+                    assertEquals(admin.topics().getStats(topic).getSubscriptions()
                             .get(subscription).getMsgBacklog(), 0));
 
         } finally {
@@ -976,9 +955,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             producer.flush();
             consumeSocket.sendPermits(messages);
             Awaitility.await().untilAsserted(() ->
-                    Assert.assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
 
-            for (JsonObject msg : consumeSocket.messages) {
+            for (JsonObject msg : consumeSocket.getMessages()) {
                 assertTrue(msg.has("encryptionContext"));
                 JsonObject encryptionCtx = msg.getAsJsonObject("encryptionContext");
                 JsonObject keys = encryptionCtx.getAsJsonObject("keys");
@@ -989,7 +968,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             // The message should not be acked since we only acked 1 message of the batch message
             Awaitility.await().untilAsserted(() ->
-                    Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions()
+                    assertEquals(admin.topics().getStats(topic).getSubscriptions()
                             .get(subscription).getMsgBacklog(), 0));
 
         } finally {
@@ -1051,33 +1030,25 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         // number of consumers are connected = 2 (one is reader)
         assertEquals(stats.consumerStats.size(), 2);
         ConsumerStats consumerStats = stats.consumerStats.iterator().next();
-        // Assert.assertTrue(consumerStats.numberOfMsgDelivered > 0);
+        assertTrue(consumerStats.numberOfMsgDelivered > 0);
         assertNotNull(consumerStats.remoteConnection);
 
         // number of producers are connected = 1
         assertEquals(stats.producerStats.size(), 1);
         ProducerStats producerStats = stats.producerStats.iterator().next();
-        // Assert.assertTrue(producerStats.numberOfMsgPublished > 0);
+        assertTrue(producerStats.numberOfMsgPublished > 0);
         assertNotNull(producerStats.remoteConnection);
     }
 
     private void stopWebSocketClient(WebSocketClient... clients) {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = newFixedThreadPool(1);
-        try {
-            executor.submit(() -> {
-                for (WebSocketClient client : clients) {
-                    try {
-                        client.stop();
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }
-                log.info("proxy clients are stopped successfully");
-            }).get(2, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("failed to close proxy clients", e);
+        for (WebSocketClient client : clients) {
+            try {
+                client.stop();
+            } catch (Exception e) {
+                log.error(e.getMessage());
+            }
         }
+        log.info("proxy clients are stopped successfully");
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

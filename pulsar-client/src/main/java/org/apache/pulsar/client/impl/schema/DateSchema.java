@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Date;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.Date;
 
 /**
  * A schema for `java.util.Date` or `java.sql.Date`.
@@ -33,10 +32,10 @@ public class DateSchema extends AbstractSchema<Date> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("Date")
-             .setType(SchemaType.DATE)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("Date")
+             .type(SchemaType.DATE)
+             .schema(new byte[0]).build();
        INSTANCE = new DateSchema();
    }
 

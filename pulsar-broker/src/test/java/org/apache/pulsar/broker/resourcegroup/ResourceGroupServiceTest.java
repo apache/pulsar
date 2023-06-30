@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -131,10 +131,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rgs.unRegisterNameSpace(rgName, tenantAndNamespaceName);
 
         // The overhead of a RG lookup
-        ResourceGroup retRG;
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
-            retRG = rgs.resourceGroupGet(rg.resourceGroupName);
+            rgs.resourceGroupGet(rg.resourceGroupName);
         }
         mSecsEnd = System.currentTimeMillis();
         diffMsecs = mSecsEnd - mSecsStart;
@@ -150,9 +149,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
           new org.apache.pulsar.common.policies.data.ResourceGroup();
         final String rgName = "testRG";
         final String randomRgName = "Something";
-        rgConfig.setPublishRateInBytes(15000);
+        rgConfig.setPublishRateInBytes(15000L);
         rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(40000);
+        rgConfig.setDispatchRateInBytes(40000L);
         rgConfig.setDispatchRateInMsgs(500);
 
         int initialNumQuotaCalculations = numAnonymousQuotaCalculations;
@@ -180,11 +179,11 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
         PerMonitoringClassFields monClassFields;
         monClassFields = retRG.monitoringClassFields[ResourceGroupMonitoringClass.Publish.ordinal()];
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getPublishRateInBytes());
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getPublishRateInMsgs());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getPublishRateInBytes().longValue());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getPublishRateInMsgs().intValue());
         monClassFields = retRG.monitoringClassFields[ResourceGroupMonitoringClass.Dispatch.ordinal()];
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchRateInBytes());
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchRateInMsgs());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchRateInBytes().longValue());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchRateInMsgs().intValue());
 
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(randomRgName));
 
@@ -221,7 +220,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
             // maxUsageReportSuppressRounds iterations. So, if we run for maxUsageReportSuppressRounds iterations,
             // we should see needToReportLocalUsage() return true at least once.
             Set<Boolean> myBoolSet = new HashSet<>();
-            myBoolSet.clear();
             for (int idx = 0; idx < ResourceGroupService.MaxUsageReportSuppressRounds; idx++) {
                 needToReport = retRG.setUsageInMonitoredEntity(monClass, nwUsage);
                 myBoolSet.add(needToReport);
@@ -240,8 +238,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         int numQuotaCalcsDuringTest = numAnonymousQuotaCalculations - initialNumQuotaCalculations;
         if (numQuotaCalcsDuringTest == 0) {
             // Quota calculations were not done yet during this test; we expect to see the default "initial" setting.
-            Assert.assertEquals(publishQuota.messages, rgConfig.getPublishRateInMsgs());
-            Assert.assertEquals(publishQuota.bytes, rgConfig.getPublishRateInBytes());
+            Assert.assertEquals(publishQuota.messages, rgConfig.getPublishRateInMsgs().intValue());
+            Assert.assertEquals(publishQuota.bytes, rgConfig.getPublishRateInBytes().longValue());
         }
 
         // Calculate the quota synchronously to avoid waiting for a periodic call within ResourceGroupService.
@@ -257,6 +255,14 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.getPublishRateLimiters(rgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 0);
+    }
+
+    @Test
+    public void testClose() throws Exception {
+        ResourceGroupService service = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, null, null);
+        service.close();
+        Assert.assertTrue(service.getAggregateLocalUsagePeriodicTask().isCancelled());
+        Assert.assertTrue(service.getCalculateQuotaPeriodicTask().isCancelled());
     }
 
     private ResourceGroupService rgs;

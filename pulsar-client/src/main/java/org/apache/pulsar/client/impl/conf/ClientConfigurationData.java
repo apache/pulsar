@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,17 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Sets;
-
 import io.swagger.annotations.ApiModelProperty;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,10 +37,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
-
-import java.io.Serializable;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.util.Secret;
 
 /**
@@ -52,6 +50,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "serviceUrl",
+            required = true,
             value = "Pulsar cluster HTTP URL to connect to a broker."
     )
     private String serviceUrl;
@@ -111,13 +110,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "numIoThreads",
             value = "Number of IO threads."
     )
-    private int numIoThreads = 1;
+    private int numIoThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "numListenerThreads",
             value = "Number of consumer listener threads."
     )
-    private int numListenerThreads = 1;
+    private int numListenerThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "connectionsPerBroker",
@@ -125,6 +124,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
                     + " A value of 0 means to disable connection pooling."
     )
     private int connectionsPerBroker = 1;
+
+    @ApiModelProperty(
+            name = "connectionMaxIdleSeconds",
+            value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
+                    + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
+    )
+    private int connectionMaxIdleSeconds = 180;
 
     @ApiModelProperty(
             name = "useTcpNoDelay",
@@ -139,10 +145,22 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean useTls = false;
 
     @ApiModelProperty(
+            name = "tlsKeyFilePath",
+            value = "Path to the TLS key file."
+    )
+    private String tlsKeyFilePath = null;
+
+    @ApiModelProperty(
+            name = "tlsCertificateFilePath",
+            value = "Path to the TLS certificate file."
+    )
+    private String tlsCertificateFilePath = null;
+
+    @ApiModelProperty(
             name = "tlsTrustCertsFilePath",
             value = "Path to the trusted TLS certificate file."
     )
-    private String tlsTrustCertsFilePath = "";
+    private String tlsTrustCertsFilePath = null;
 
     @ApiModelProperty(
             name = "tlsAllowInsecureConnection",
@@ -152,7 +170,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "tlsHostnameVerificationEnable",
-            value = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
+            value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
     @ApiModelProperty(
@@ -177,7 +195,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxNumberOfRejectedRequestPerConnection",
-            value = "Maximum number of rejected requests of a broker in a certain time frame (30 seconds) "
+            value = "Maximum number of rejected requests of a broker in a certain time frame (60 seconds) "
                     + "after the current connection is closed and the client "
                     + "creating a new connection to connect to a different broker."
     )
@@ -200,6 +218,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Maximum duration for completing a request."
     )
     private int requestTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "readTimeoutMs",
+            value = "Maximum read time of a request."
+    )
+    private int readTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
 
     @ApiModelProperty(
             name = "initialBackoffIntervalNanos",
@@ -239,8 +269,28 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String sslProvider = null;
 
     @ApiModelProperty(
+            name = "tlsKeyStoreType",
+            value = "TLS KeyStore type configuration."
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePath",
+            value = "Path of TLS KeyStore."
+    )
+    private String tlsKeyStorePath = null;
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePassword",
+            value = "Password of TLS KeyStore."
+    )
+    @Secret
+    private String tlsKeyStorePassword = null;
+
+    @ApiModelProperty(
             name = "tlsTrustStoreType",
-            value = "TLS TrustStore type configuration. You need to set this configuration when client authentication is required."
+            value = "TLS TrustStore type configuration. You need to set this configuration when client authentication"
+                    + " is required."
     )
     private String tlsTrustStoreType = "JKS";
 
@@ -254,25 +304,26 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "tlsTrustStorePassword",
             value = "Password of TLS TrustStore."
     )
+    @Secret
     private String tlsTrustStorePassword = null;
 
     @ApiModelProperty(
             name = "tlsCiphers",
             value = "Set of TLS Ciphers."
     )
-    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsCiphers = new TreeSet<>();
 
     @ApiModelProperty(
             name = "tlsProtocols",
             value = "Protocols of TLS."
     )
-    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsProtocols = new TreeSet<>();
 
     @ApiModelProperty(
             name = "memoryLimitBytes",
-            value = "Limit of client memory usage (in byte)."
+            value = "Limit of client memory usage (in byte). The 64M default can guarantee a high producer throughput."
     )
-    private long memoryLimitBytes = 0;
+    private long memoryLimitBytes = 64 * 1024 * 1024;
 
     @ApiModelProperty(
             name = "proxyServiceUrl",
@@ -295,6 +346,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 
+    @ApiModelProperty(
+            name = "dnsLookupBindAddress",
+            value = "The Pulsar client dns lookup bind address, default behavior is bind on 0.0.0.0"
+    )
+    private String dnsLookupBindAddress = null;
+
+    @ApiModelProperty(
+            name = "dnsLookupBindPort",
+            value = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is configured,"
+                    + " default value is 0."
+    )
+    private int dnsLookupBindPort = 0;
+
     // socks5
     @ApiModelProperty(
             name = "socks5ProxyAddress",
@@ -309,25 +373,37 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String socks5ProxyUsername;
 
     @ApiModelProperty(
-            name = "socks5ProxyUsername",
+            name = "socks5ProxyPassword",
             value = "Password of SOCKS5 proxy."
     )
+    @Secret
     private String socks5ProxyPassword;
 
+    @ApiModelProperty(
+            name = "description",
+            value = "The extra description of the client version. The length cannot exceed 64."
+    )
+    private String description;
+
+    /**
+     * Gets the authentication settings for the client.
+     *
+     * @return authentication settings for the client or {@link AuthenticationDisabled} when auth has not been specified
+     */
     public Authentication getAuthentication() {
-        if (authentication == null) {
-            this.authentication = AuthenticationDisabled.INSTANCE;
-        }
-        return authentication;
+        return this.authentication != null ? this.authentication : AuthenticationDisabled.INSTANCE;
     }
 
     public void setAuthentication(Authentication authentication) {
         this.authentication = authentication;
     }
+
     public boolean isUseTls() {
-        if (useTls)
+        if (useTls) {
             return true;
-        if (getServiceUrl() != null && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
+        }
+        if (getServiceUrl() != null
+                && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
             this.useTls = true;
             return true;
         }

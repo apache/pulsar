@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.functions.windowing.triggers;
 
+import java.util.List;
 import org.apache.pulsar.functions.windowing.DefaultEvictionContext;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
 import org.apache.pulsar.functions.windowing.TriggerHandler;
 import org.apache.pulsar.functions.windowing.TriggerPolicy;
 import org.apache.pulsar.functions.windowing.WindowManager;
-
-import java.util.List;
 
 /**
  * A trigger policy that tracks event counts and sets the context for
@@ -83,7 +82,7 @@ public class WatermarkCountTriggerPolicy<T> implements TriggerPolicy<T, Long> {
         List<Long> eventTs = windowManager.getSlidingCountTimestamps(lastProcessedTs, watermarkTs,
                 count);
         for (long ts : eventTs) {
-            evictionPolicy.setContext(new DefaultEvictionContext(ts, null, Long.valueOf(count)));
+            evictionPolicy.setContext(new DefaultEvictionContext(ts, null, (long) count));
             handler.onTrigger();
             lastProcessedTs = ts;
         }

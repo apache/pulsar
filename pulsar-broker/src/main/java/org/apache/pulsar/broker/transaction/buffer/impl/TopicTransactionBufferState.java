@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,11 +62,8 @@ public abstract class TopicTransactionBufferState {
         return STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Ready);
     }
 
-    protected boolean changeToCloseState() {
-        return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.None, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Close));
+    protected void changeToCloseState() {
+        STATE_UPDATER.set(this, State.Close);
     }
 
     public boolean checkIfReady() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerAccessMode;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.testng.annotations.Test;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -40,8 +27,27 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.HashSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import org.apache.distributedlog.DistributedLogConfiguration;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.testng.annotations.Test;
 
 public class WorkerUtilsTest {
 
@@ -63,7 +69,8 @@ public class WorkerUtilsTest {
 
         Producer<byte[]> p = null;
         try {
-            p = WorkerUtils.createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer", () -> true, 0);
+            p = WorkerUtils
+                    .createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer", () -> true, 0);
         } catch (WorkerUtils.NotLeaderAnymore notLeaderAnymore) {
             fail();
         }
@@ -84,7 +91,8 @@ public class WorkerUtilsTest {
 
         AtomicInteger i = new AtomicInteger();
         try {
-            WorkerUtils.createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer", new Supplier<Boolean>() {
+            WorkerUtils.createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer",
+                    new Supplier<Boolean>() {
 
                 @Override
                 public Boolean get() {
@@ -98,5 +106,30 @@ public class WorkerUtilsTest {
         } catch (WorkerUtils.NotLeaderAnymore notLeaderAnymore) {
 
         }
+    }
+
+    @Test
+    public void testDLogConfiguration() throws URISyntaxException, IOException {
+        // The config yml is seeded with a fake bookie config.
+        URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        WorkerConfig config = WorkerConfig.load(yamlUrl.toURI().getPath());
+
+        // Map the config.
+        DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(config);
+
+        // Verify the outcome.
+        assertEquals(dlogConf.getString("bkc.testKey"), "fakeValue",
+                "The bookkeeper client config mapping should apply.");
+    }
+
+    @Test
+    public void testProxyRolesInWorkerConfigMapToServiceConfiguration() throws Exception {
+        URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
+        ServiceConfiguration conf = PulsarConfigurationLoader.convertFrom(wc);
+        HashSet<String> proxyRoles = new HashSet<>();
+        proxyRoles.add("proxyA");
+        proxyRoles.add("proxyB");
+        assertEquals(conf.getProxyRoles(), proxyRoles);
     }
 }

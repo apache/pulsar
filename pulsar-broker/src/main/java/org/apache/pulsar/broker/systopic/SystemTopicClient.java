@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,12 +21,9 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -90,37 +87,42 @@ public interface SystemTopicClient<T> {
      * Writer for system topic.
      */
     interface Writer<T> {
+
         /**
          * Write event to the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        MessageId write(T t) throws PulsarClientException;
+        MessageId write(String key, T t) throws PulsarClientException;
 
         /**
          * Async write event to the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id future
          */
-        CompletableFuture<MessageId> writeAsync(T t);
+        CompletableFuture<MessageId> writeAsync(String key, T t);
 
         /**
          * Delete event in the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        default MessageId delete(T t) throws PulsarClientException {
+        default MessageId delete(String key, T t) throws PulsarClientException {
             throw new UnsupportedOperationException("Unsupported operation");
         }
 
         /**
          * Async delete event in the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id future
          */
-        default CompletableFuture<MessageId> deleteAsync(T t) {
+        default CompletableFuture<MessageId> deleteAsync(String key, T t) {
             throw new UnsupportedOperationException("Unsupported operation");
         }
 
@@ -186,23 +188,6 @@ public interface SystemTopicClient<T> {
          * @return system topic
          */
         SystemTopicClient<T> getSystemTopic();
-    }
-
-    static boolean isSystemTopic(TopicName topicName) {
-        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-
-        // event topic
-        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
-            return true;
-        }
-
-        String localName = nonePartitionedTopicName.getLocalName();
-        // transaction pending ack topic
-        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
-            return true;
-        }
-
-        return false;
     }
 
 }

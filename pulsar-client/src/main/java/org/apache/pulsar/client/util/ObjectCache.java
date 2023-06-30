@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.util;
 
-import java.util.function.Supplier;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class ObjectCache<T> implements Supplier<T> {
 

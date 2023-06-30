@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -98,10 +101,13 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
+                .allowAutoSubscriptionCreation(true)
+                .build();
         pulsar.getAdminClient().namespaces().setAutoSubscriptionCreation(topicName.getNamespace(),
-                AutoSubscriptionCreationOverride.builder()
-                        .allowAutoSubscriptionCreation(true)
-                        .build());
+                autoSubscriptionCreationOverride);
+        Assert.assertEquals(pulsar.getAdminClient().namespaces().getAutoSubscriptionCreation(topicName.getNamespace()),
+                autoSubscriptionCreationOverride);
 
         // Subscribe operation should be successful
         pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName(subscriptionName).subscribe();
@@ -117,10 +123,13 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
+                .allowAutoSubscriptionCreation(false)
+                .build();
         pulsar.getAdminClient().namespaces().setAutoSubscriptionCreation(topicName.getNamespace(),
-                AutoSubscriptionCreationOverride.builder()
-                        .allowAutoSubscriptionCreation(false)
-                        .build());
+                autoSubscriptionCreationOverride);
+        Assert.assertEquals(pulsar.getAdminClient().namespaces().getAutoSubscriptionCreation(topicName.getNamespace()),
+                autoSubscriptionCreationOverride);
 
         try {
             pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName(subscriptionName).subscribe();
@@ -129,6 +138,36 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
             assertTrue(e instanceof PulsarClientException);
         }
         assertFalse(admin.topics().getSubscriptions(topicName.toString()).contains(subscriptionName));
+    }
+
+    @Test
+    public void testNonPersistentTopicSubscriptionCreationWithAutoCreationDisable() throws Exception {
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final String topicName = "non-persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
+        final String subscriptionName = "test-subtopic-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Subscribe operation should be successful
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+        assertTrue(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+    }
+
+    @Test
+    public void testDynamicConfigurationTopicAutoSubscriptionCreation()
+            throws PulsarAdminException, PulsarClientException {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        admin.brokers().updateDynamicConfiguration("allowAutoSubscriptionCreation", "false");
+        String topicString = "persistent://prop/ns-abc/non-partitioned-topic" + UUID.randomUUID();
+        String subscriptionName = "non-partitioned-topic-sub";
+        admin.topics().createNonPartitionedTopic(topicString);
+        Assert.assertThrows(PulsarClientException.class,
+                ()-> pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe());
+        admin.brokers().updateDynamicConfiguration("allowAutoSubscriptionCreation", "true");
+        pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
+        assertTrue(admin.topics().getSubscriptions(topicString).contains(subscriptionName));
     }
 
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,8 +32,6 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.commons.io.IOUtils;
-
 /**
  * Helper class that provides helper methods for working with
  * gzip-formatted files.
@@ -44,20 +42,15 @@ public class GZipFiles {
      * Returns true if the given file is a gzip file.
      */
     public static boolean isGzip(File f) {
-
-       InputStream input = null;
-        try {
-            input = new FileInputStream(f);
+        try (InputStream input = new FileInputStream(f)) {
             PushbackInputStream pb = new PushbackInputStream(input, 2);
-            byte [] signature = new byte[2];
+            byte[] signature = new byte[2];
             int len = pb.read(signature); //read the signature
             pb.unread(signature, 0, len); //push back the signature to the stream
             // check if matches standard gzip magic number
-            return (signature[ 0 ] == (byte) 0x1f && signature[1] == (byte) 0x8b);
+            return (signature[0] == (byte) 0x1f && signature[1] == (byte) 0x8b);
         } catch (final Exception e) {
             return false;
-        } finally {
-            IOUtils.closeQuietly(input);
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,15 +22,20 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
@@ -52,6 +57,8 @@ public class TransactionMetadataStoreProviderTest {
     private TransactionMetadataStoreProvider provider;
     private TransactionCoordinatorID tcId;
     private TransactionMetadataStore store;
+    private HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+            1, TimeUnit.MILLISECONDS);
 
     @Factory(dataProvider = "providers")
     public TransactionMetadataStoreProviderTest(String providerClassName) throws Exception {
@@ -63,7 +70,13 @@ public class TransactionMetadataStoreProviderTest {
     public void setup() throws Exception {
         this.tcId = new TransactionCoordinatorID(1L);
         this.store = this.provider.openStore(tcId, null, null,
-                null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl()).get();
+                null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(), 0L,
+                new TxnLogBufferedWriterConfig(), transactionTimer).get();
+    }
+
+    @AfterClass
+    public void cleanup(){
+        transactionTimer.stop();
     }
 
     @Test
@@ -79,14 +92,14 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testGetTxnStatusSuccess() throws Exception {
-        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnID txnID = this.store.newTransaction(0L, null).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testUpdateTxnStatusSuccess() throws Exception {
-        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnID txnID = this.store.newTransaction(0L, null).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
@@ -100,7 +113,7 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testUpdateTxnStatusNotExpectedStatus() throws Exception {
-        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnID txnID = this.store.newTransaction(0L, null).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
@@ -119,7 +132,7 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testUpdateTxnStatusCannotTransition() throws Exception {
-        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnID txnID = this.store.newTransaction(0L, null).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
@@ -138,7 +151,7 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testAddProducedPartition() throws Exception {
-        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnID txnID = this.store.newTransaction(0L, null).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
@@ -192,7 +205,7 @@ public class TransactionMetadataStoreProviderTest {
 
     @Test
     public void testAddAckedPartition() throws Exception {
-        TxnID txnID = this.store.newTransaction(0L).get();
+        TxnID txnID = this.store.newTransaction(0L, null).get();
         TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 

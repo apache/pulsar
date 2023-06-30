@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
@@ -35,8 +36,11 @@ public class LoadManagerSharedTest {
         String namespace = "tenant1/ns1";
         String assignedBundle = namespace + "/0x00000000_0x40000000";
 
-        Set<String> candidates = Sets.newHashSet();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map = new ConcurrentOpenHashMap<>();
+        Set<String> candidates = new HashSet<>();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
+                        .build();
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, map);
         Assert.assertEquals(candidates.size(), 0);
 
@@ -80,8 +84,12 @@ public class LoadManagerSharedTest {
     private static void fillBrokerToNamespaceToBundleMap(
             ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map,
             String broker, String namespace, String bundle) {
-        map.computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>())
-                .computeIfAbsent(namespace, k -> new ConcurrentOpenHashSet<>()).add(bundle);
+        map.computeIfAbsent(broker,
+                k -> ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<String>>newBuilder().build())
+                .computeIfAbsent(namespace,
+                        k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                .add(bundle);
     }
 
 }

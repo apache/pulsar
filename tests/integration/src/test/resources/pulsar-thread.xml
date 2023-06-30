@@ -25,6 +25,8 @@
             <class name="org.apache.pulsar.tests.integration.functions.go.PulsarFunctionsGoThreadTest" />
             <class name="org.apache.pulsar.tests.integration.functions.java.PulsarFunctionsJavaThreadTest" />
             <class name="org.apache.pulsar.tests.integration.functions.python.PulsarFunctionsPythonThreadTest" />
+
+            <class name="org.apache.pulsar.tests.integration.functions.java.PulsarWorkerRebalanceDrainThreadTest"/>
         </classes>
     </test>
 </suite>

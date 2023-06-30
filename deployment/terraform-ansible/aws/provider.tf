@@ -18,6 +18,5 @@
 #
 
 provider "aws" {
-  region  = "${var.region}"
-  version = "1.5"
+  region  = var.region
 }

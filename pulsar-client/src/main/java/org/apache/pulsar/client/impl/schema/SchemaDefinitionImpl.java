@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,12 @@
 package org.apache.pulsar.client.impl.schema;
 
 
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.api.schema.SchemaWriter;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 
 /**
  * A json schema definition
@@ -34,11 +33,11 @@ import java.util.Optional;
 public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     /**
-     * the schema definition class
+     * the schema definition class.
      */
     private Class<T> pojo;
     /**
-     * The flag of schema type always allow null
+     * The flag of schema type always allow null.
      *
      * If it's true, will make all of the pojo field generate schema
      * define default can be null,false default can't be null, but it's
@@ -51,6 +50,8 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     private final String jsonDef;
 
+    private final ClassLoader classLoader;
+
     private final boolean supportSchemaVersioning;
 
     private final boolean jsr310ConversionEnabled;
@@ -59,12 +60,15 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     private final SchemaWriter<T> writer;
 
-    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, boolean alwaysAllowNull, Map<String, String> properties,
-                                boolean supportSchemaVersioning, boolean jsr310ConversionEnabled, SchemaReader<T> reader, SchemaWriter<T> writer) {
+    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, ClassLoader classLoader,
+                                boolean alwaysAllowNull, Map<String, String> properties,
+                                boolean supportSchemaVersioning, boolean jsr310ConversionEnabled,
+                                SchemaReader<T> reader, SchemaWriter<T> writer) {
         this.alwaysAllowNull = alwaysAllowNull;
         this.properties = properties;
         this.jsonDef = jsonDef;
         this.pojo = pojo;
+        this.classLoader = classLoader;
         this.supportSchemaVersioning = supportSchemaVersioning;
         this.jsr310ConversionEnabled = jsr310ConversionEnabled;
         this.reader = reader;
@@ -72,7 +76,7 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
     }
 
     /**
-     * get schema whether always allow null or not
+     * get schema whether always allow null or not.
      *
      * @return schema always null or not
      */
@@ -86,7 +90,7 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
     }
 
     /**
-     * Get json schema definition
+     * Get json schema definition.
      *
      * @return schema class
      */
@@ -95,13 +99,18 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
     }
 
     /**
-     * Get pojo schema definition
+     * Get pojo schema definition.
      *
      * @return pojo class
      */
     @Override
     public Class<T> getPojo() {
         return pojo;
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+        return this.classLoader;
     }
 
     @Override
@@ -120,7 +129,7 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
     }
 
     /**
-     * Get schema class
+     * Get schema class.
      *
      * @return schema class
      */

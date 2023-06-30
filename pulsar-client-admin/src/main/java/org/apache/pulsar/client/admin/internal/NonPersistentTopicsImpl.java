@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,11 +21,7 @@ package org.apache.pulsar.client.admin.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
@@ -50,16 +46,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     @Override
     public void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
-        try {
-            createPartitionedTopicAsync(topic, numPartitions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createPartitionedTopicAsync(topic, numPartitions));
     }
 
     @Override
@@ -72,121 +59,43 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     @Override
     public PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException {
-        try {
-            return getPartitionedTopicMetadataAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPartitionedTopicMetadataAsync(topic));
     }
 
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
         WebTarget path = topicPath(topicName, "partitions");
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicMetadata>() {
-
-                    @Override
-                    public void completed(PartitionedTopicMetadata response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PartitionedTopicMetadata>(){});
     }
 
     @Override
     public NonPersistentTopicStats getStats(String topic) throws PulsarAdminException {
-        try {
-            return getStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getStatsAsync(topic));
     }
 
     @Override
     public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
         WebTarget path = topicPath(topicName, "stats");
-        asyncGetRequest(path,
-                new InvocationCallback<NonPersistentTopicStats>() {
-
-                    @Override
-                    public void completed(NonPersistentTopicStats response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<NonPersistentTopicStats>() {});
     }
 
     @Override
     public PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException {
-        try {
-            return getInternalStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getInternalStatsAsync(topic));
     }
 
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
         WebTarget path = topicPath(topicName, "internalStats");
-        asyncGetRequest(path,
-                new InvocationCallback<PersistentTopicInternalStats>() {
-
-                    @Override
-                    public void completed(PersistentTopicInternalStats response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
     }
 
     @Override
     public void unload(String topic) throws PulsarAdminException {
-        try {
-            unloadAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> unloadAsync(topic));
     }
 
     @Override
@@ -198,69 +107,26 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     @Override
     public List<String> getListInBundle(String namespace, String bundleRange) throws PulsarAdminException {
-        try {
-            return getListInBundleAsync(namespace, bundleRange).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() ->  getListInBundleAsync(namespace, bundleRange));
     }
 
     @Override
     public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath("non-persistent", ns, bundleRange);
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
-        try {
-            return getListAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getListAsync(namespace));
     }
 
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath("non-persistent", ns);
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     /*

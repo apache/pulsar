@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -28,13 +27,11 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
- * Servlet filter that rejects HTTP requests using TRACE/TRACK methods
+ * Servlet filter that rejects HTTP requests using TRACE/TRACK methods.
  */
 @Slf4j
 public class DisableDebugHttpMethodFilter implements Filter {
@@ -51,8 +48,8 @@ public class DisableDebugHttpMethodFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        if (this.serviceConfiguration.isDisableHttpDebugMethods() ) {
-            if("TRACE".equalsIgnoreCase(httpRequest.getMethod())) {
+        if (this.serviceConfiguration.isDisableHttpDebugMethods()) {
+            if ("TRACE".equalsIgnoreCase(httpRequest.getMethod())) {
                 // TRACE is not allowed
                 httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 

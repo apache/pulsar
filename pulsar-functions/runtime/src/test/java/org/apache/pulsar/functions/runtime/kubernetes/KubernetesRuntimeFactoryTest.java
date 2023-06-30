@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.kubernetes;
 
-import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1PodSpec;
@@ -40,6 +38,7 @@ import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -52,8 +51,8 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
@@ -63,11 +62,6 @@ import static org.testng.Assert.fail;
 public class KubernetesRuntimeFactoryTest {
 
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
-
-        @Override
-        public void init(Map<String, String> config) {
-
-        }
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
@@ -104,10 +98,6 @@ public class KubernetesRuntimeFactoryTest {
             return null;
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private KubernetesRuntimeFactory factory;
@@ -183,7 +173,7 @@ public class KubernetesRuntimeFactoryTest {
 
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
 
         workerConfig.setFunctionInstanceMinResources(minResources);
         workerConfig.setFunctionInstanceMaxResources(maxResources);
@@ -192,7 +182,8 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setStateStorageServiceUrl(null);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Mockito.mock(ConnectorsManager.class), functionAuthProvider, manifestCustomizer);
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(),
+                Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), functionAuthProvider, manifestCustomizer);
         return factory;
     }
 
@@ -271,7 +262,8 @@ public class KubernetesRuntimeFactoryTest {
 
         testMinMaxResource(1.01, 1024L, true, "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
         testMinMaxResource(1.00, 2049L, true, "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
-        testMinMaxResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinMaxResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the "
+                + "minimum required, 0.1");
         testMinMaxResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
 
         testMinMaxResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
@@ -333,7 +325,7 @@ public class KubernetesRuntimeFactoryTest {
                 "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
     }
 
-    public void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
+    private void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
         factory = createKubernetesRuntimeFactory(null, null, null, null, false,
                 authProvider, Optional.empty());
     }
@@ -476,9 +468,9 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = getKuberentesRuntimeFactory();
         CoreV1Api coreV1Api = Mockito.mock(CoreV1Api.class);
         V1ConfigMap v1ConfigMap = new V1ConfigMap();
-        Mockito.doReturn(v1ConfigMap).when(coreV1Api).readNamespacedConfigMap(any(), any(), any(), any(), any());
+        Mockito.doReturn(v1ConfigMap).when(coreV1Api).readNamespacedConfigMap(any(), any(), any());
         KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
-        Mockito.verify(coreV1Api, Mockito.times(1)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null), eq(true), eq(false));
+        Mockito.verify(coreV1Api, Mockito.times(1)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null));
         KubernetesRuntimeFactory expected = getKuberentesRuntimeFactory();
         assertEquals(kubernetesRuntimeFactory, expected);
 
@@ -487,7 +479,7 @@ public class KubernetesRuntimeFactoryTest {
         configs.put("imagePullPolicy", "test_imagePullPolicy2");
         v1ConfigMap.setData(configs);
         KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
-        Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null), eq(true), eq(false));
+        Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null));
 
        assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "test_dockerImage2");
        assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "test_imagePullPolicy2");
@@ -509,9 +501,9 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
-        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Optional.empty(), Optional.empty());
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;
     }
 }

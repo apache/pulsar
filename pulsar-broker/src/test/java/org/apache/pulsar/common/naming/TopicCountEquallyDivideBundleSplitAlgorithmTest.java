@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,14 +24,14 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
-import org.apache.pulsar.broker.namespace.NamespaceService;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.testng.annotations.Test;
 
 
@@ -40,7 +40,7 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
     @Test
     public void testWrongArg() {
         TopicCountEquallyDivideBundleSplitAlgorithm algorithm = new TopicCountEquallyDivideBundleSplitAlgorithm();
-        assertThrows(NullPointerException.class, () -> algorithm.getSplitBoundary(null, null));
+        assertThrows(NullPointerException.class, () -> algorithm.getSplitBoundary(new BundleSplitOption()));
     }
 
     @Test
@@ -50,7 +50,7 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("a")))
                 .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
-        assertNull(algorithm.getSplitBoundary(mockNamespaceService, mockNamespaceBundle).join());
+        assertNull(algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join());
     }
 
     @SuppressWarnings("UnstableApiUsage")
@@ -67,7 +67,7 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         List<Long> hashList = new ArrayList<>();
         NamespaceBundleFactory namespaceBundleFactoryForMockResult = mock(NamespaceBundleFactory.class);
         mockTopics.forEach((topic) -> {
-            long hashValue = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
+            long hashValue = Hashing.crc32().hashString(topic, StandardCharsets.UTF_8).padToLong();
             doReturn(namespaceBundleFactoryForMockResult)
                     .when(namespaceBundleForMockResult).getNamespaceBundleFactory();
             doReturn(hashValue)
@@ -87,11 +87,11 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
         mockTopics.forEach((topic) -> {
             doReturn(mockNamespaceBundleFactory)
                     .when(mockNamespaceBundle).getNamespaceBundleFactory();
-            long hashValue = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
+            long hashValue = Hashing.crc32().hashString(topic, StandardCharsets.UTF_8).padToLong();
             doReturn(hashValue)
                     .when(mockNamespaceBundleFactory).getLongHashCode(topic);
         });
-        assertEquals((long) algorithm.getSplitBoundary(mockNamespaceService, mockNamespaceBundle).join(),
+        assertEquals((long) algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join().get(0),
                 splitMiddleForMockResult);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,35 +18,31 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class GenericJsonReader implements SchemaReader<GenericRecord> {
 
-    private final ObjectMapper objectMapper;
+    private final ObjectReader objectReader;
     private final byte[] schemaVersion;
     private final List<Field> fields;
     private SchemaInfo schemaInfo;
 
     public GenericJsonReader(List<Field> fields, SchemaInfo schemaInfo){
-        this.fields = fields;
-        this.schemaVersion = null;
-        this.objectMapper = new ObjectMapper();
-        this.schemaInfo = schemaInfo;
+        this(null, fields, schemaInfo);
     }
 
     public GenericJsonReader(List<Field> fields){
@@ -58,16 +54,17 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
     }
 
     public GenericJsonReader(byte[] schemaVersion, List<Field> fields, SchemaInfo schemaInfo){
-        this.objectMapper = new ObjectMapper();
         this.fields = fields;
         this.schemaVersion = schemaVersion;
         this.schemaInfo = schemaInfo;
+        this.objectReader =
+                ObjectMapperFactory.getMapper().reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
     @Override
     public GenericJsonRecord read(byte[] bytes, int offset, int length) {
         try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, offset, length, UTF_8));
+            JsonNode jn = objectReader.readTree(new String(bytes, offset, length, UTF_8));
             return new GenericJsonRecord(schemaVersion, fields, jn, schemaInfo);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
@@ -77,7 +74,7 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
     @Override
     public GenericRecord read(InputStream inputStream) {
         try {
-            JsonNode jn = objectMapper.readTree(inputStream);
+            JsonNode jn = objectReader.readTree(inputStream);
             return new GenericJsonRecord(schemaVersion, fields, jn, schemaInfo);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);

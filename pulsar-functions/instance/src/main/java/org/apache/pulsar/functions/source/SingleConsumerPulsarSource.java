@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,20 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
-
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Slf4j
 public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
@@ -45,14 +44,12 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     private Consumer<T> consumer;
     private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
-    public SingleConsumerPulsarSource(PulsarClient pulsarClient,
-                                      SingleConsumerPulsarSourceConfig pulsarSourceConfig,
-                                      Map<String, String> properties,
-                                      ClassLoader functionClassLoader) {
+    public SingleConsumerPulsarSource(PulsarClient pulsarClient, SingleConsumerPulsarSourceConfig pulsarSourceConfig,
+                                      Map<String, String> properties, ClassLoader functionClassLoader) {
         super(pulsarClient, pulsarSourceConfig, properties, functionClassLoader);
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
-        this.topicSchema = new TopicSchema(pulsarClient);
+        this.topicSchema = new TopicSchema(pulsarClient, functionClassLoader);
         this.properties = properties;
         this.functionClassLoader = functionClassLoader;
     }
@@ -61,19 +58,24 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
-                this.functionClassLoader);
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(), this.functionClassLoader);
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
         String topic = pulsarSourceConfig.getTopic();
-        PulsarSourceConsumerConfig<T> pulsarSourceConsumerConfig
-                = buildPulsarSourceConsumerConfig(topic, pulsarSourceConfig.getConsumerConfig(), typeArg);
+        PulsarSourceConsumerConfig<T> pulsarSourceConsumerConfig =
+                buildPulsarSourceConsumerConfig(topic, pulsarSourceConfig.getConsumerConfig(), typeArg);
 
-        log.info("Creating consumer for topic : {}, schema : {}, schemaInfo: {}", topic, pulsarSourceConsumerConfig.getSchema(), pulsarSourceConsumerConfig.getSchema().getSchemaInfo());
+        log.info("Creating consumer for topic : {}, schema : {}, schemaInfo: {}", topic,
+                pulsarSourceConsumerConfig.getSchema(), pulsarSourceConsumerConfig.getSchema().getSchemaInfo());
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();
+
+        if (this.pulsarSourceConfig.getSkipToLatest() != null && this.pulsarSourceConfig.getSkipToLatest()) {
+            consumer.seek(MessageId.latest);
+        }
+
         inputConsumers.add(consumer);
     }
 
@@ -95,7 +97,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
     @Override
     public void close() throws Exception {
-        if (consumer != null ) {
+        if (consumer != null) {
             consumer.close();
         }
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,8 +36,8 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
  *
  * <p>When committing transaction starts, the broker will append a `COMMITTED`
  * marker to the data partition first to mark the transaction is committed.
- * The broker knows the data ledger of the commit marker and calls {@link #commitTxn(TxnID, long, long)}
- * to commit and seal the buffer.
+ * The broker knows the data ledger of the commit marker and calls
+ * {@link TransactionBuffer#commitTxn(TxnID, long)} to commit and seal the buffer.
  *
  * <p>When the marker is appended to the data partition, all the entries are visible
  * to the consumers. So a transaction reader {@link TransactionBufferReader} will be
@@ -141,9 +141,10 @@ public interface TransactionBuffer {
     /**
      * Close the buffer asynchronously.
      * @param txnID {@link TxnID} txnId.
+     * @param readPosition the persitent position of the txn message.
      * @return the txnId is aborted.
      */
-    boolean isTxnAborted(TxnID txnID);
+    boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
 
     /**
      * Sync max read position for normal publish.
@@ -167,7 +168,7 @@ public interface TransactionBuffer {
      * Get transaction stats in buffer.
      * @return the transaction stats in buffer.
      */
-    TransactionBufferStats getStats();
+    TransactionBufferStats getStats(boolean lowWaterMarks);
 
     /**
      * Wait TransactionBuffer Recovers completely.
@@ -176,4 +177,12 @@ public interface TransactionBuffer {
      * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
      */
     CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
+
+
+
+    long getOngoingTxnCount();
+
+    long getAbortedTxnCount();
+
+    long getCommittedTxnCount();
 }

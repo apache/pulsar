@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,10 @@
 package org.apache.pulsar.client.impl.auth;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
+import com.google.common.base.Strings;
 import java.security.Principal;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-
 import javax.naming.AuthenticationException;
 import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
@@ -33,8 +32,6 @@ import javax.security.sasl.AuthorizeCallback;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslClient;
 import javax.security.sasl.SaslException;
-
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.KerberosName;

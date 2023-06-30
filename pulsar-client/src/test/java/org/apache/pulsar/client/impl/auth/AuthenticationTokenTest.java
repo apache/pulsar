@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,24 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import java.util.Map;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-
 import java.io.*;
-import java.util.Collections;
+import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 public class AuthenticationTokenTest {
 
@@ -52,8 +53,10 @@ public class AuthenticationTokenTest {
         assertNull(authData.getTlsPrivateKey());
 
         assertTrue(authData.hasDataForHttp());
-        assertEquals(authData.getHttpHeaders(),
-                Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
+        Map<String, String> headers = Maps.newHashMap();
+        headers.put("Authorization", "Bearer token-xyz");
+        headers.put("X-Pulsar-Auth-Method-Name", "token");
+        assertEquals(authData.getHttpHeaders(), headers.entrySet());
 
         authToken.close();
     }
@@ -62,8 +65,8 @@ public class AuthenticationTokenTest {
     public void testAuthTokenClientConfig() throws Exception {
         ClientConfigurationData clientConfig = new ClientConfigurationData();
         clientConfig.setServiceUrl("pulsar://service-url");
-        clientConfig.setAuthPluginClassName(AuthenticationToken.class.getName());
-        clientConfig.setAuthParams("token-xyz");
+        clientConfig.setAuthentication(AuthenticationFactory.create(
+                AuthenticationToken.class.getName(), "token-xyz"));
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
 
@@ -79,8 +82,10 @@ public class AuthenticationTokenTest {
         assertNull(authData.getTlsPrivateKey());
 
         assertTrue(authData.hasDataForHttp());
-        assertEquals(authData.getHttpHeaders(),
-                Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
+        Map<String, String> headers = Maps.newHashMap();
+        headers.put("Authorization", "Bearer token-xyz");
+        headers.put("X-Pulsar-Auth-Method-Name", "token");
+        assertEquals(authData.getHttpHeaders(), headers.entrySet());
 
         authToken.close();
     }
@@ -101,7 +106,7 @@ public class AuthenticationTokenTest {
     public void testAuthTokenConfigFromFile() throws Exception {
         File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "my-test-token-string", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure(getTokenFileUri(tokenFile));
@@ -112,7 +117,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -129,7 +134,7 @@ public class AuthenticationTokenTest {
     public void testAuthTokenConfigFromFileWithNewline() throws Exception {
         File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure(getTokenFileUri(tokenFile));
@@ -140,7 +145,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -197,7 +202,7 @@ public class AuthenticationTokenTest {
     }
 
     private String getTokenFileUri(File file) {
-        return "file:///" + file.toString().replace('\\', '/');
+        return file.toURI().toString();
     }
 
     public static class SerializableSupplier implements Supplier<String>, Serializable {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Optional;
 import java.util.Set;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 /**
  * Interface which serves as a component for ModularLoadManagerImpl, flexibly allowing the injection of potentially
@@ -47,19 +47,26 @@ public interface ModularLoadManagerStrategy {
             ServiceConfiguration conf);
 
     /**
+     * Triggered when active brokers change.
+     */
+    default void onActiveBrokersChange(Set<String> activeBrokers) {
+
+    }
+
+    /**
      * Create a placement strategy using the configuration.
      *
-     * @param conf
-     *            ServiceConfiguration to use.
+     * @param conf ServiceConfiguration to use.
      * @return A placement strategy from the given configurations.
      */
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            // Only one strategy at the moment.
-            return new LeastLongTermMessageRate(conf);
+            return Reflections.createInstance(conf.getLoadBalancerLoadPlacementStrategy(),
+                    ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
-            // Ignore
+            throw new RuntimeException(
+                    "Could not load LoadBalancerLoadPlacementStrategy:" + conf.getLoadBalancerLoadPlacementStrategy(),
+                    e);
         }
-        return new LeastLongTermMessageRate(conf);
     }
 }

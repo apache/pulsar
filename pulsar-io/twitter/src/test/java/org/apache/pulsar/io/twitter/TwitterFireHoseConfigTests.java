@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,7 +43,7 @@ public class TwitterFireHoseConfigTests {
 
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("consumerKey", "xxx");
         map.put("consumerSecret", "xxx");
         map.put("token", "xxx");
@@ -56,7 +56,7 @@ public class TwitterFireHoseConfigTests {
 
     @Test
     public final void validValidateTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("consumerKey", "xxx");
         map.put("consumerSecret", "xxx");
         map.put("token", "xxx");
@@ -69,7 +69,7 @@ public class TwitterFireHoseConfigTests {
     @Test(expectedExceptions = IllegalArgumentException.class, 
             expectedExceptionsMessageRegExp = "Required property not set.")
     public final void missingConsumerKeyValidateTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         
         config = TwitterFireHoseConfig.load(map);
         config.validate();
@@ -77,7 +77,7 @@ public class TwitterFireHoseConfigTests {
     
     @Test
     public final void getFollowingsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("followings", "123, 456, 789");
         config = TwitterFireHoseConfig.load(map);
         
@@ -92,7 +92,7 @@ public class TwitterFireHoseConfigTests {
     
     @Test
     public final void getTermsTest() throws IOException {
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("terms", "mickey, donald, goofy");
         config = TwitterFireHoseConfig.load(map);
         

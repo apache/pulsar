@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -43,32 +44,45 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.LongRunningProcessStatus;
-import org.apache.pulsar.client.admin.OffloadProcessStatus;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
+import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +99,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error")})
@@ -94,15 +108,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            asyncResponse.resume(internalGetList());
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the bundle name", required = false)
+            @QueryParam("bundle") String bundle,
+            @ApiParam(value = "Include system topic")
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
+        validateNamespaceName(tenant, namespace);
+        internalGetListAsync(Optional.ofNullable(bundle))
+            .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
+            .exceptionally(ex -> {
+                if (!isRedirectException(ex)) {
+                    log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
     }
 
     @GET
@@ -111,17 +131,29 @@ public class PersistentTopics extends PersistentTopicsBase {
             response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error")})
-    public List<String> getPartitionedTopicList(
+    public void getPartitionedTopicList(
+            @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Include system topic")
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        return internalGetPartitionedTopicList();
+        internalGetPartitionedTopicListAsync()
+                .thenAccept(partitionedTopicList -> asyncResponse.resume(
+                        filterSystemTopic(partitionedTopicList, includeSystemTopic)))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -136,15 +168,26 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error")})
-    public Map<String, Set<AuthAction>> getPermissionsOnTopic(
+    public void getPermissionsOnTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetPermissionsOnTopic();
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetPermissionsOnTopic().thenAccept(permissions -> asyncResponse.resume(permissions))
+                    .exceptionally(ex -> {
+                        log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("[{}] Failed to validate topic name {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
@@ -159,6 +202,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
     public void grantPermissionsOnTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -170,8 +214,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Actions to be granted (produce,functions,consume)",
                     allowableValues = "produce,functions,consume")
                     Set<AuthAction> actions) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGrantPermissionsOnTopic(role, actions);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGrantPermissionsOnTopic(asyncResponse, role, actions);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @DELETE
@@ -188,6 +238,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Permissions are not set at the topic level"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void revokePermissionsOnTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -196,8 +247,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Client role to which grant permissions", required = true)
             @PathParam("role") String role) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalRevokePermissionsOnTopic(role);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalRevokePermissionsOnTopic(asyncResponse, role);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @PUT
@@ -208,7 +265,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"),
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and"
                     + " less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist"),
@@ -234,6 +291,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateGlobalNamespaceOwnership();
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
+            validateCreateTopic(topicName);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
@@ -248,6 +306,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist"),
             @ApiResponse(code = 412,
@@ -256,18 +315,30 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
     public void createNonPartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Key value pair properties for the topic metadata")
+            Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
         validateGlobalNamespaceOwnership();
         validateTopicName(tenant, namespace, encodedTopic);
-        internalCreateNonPartitionedTopic(authoritative);
+        validateCreateTopic(topicName);
+        internalCreateNonPartitionedTopicAsync(authoritative, properties)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -280,12 +351,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetOffloadPolicies(applied))
+            .thenCompose(__ -> internalGetOffloadPolicies(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getOffloadPolicies", ex, asyncResponse);
@@ -302,12 +374,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies))
+            .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setOffloadPolicies", ex, asyncResponse);
@@ -324,11 +397,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetOffloadPolicies(null))
+            .thenCompose(__ -> internalSetOffloadPolicies(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("removeOffloadPolicies", ex, asyncResponse);
@@ -338,7 +412,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
-    @ApiOperation(value = "Get max unacked messages per consumer config on a topic.")
+    @ApiOperation(value = "Get max unacked messages per consumer config on a topic.", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
@@ -346,12 +420,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxUnackedMessagesOnConsumer(applied))
+            .thenCompose(__ -> internalGetMaxUnackedMessagesOnConsumer(applied, isGlobal))
             .thenApply(asyncResponse::resume).exceptionally(ex -> {
                 handleTopicPolicyException("getMaxUnackedMessagesOnConsumer", ex, asyncResponse);
                 return null;
@@ -368,13 +443,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Max unacked messages on consumer policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum))
+            .thenCompose(__ -> internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setMaxUnackedMessagesOnConsumer", ex, asyncResponse);
@@ -391,11 +467,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxUnackedMessagesOnConsumer(null))
+            .thenCompose(__ -> internalSetMaxUnackedMessagesOnConsumer(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("deleteMaxUnackedMessagesOnConsumer", ex, asyncResponse);
@@ -405,7 +482,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
-    @ApiOperation(value = "Get deduplicationSnapshotInterval config on a topic.")
+    @ApiOperation(value = "Get deduplicationSnapshotInterval config on a topic.", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
@@ -413,11 +490,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
             .thenAccept(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
@@ -440,11 +518,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Interval to take deduplication snapshot for the specified topic")
                     Integer interval,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDeduplicationSnapshotInterval(interval))
+            .thenCompose(__ -> internalSetDeduplicationSnapshotInterval(interval, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setDeduplicationSnapshotInterval", ex, asyncResponse);
@@ -461,11 +540,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDeduplicationSnapshotInterval(null))
+            .thenCompose(__ -> internalSetDeduplicationSnapshotInterval(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("deleteDeduplicationSnapshotInterval", ex, asyncResponse);
@@ -475,7 +555,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
-    @ApiOperation(value = "Get inactive topic policies on a topic.")
+    @ApiOperation(value = "Get inactive topic policies on a topic.", response = InactiveTopicPolicies.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
@@ -483,12 +563,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetInactiveTopicPolicies(applied))
+            .thenCompose(__ -> internalGetInactiveTopicPolicies(applied, isGlobal))
             .thenApply(asyncResponse::resume).exceptionally(ex -> {
                 handleTopicPolicyException("getInactiveTopicPolicies", ex, asyncResponse);
                 return null;
@@ -504,13 +585,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "inactive topic policies for the specified topic")
             InactiveTopicPolicies inactiveTopicPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetInactiveTopicPolicies(inactiveTopicPolicies))
+            .thenCompose(__ -> internalSetInactiveTopicPolicies(inactiveTopicPolicies, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setInactiveTopicPolicies", ex, asyncResponse);
@@ -527,11 +609,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetInactiveTopicPolicies(null))
+            .thenCompose(__ -> internalSetInactiveTopicPolicies(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("deleteInactiveTopicPolicies", ex, asyncResponse);
@@ -541,7 +624,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
-    @ApiOperation(value = "Get max unacked messages per subscription config on a topic.")
+    @ApiOperation(value = "Get max unacked messages per subscription config on a topic.", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
@@ -549,12 +632,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxUnackedMessagesOnSubscription(applied))
+            .thenCompose(__ -> internalGetMaxUnackedMessagesOnSubscription(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxUnackedMessagesOnSubscription", ex, asyncResponse);
@@ -572,14 +656,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum))
+            .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setMaxUnackedMessagesOnSubscription", ex, asyncResponse);
@@ -598,12 +683,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(null))
+            .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("deleteMaxUnackedMessagesOnSubscription", ex, asyncResponse);
@@ -613,7 +699,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
-    @ApiOperation(value = "Get delayed delivery messages config on a topic.")
+    @ApiOperation(value = "Get delayed delivery messages config on a topic.", response = DelayedDeliveryPolicies.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
@@ -621,12 +707,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetDelayedDeliveryPolicies(applied))
+            .thenCompose(__ -> internalGetDelayedDeliveryPolicies(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDelayedDeliveryPolicies", ex, asyncResponse);
@@ -644,7 +731,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Delayed delivery policies for the specified topic")
                     DelayedDeliveryPolicies deliveryPolicies) {
@@ -652,7 +740,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validatePoliciesReadOnlyAccess();
         validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDelayedDeliveryPolicies(deliveryPolicies))
+            .thenCompose(__ -> internalSetDelayedDeliveryPolicies(deliveryPolicies, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setDelayedDeliveryPolicies", ex, asyncResponse);
@@ -671,13 +759,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validatePoliciesReadOnlyAccess();
         validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDelayedDeliveryPolicies(null))
+            .thenCompose(__ -> internalSetDelayedDeliveryPolicies(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("deleteDelayedDeliveryPolicies", ex, asyncResponse);
@@ -686,52 +775,60 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
-     *
-     * Already created partitioned producers and consumers can't see newly created partitions and it requires to
-     * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
-     * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
-     *
-     * @param tenant
-     * @param namespace
-     * @param encodedTopic
-     * @param numPartitions
      */
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitions of an existing partitioned topic.",
-            notes = "It only increments partitions of existing non-global partitioned-topic")
+            notes = "It increments partitions of existing partitioned-topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update topic partition successful."),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401,
-                    message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and"
-                    + " less than or equal to maxNumPartitionsPerPartitionedTopic"),
-            @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
+            @ApiResponse(code = 401, message = "Unauthenticated"),
+            @ApiResponse(code = 403, message = "Forbidden/Unauthorized"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 422, message = "The number of partitions should be more than 0 and"
+                    + " less than or equal to maxNumPartitionsPerPartitionedTopic"
+                    + " and number of new partitions must be greater than existing number of partitions"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     public void updatePartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative, force);
+        validateTopicName(tenant, namespace, encodedTopic);
+        if (topicName.isPartitioned()) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Partitioned Topic Name should not contain '-partition-'");
+        }
+        validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE)
+                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopic, force))
+                .thenAccept(__ -> {
+                    log.info("[{}][{}] Updated topic partition to {}.", clientAppId(), topicName, numPartitions);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}][{}] Failed to update partition to {}",
+                                clientAppId(), topicName, numPartitions, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
 
@@ -741,7 +838,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message =
-                    "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
+                    "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
@@ -767,29 +864,143 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/partitions")
-    @ApiOperation(value = "Get partitioned topic metadata.")
+    @ApiOperation(value = "Get partitioned topic metadata.", response = PartitionedTopicMetadata.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 404, message = "Partitioned topic does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
-    public PartitionedTopicMetadata getPartitionedMetadata(
+    public void getPartitionedMetadata(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
+        internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/properties")
+    @ApiOperation(value = "Get topic properties.", response = String.class, responseContainer = "Map")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    public void getProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
+        internalGetPropertiesAsync(authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get topic {} properties", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/properties")
+    @ApiOperation(value = "Update the properties on the given topic.")
+    @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+            + "subscriber is not authorized to access this operation"),
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
+        @ApiResponse(code = 405, message = "Method Not Allowed"),
+        @ApiResponse(code = 500, message = "Internal server error"),
+        @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void updateProperties(
+        @Suspended final AsyncResponse asyncResponse,
+        @ApiParam(value = "Specify the tenant", required = true)
+        @PathParam("tenant") String tenant,
+        @ApiParam(value = "Specify the namespace", required = true)
+        @PathParam("namespace") String namespace,
+        @ApiParam(value = "Specify topic name", required = true)
+        @PathParam("topic") @Encoded String encodedTopic,
+        @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+        @ApiParam(value = "Key value pair properties for the topic metadata") Map<String, String> properties){
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
+        internalUpdatePropertiesAsync(authoritative, properties)
+            .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+            .exceptionally(ex -> {
+                if (!isRedirectException(ex)) {
+                    log.error("[{}] Failed to update topic {} properties", clientAppId(), topicName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/properties")
+    @ApiOperation(value = "Remove the key in properties on the given topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Partitioned topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    public void removeProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("key") String key,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
+        internalRemovePropertiesAsync(authoritative, key)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to remove key {} in properties on topic {}",
+                                clientAppId(), key, topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -816,13 +1027,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully",
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Delete the topic's schema storage")
-            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalDeletePartitionedTopic(asyncResponse, authoritative, force, deleteSchema);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                // There's no way to create the partition topic with `-partition-{index}`, So we can reject it.
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
+            internalDeletePartitionedTopic(asyncResponse, authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -836,7 +1050,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Topic name is not valid or can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -849,7 +1063,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -871,10 +1085,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic has active producers/subscriptions"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void deleteTopic(
+            @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -884,22 +1099,42 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully",
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Delete the topic's schema storage")
-            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force, deleteSchema);
+        internalDeleteTopicAsync(authoritative, force)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (!force && (t instanceof BrokerServiceException.TopicBusyException)) {
+                        ex = new RestException(Response.Status.PRECONDITION_FAILED,
+                                t.getMessage());
+                    }
+                    if (t instanceof IllegalStateException){
+                        ex = new RestException(422/* Unprocessable entity*/, t.getMessage());
+                    } else if (isManagedLedgerNotFoundException(t)) {
+                        ex = new RestException(Response.Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
+                    } else if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscriptions")
-    @ApiOperation(value = "Get the list of persistent subscriptions for a given topic.")
+    @ApiOperation(
+            value = "Get the list of persistent subscriptions for a given topic.",
+            response = String.class,
+            responseContainer = "List"
+    )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
@@ -912,7 +1147,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -926,65 +1161,86 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/stats")
-    @ApiOperation(value = "Get the stats for the topic.")
+    @ApiOperation(value = "Get the stats for the topic.", response = PersistentTopicStats.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public TopicStats getStats(
+    public void getStats(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "If return precise backlog or imprecise backlog")
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return time of the earliest message in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetStats(authoritative, getPreciseBacklog, subscriptionBacklogSize);
+        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get stats for {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/internalStats")
-    @ApiOperation(value = "Get the internal stats for the topic.")
+    @ApiOperation(value = "Get the internal stats for the topic.", response = PersistentTopicInternalStats.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public PersistentTopicInternalStats getInternalStats(
+    public void getInternalStats(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetInternalStats(authoritative, metadata);
+        internalGetInternalStatsAsync(authoritative, metadata)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/internal-info")
-    @ApiOperation(value = "Get the stored topic metadata.")
+    @ApiOperation(value = "Get the stored topic metadata.", response = PartitionedManagedLedgerInfo.class)
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -993,7 +1249,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic")
@@ -1004,12 +1260,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-stats")
-    @ApiOperation(value = "Get the stats for the partitioned topic.")
+    @ApiOperation(value = "Get the stats for the partitioned topic.", response = PartitionedTopicStatsImpl.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
@@ -1024,17 +1280,23 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Get per partition stats")
             @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "If return precise backlog or imprecise backlog")
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return the earliest time in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize);
+                    subscriptionBacklogSize, getEarliestTimeInBacklog);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1044,12 +1306,15 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-internalStats")
-    @ApiOperation(hidden = true, value = "Get the stats-internal for the partitioned topic.")
+    @ApiOperation(
+            value = "Get the stats-internal for the partitioned topic.",
+            response = PartitionedTopicInternalStats.class
+    )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
@@ -1061,7 +1326,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1083,7 +1348,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 412, message = "Subscription has active consumers"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -1100,17 +1365,31 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Disconnect and close all consumers and delete subscription forcefully",
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            validateTopicOwnership(topicName, authoritative);
-            internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(tenant, namespace, encodedTopic);
+        String subName = decode(encodedSubName);
+        internalDeleteSubscriptionAsync(subName, authoritative, force)
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(cause)) {
+                        log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
+                                topicName, cause);
+                    }
+
+                    if (cause instanceof BrokerServiceException.SubscriptionBusyException) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                        "Subscription has active connected consumers"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    }
+
+                    return null;
+                });
     }
 
     @POST
@@ -1122,7 +1401,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
             @ApiResponse(code = 412, message = "Can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1137,7 +1416,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription")
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1156,12 +1435,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Skipping messages on a partitioned topic is not allowed"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
     public void skipMessages(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1172,10 +1452,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "The number of messages to skip", defaultValue = "0")
             @PathParam("numMessages") int numMessages,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalSkipMessages(decode(encodedSubName), numMessages, authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @POST
@@ -1186,7 +1472,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -1202,7 +1488,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1223,7 +1509,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -1237,7 +1523,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription to be Expiry messages on")
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
             ResetCursorData resetCursorData) {
@@ -1262,7 +1548,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1277,7 +1563,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1299,7 +1585,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -1313,24 +1599,30 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String topic,
             @ApiParam(value = "Subscription to create position on", required = true)
             @PathParam("subscriptionName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId where to create the subscription. "
                     + "It can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest, earliest, ledgerId:entryId"
             )
-                    MessageIdImpl messageId,
+                    ResetCursorData resetCursorData,
             @ApiParam(value = "Is replicated required to perform this operation")
             @QueryParam("replicated") boolean replicated
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
             if (!topicName.isPersistent()) {
-                throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic"
+                throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
             }
-            internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
+            Map<String, String> subscriptionProperties = resetCursorData == null ? null :
+                    resetCursorData.getProperties();
+            MessageIdImpl messageId = resetCursorData == null ? null :
+                    new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                            resetCursorData.getPartitionIndex());
+            internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative,
+                    replicated, subscriptionProperties);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1341,13 +1633,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetcursor/{timestamp}")
     @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).",
-            notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
+            notes = "It fence cursor and disconnects all active consumers before resetting cursor.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Method Not Allowed"),
             @ApiResponse(code = 412, message = "Failed to reset cursor on subscription or "
                     + "Unable to find position for timestamp specified"),
@@ -1366,11 +1658,140 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "the timestamp to reset back")
             @PathParam("timestamp") long timestamp,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalResetCursorAsync(decode(encodedSubName), timestamp, authoritative)
+            .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+            .exceptionally(ex -> {
+                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                if (!isRedirectException(t)) {
+                    log.error("[{}][{}] Failed to reset cursor on subscription {} to time {}",
+                        clientAppId(), topicName, encodedSubName, timestamp, t);
+                }
+                if (t instanceof BrokerServiceException.SubscriptionInvalidCursorPosition) {
+                    t = new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Unable to find position for timestamp specified: " + t.getMessage());
+                } else if (t instanceof BrokerServiceException.SubscriptionBusyException) {
+                    t = new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Failed for Subscription Busy: " + t.getMessage());
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, t);
+                return null;
+            });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
+    @ApiOperation(value = "Replace all the properties on the given subscription")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Method Not Allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void updateSubscriptionProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription to update", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "The new properties") Map<String, String> subscriptionProperties,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursor(asyncResponse, decode(encodedSubName), timestamp, authoritative);
+            internalUpdateSubscriptionProperties(asyncResponse, decode(encodedSubName),
+                    subscriptionProperties, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
+    @ApiOperation(value = "Return all the properties on the given subscription")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Method Not Allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void getSubscriptionProperties(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetSubscriptionProperties(asyncResponse, decode(encodedSubName),
+                    authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analyzeBacklog")
+    @ApiOperation(value = "Analyse a subscription, by scanning all the unprocessed messages")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Method Not Allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void analyzeSubscriptionBacklog(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(name = "position", value = "messageId to start the analysis")
+            ResetCursorData position,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            Optional<Position> positionImpl;
+            if (position != null) {
+                positionImpl = Optional.of(new PositionImpl(position.getLedgerId(),
+                        position.getEntryId()));
+            } else {
+                positionImpl = Optional.empty();
+            }
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalAnalyzeSubscriptionBacklog(asyncResponse, decode(encodedSubName),
+                    positionImpl, authoritative);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1381,13 +1802,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetcursor")
     @ApiOperation(value = "Reset subscription to message position closest to given position.",
-            notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
+            notes = "It fence cursor and disconnects all active consumers before resetting cursor.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
             @ApiResponse(code = 412, message = "Unable to find position for position specified"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1402,7 +1823,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(name = "subName", value = "Subscription to reset position on", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
                     ResetCursorData resetCursorData) {
@@ -1425,12 +1846,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not"
+                    + " exist"),
             @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
-    public Response peekNthMessage(
+    public void peekNthMessage(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1441,10 +1864,19 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "The number of messages (default 1)", defaultValue = "1")
             @PathParam("messagePosition") int messagePosition,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalPeekNthMessage(decode(encodedSubName), messagePosition, authoritative);
+        internalPeekNthMessageAsync(decode(encodedSubName), messagePosition, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get peek nth message for topic {} subscription {}", clientAppId(),
+                                topicName, decode(encodedSubName), ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -1454,11 +1886,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic, the message position does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic, the message position does not exist"),
             @ApiResponse(code = 405, message = "If given partitioned topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error")})
-    public Response examineMessage(
+    public void examineMessage(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1473,10 +1906,19 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("initialPosition") String initialPosition,
             @ApiParam(value = "The position of messages (default 1)", defaultValue = "1")
             @QueryParam("messagePosition") long messagePosition,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalExamineMessage(initialPosition, messagePosition, authoritative);
+        internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to examine a specific message on the topic {}", clientAppId(), topicName,
+                                ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -1487,7 +1929,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not"
+                    + " exist"),
             @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1504,16 +1947,20 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("ledgerId") long ledgerId,
             @ApiParam(value = "The entry id", required = true)
             @PathParam("entryId") long entryId,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalGetMessageById(asyncResponse, ledgerId, entryId, authoritative);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetMessageById(ledgerId, entryId, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                clientAppId(), ledgerId, entryId, topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -1524,7 +1971,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Topic is not non-partitioned and persistent"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1539,10 +1986,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Specify the timestamp", required = true)
             @PathParam("timestamp") long timestamp,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetMessageIdByTimestamp(timestamp, authoritative)
+        internalGetMessageIdByTimestampAsync(timestamp, authoritative)
                 .thenAccept(messageId -> {
                     if (messageId == null) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Message ID not found"));
@@ -1551,8 +1998,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get message ID by timestamp {} from {}",
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message ID by timestamp {} from {}",
                             clientAppId(), timestamp, topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1560,30 +2009,44 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/backlog")
-    @ApiOperation(value = "Get estimated backlog for offline topic.")
+    @ApiOperation(value = "Get estimated backlog for offline topic.", response = PersistentOfflineTopicStats.class)
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public PersistentOfflineTopicStats getBacklog(
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
+    public void getBacklog(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetBacklog(authoritative);
+        internalGetBacklogAsync(authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (t instanceof MetadataStoreException.NotFoundException) {
+                        log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(),
+                                namespaceName);
+                        ex = new RestException(Response.Status.NOT_FOUND, "Namespace does not exist");
+                    } else if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get estimated backlog for topic {}", clientAppId(), encodedTopic, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/backlogSize")
-    @ApiOperation(value = "Calculate backlog size by a message ID (in bytes).")
+    @ApiOperation(value = "Calculate backlog size by a message ID (in bytes).", response = Long.class)
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
@@ -1595,7 +2058,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetBacklogSizeByMessageId(asyncResponse, messageId, authoritative);
@@ -1603,9 +2066,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/backlogQuotaMap")
-    @ApiOperation(value = "Get backlog quota map on a topic.")
+    @ApiOperation(value = "Get backlog quota map on a topic.", response = BacklogQuota.class, responseContainer = "Map")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic policy does not exist"),
+            @ApiResponse(code = 404, message = "Topic policy or namespace does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry")})
     public void getBacklogQuotaMap(
@@ -1613,12 +2076,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetBacklogQuota(applied))
+            .thenCompose(__ -> internalGetBacklogQuota(applied, isGlobal))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getBacklogQuotaMap", ex, asyncResponse);
@@ -1630,7 +2094,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
     @ApiOperation(value = "Set a backlog quota for a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -1640,12 +2104,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
+            @ApiParam(value = "backlog quota policies for the specified topic") BacklogQuotaImpl backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota))
+            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setBacklogQuota", ex, asyncResponse);
@@ -1657,7 +2123,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
     @ApiOperation(value = "Remove a backlog quota policy from a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -1665,11 +2131,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, null))
+            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("removeBacklogQuota", ex, asyncResponse);
@@ -1678,22 +2145,109 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
-    @ApiOperation(value = "Get message TTL in seconds for a topic")
+    @Path("/{tenant}/{namespace}/{topic}/replication")
+    @ApiOperation(
+            value = "Get the replication clusters for a topic",
+            response = String.class,
+            responseContainer = "List"
+    )
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry")})
+    public void getReplicationClusters(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic,
+                              @QueryParam("applied") @DefaultValue("false") boolean applied,
+                              @ApiParam(value = "Whether leader broker redirected this call to this broker. "
+                                      + "For internal use.")
+                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenAccept(op -> {
+                    asyncResponse.resume(op.map(TopicPolicies::getReplicationClustersSet).orElseGet(() -> {
+                        if (applied) {
+                            return getNamespacePolicies(namespaceName).replication_clusters;
+                        }
+                        return null;
+                    }));
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getReplicationClusters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/replication")
+    @ApiOperation(value = "Set the replication clusters for a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Topic is not global or invalid cluster ids")})
+    public void setReplicationClusters(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setReplicationClusters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/replication")
+    @ApiOperation(value = "Remove the replication clusters from a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeReplicationClusters(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalRemoveReplicationClusters())
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeReplicationClusters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Get message TTL in seconds for a topic", response = Integer.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry")})
     public void getMessageTTL(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
             .thenAccept(op -> asyncResponse.resume(op
                 .map(TopicPolicies::getMessageTTLInSeconds)
                 .orElseGet(() -> {
@@ -1715,7 +2269,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Set message TTL in seconds for a topic")
     @ApiResponses(value = {@ApiResponse(code = 403, message =
             "Not authenticate to perform the request or policy is read only"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry"),
             @ApiResponse(code = 412, message = "Invalid message TTL value")})
@@ -1723,13 +2277,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
+            @ApiParam(value = "TTL in seconds for the specified topic", required = true)
             @QueryParam("messageTTL") Integer messageTTL,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMessageTTL(messageTTL))
+            .thenCompose(__ -> internalSetMessageTTL(messageTTL, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setMessageTTL", ex, asyncResponse);
@@ -1743,7 +2298,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 403,
                     message = "Not authenticate to perform the request or policy is read only"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, enable the topic level policy and retry"),
             @ApiResponse(code = 412, message = "Invalid message TTL value")})
@@ -1751,11 +2306,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMessageTTL(null))
+            .thenCompose(__ -> internalSetMessageTTL(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("removeMessageTTL", ex, asyncResponse);
@@ -1765,7 +2321,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/deduplicationEnabled")
-    @ApiOperation(value = "Get deduplication configuration of a topic.")
+    @ApiOperation(value = "Get deduplication configuration of a topic.", response = Boolean.class)
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
@@ -1775,12 +2331,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetDeduplication(applied))
+            .thenCompose(__ -> internalGetDeduplication(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDeduplication", ex, asyncResponse);
@@ -1800,13 +2357,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "DeduplicationEnabled policies for the specified topic")
                     Boolean enabled) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDeduplication(enabled))
+            .thenCompose(__ -> internalSetDeduplication(enabled, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setDeduplication", ex, asyncResponse);
@@ -1826,11 +2384,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDeduplication(null))
+            .thenCompose(__ -> internalSetDeduplication(null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("removeDeduplication", ex, asyncResponse);
@@ -1840,9 +2399,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/retention")
-    @ApiOperation(value = "Get retention configuration for specified topic.")
+    @ApiOperation(value = "Get retention configuration for specified topic.", response = RetentionPolicies.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -1850,12 +2409,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetRetention(applied))
+            .thenCompose(__ -> internalGetRetention(applied, isGlobal))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getRetention", ex, asyncResponse);
@@ -1867,7 +2427,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/retention")
     @ApiOperation(value = "Set retention configuration for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -1876,19 +2436,20 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Retention policies for the specified topic") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetRetention(retention))
+            .thenCompose(__ -> internalSetRetention(retention, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
                             clientAppId(),
                             namespaceName,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(retention));
+                            objectWriter().writeValueAsString(retention));
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -1903,7 +2464,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/retention")
     @ApiOperation(value = "Remove retention configuration for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -1912,11 +2473,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveRetention())
+            .thenCompose(__ -> internalRemoveRetention(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove retention: namespace={}, topic={}",
                         clientAppId(),
@@ -1932,9 +2494,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/persistence")
-    @ApiOperation(value = "Get configuration of persistence policies for specified topic.")
+    @ApiOperation(
+            value = "Get configuration of persistence policies for specified topic.",
+            response = PersistencePolicies.class
+    )
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -1942,12 +2507,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetPersistence(applied))
+            .thenCompose(__ -> internalGetPersistence(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getPersistence", ex, asyncResponse);
@@ -1959,7 +2525,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/persistence")
     @ApiOperation(value = "Set configuration of persistence policies for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -1968,13 +2534,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Bookkeeper persistence policies for specified topic")
-            PersistencePolicies persistencePolicies) {
+                                           PersistencePolicies persistencePolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetPersistence(persistencePolicies))
+            .thenCompose(__ -> internalSetPersistence(persistencePolicies, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully updated persistence policies: "
@@ -1982,7 +2549,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             clientAppId(),
                             namespaceName,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(persistencePolicies));
+                            objectWriter().writeValueAsString(persistencePolicies));
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -1997,7 +2564,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/persistence")
     @ApiOperation(value = "Remove configuration of persistence policies for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2005,11 +2572,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemovePersistence())
+            .thenCompose(__ -> internalRemovePersistence(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove persistence policies: namespace={}, topic={}",
                         clientAppId(),
@@ -2025,9 +2593,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
-    @ApiOperation(value = "Get maxSubscriptionsPerTopic config for specified topic.")
+    @ApiOperation(value = "Get maxSubscriptionsPerTopic config for specified topic.", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2035,11 +2603,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxSubscriptionsPerTopic())
+            .thenCompose(__ -> internalGetMaxSubscriptionsPerTopic(isGlobal))
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
                     : Response.noContent().build()))
             .exceptionally(ex -> {
@@ -2052,7 +2621,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
     @ApiOperation(value = "Set maxSubscriptionsPerTopic config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -2061,16 +2630,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max subscriptions of the topic") int maxSubscriptionsPerTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic))
+            .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated maxSubscriptionsPerTopic: namespace={}, topic={}"
-                                + ", maxSubscriptions={}"
-                        , clientAppId(), namespaceName, topicName.getLocalName(), maxSubscriptionsPerTopic);
+                                + ", maxSubscriptions={}, isGlobal={}"
+                        , clientAppId(), namespaceName, topicName.getLocalName(), maxSubscriptionsPerTopic, isGlobal);
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2083,7 +2653,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
     @ApiOperation(value = "Remove maxSubscriptionsPerTopic config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2091,11 +2661,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(null))
+            .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(null, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove maxSubscriptionsPerTopic: namespace={}, topic={}",
                         clientAppId(), namespaceName, topicName.getLocalName());
@@ -2109,9 +2680,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
-    @ApiOperation(value = "Get replicatorDispatchRate config for specified topic.")
+    @ApiOperation(value = "Get replicatorDispatchRate config for specified topic.", response = DispatchRate.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2119,12 +2690,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetReplicatorDispatchRate(applied))
+            .thenCompose(__ -> internalGetReplicatorDispatchRate(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getReplicatorDispatchRate", ex, asyncResponse);
@@ -2136,7 +2708,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicatorDispatchRate config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -2145,16 +2717,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Replicator dispatch rate of the topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetReplicatorDispatchRate(dispatchRate))
+            .thenCompose(__ -> internalSetReplicatorDispatchRate(dispatchRate, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated replicatorDispatchRate: namespace={}, topic={}"
-                                + ", replicatorDispatchRate={}",
-                        clientAppId(), namespaceName, topicName.getLocalName(), dispatchRate);
+                                + ", replicatorDispatchRate={}, isGlobal={}",
+                        clientAppId(), namespaceName, topicName.getLocalName(), dispatchRate, isGlobal);
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2167,7 +2740,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
     @ApiOperation(value = "Remove replicatorDispatchRate config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2175,11 +2748,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetReplicatorDispatchRate(null))
+            .thenCompose(__ -> internalSetReplicatorDispatchRate(null, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove replicatorDispatchRate limit: namespace={}, topic={}",
                         clientAppId(), namespaceName, topicName.getLocalName());
@@ -2193,9 +2767,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxProducers")
-    @ApiOperation(value = "Get maxProducers config for specified topic.")
+    @ApiOperation(value = "Get maxProducers config for specified topic.", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2203,12 +2777,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxProducers(applied))
+            .thenCompose(__ -> internalGetMaxProducers(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxProducers", ex, asyncResponse);
@@ -2220,7 +2795,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxProducers")
     @ApiOperation(value = "Set maxProducers config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -2229,12 +2804,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "The max producers of the topic") int maxProducers) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxProducers(maxProducers))
+            .thenCompose(__ -> internalSetMaxProducers(maxProducers, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated max producers: namespace={}, topic={}, maxProducers={}",
                         clientAppId(),
@@ -2253,7 +2829,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxProducers")
     @ApiOperation(value = "Remove maxProducers config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2261,11 +2837,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveMaxProducers())
+            .thenCompose(__ -> internalRemoveMaxProducers(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove max producers: namespace={}, topic={}",
                         clientAppId(),
@@ -2281,9 +2858,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
-    @ApiOperation(value = "Get maxConsumers config for specified topic.")
+    @ApiOperation(value = "Get maxConsumers config for specified topic.", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2291,12 +2868,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxConsumers(applied))
+            .thenCompose(__ -> internalGetMaxConsumers(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxConsumers", ex, asyncResponse);
@@ -2308,7 +2886,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
     @ApiOperation(value = "Set maxConsumers config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -2317,12 +2895,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max consumers of the topic") int maxConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxConsumers(maxConsumers))
+            .thenCompose(__ -> internalSetMaxConsumers(maxConsumers, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated max consumers: namespace={}, topic={}, maxConsumers={}",
                         clientAppId(),
@@ -2341,7 +2920,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
     @ApiOperation(value = "Remove maxConsumers config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2349,11 +2928,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveMaxConsumers())
+            .thenCompose(__ -> internalRemoveMaxConsumers(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove max consumers: namespace={}, topic={}",
                         clientAppId(),
@@ -2369,9 +2949,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxMessageSize")
-    @ApiOperation(value = "Get maxMessageSize config for specified topic.")
+    @ApiOperation(value = "Get maxMessageSize config for specified topic.", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2379,11 +2959,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxMessageSize())
+            .thenCompose(__ -> internalGetMaxMessageSize(isGlobal))
             .thenAccept(policies -> {
                 asyncResponse.resume(policies.isPresent() ? policies.get() : Response.noContent().build());
             })
@@ -2397,7 +2978,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxMessageSize")
     @ApiOperation(value = "Set maxMessageSize config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -2406,18 +2987,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max message size of the topic") int maxMessageSize) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxMessageSize(maxMessageSize))
+            .thenCompose(__ -> internalSetMaxMessageSize(maxMessageSize, isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully set max message size: namespace={}, topic={}, maxMessageSiz={}",
+                log.info(
+                        "[{}] Successfully set max message size: namespace={}, topic={}, maxMessageSiz={}, isGlobal={}",
                         clientAppId(),
                         namespaceName,
                         topicName.getLocalName(),
-                        maxMessageSize);
+                        maxMessageSize,
+                        isGlobal);
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2430,7 +3014,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/maxMessageSize")
     @ApiOperation(value = "Remove maxMessageSize config for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2438,11 +3022,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxMessageSize(null))
+            .thenCompose(__ -> internalSetMaxMessageSize(null, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove max message size: namespace={}, topic={}",
                         clientAppId(),
@@ -2466,23 +3051,32 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Termination of a partitioned topic is not allowed"),
             @ApiResponse(code = 406, message = "Need to provide a persistent topic name"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
-    public MessageId terminate(
+    public void terminate(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validatePersistentTopicName(tenant, namespace, encodedTopic);
-        return internalTerminate(authoritative);
+        internalTerminateAsync(authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to terminated topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -2493,8 +3087,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 405, message = "Termination of a partitioned topic is not allowed"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
+            @ApiResponse(code = 405, message = "Termination of a non-partitioned topic is not allowed"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -2505,7 +3099,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @ApiParam(value = "Specify topic name", required = true)
                                           @PathParam("topic") @Encoded String encodedTopic,
-                                          @ApiParam(value = "Is authentication required to perform this operation")
+                                          @ApiParam(value = "Whether leader broker redirected this call to this broker."
+                                                  + " For internal use.")
                                           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalTerminatePartitionedTopic(asyncResponse, authoritative);
@@ -2519,7 +3114,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 409, message = "Compaction already running"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
@@ -2533,7 +3128,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -2553,22 +3148,32 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist, or compaction hasn't run"),
             @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
-    public LongRunningProcessStatus compactionStatus(
+    public void compactionStatus(
+            @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalCompactionStatus(authoritative);
+        internalCompactionStatusAsync(authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get the status of a compaction operation for the topic {}",
+                                clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
@@ -2580,27 +3185,34 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 409, message = "Offload already running"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
     public void triggerOffload(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                MessageIdImpl messageId) {
-        if (messageId == null) {
-            throw new RestException(Response.Status.BAD_REQUEST, "messageId is null");
+        try {
+            if (messageId == null) {
+                throw new RestException(Response.Status.BAD_REQUEST, "messageId is null");
+            }
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalTriggerOffload(asyncResponse, authoritative, messageId);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
         }
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalTriggerOffload(authoritative, messageId);
     }
 
     @GET
@@ -2611,22 +3223,29 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
-    public OffloadProcessStatus offloadStatus(
+    public void offloadStatus(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        return internalOffloadStatus(authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalOffloadStatus(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
@@ -2637,7 +3256,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -2650,7 +3269,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -2660,11 +3279,49 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/trim")
+    @ApiOperation(value = " Trim a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
+    public void trimTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalTrimTopic(asyncResponse, authoritative).exceptionally(ex -> {
+                // If the exception is not redirect exception we need to log it.
+                if (!isRedirectException(ex)) {
+                    log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Get dispatch rate configuration for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2672,12 +3329,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetDispatchRate(applied))
+            .thenCompose(__ -> internalGetDispatchRate(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDispatchRate", ex, asyncResponse);
@@ -2688,8 +3346,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Set message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2697,12 +3355,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Dispatch rate for the specified topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDispatchRate(dispatchRate))
+            .thenCompose(__ -> internalSetDispatchRate(dispatchRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic dispatch rate:"
@@ -2711,7 +3370,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(dispatchRate));
+                            objectWriter().writeValueAsString(dispatchRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -2724,8 +3383,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Remove message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2733,11 +3392,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveDispatchRate())
+            .thenCompose(__ -> internalRemoveDispatchRate(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic dispatch rate: tenant={}, namespace={}, topic={}",
                         clientAppId(),
@@ -2754,9 +3414,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
-    @ApiOperation(value = "Get subscription message dispatch rate configuration for specified topic.")
+    @ApiOperation(
+            value = "Get subscription message dispatch rate configuration for specified topic.",
+            response = DispatchRate.class
+    )
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2764,12 +3427,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetSubscriptionDispatchRate(applied))
+            .thenCompose(__ -> internalGetSubscriptionDispatchRate(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getSubscriptionDispatchRate", ex, asyncResponse);
@@ -2780,8 +3444,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Set subscription message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2790,13 +3454,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
                     DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetSubscriptionDispatchRate(dispatchRate))
+            .thenCompose(__ -> internalSetSubscriptionDispatchRate(dispatchRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic subscription dispatch rate:"
@@ -2805,7 +3470,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(dispatchRate));
+                            objectWriter().writeValueAsString(dispatchRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -2818,8 +3483,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Remove subscription message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2827,11 +3492,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveSubscriptionDispatchRate())
+            .thenCompose(__ -> internalRemoveSubscriptionDispatchRate(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic subscription dispatch rate: tenant={}, namespace={}, topic={}",
                         clientAppId(),
@@ -2847,10 +3513,111 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
-    @ApiOperation(value = "Get compaction threshold configuration for specified topic.")
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
+    @ApiOperation(value = "Get message dispatch rate configuration for specified subscription.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getSubscriptionLevelDispatchRate(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String encodedSubscriptionName,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalGetSubscriptionLevelDispatchRate(
+                    Codec.decode(encodedSubscriptionName), applied, isGlobal))
+            .thenApply(asyncResponse::resume)
+            .exceptionally(ex -> {
+                handleTopicPolicyException("getSubscriptionLevelDispatchRate", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
+    @ApiOperation(value = "Set message dispatch rate configuration for specified subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setSubscriptionLevelDispatchRate(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String encodedSubscriptionName,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Subscription message dispatch rate for the specified topic")
+                    DispatchRateImpl dispatchRate) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalSetSubscriptionLevelDispatchRate(
+                    Codec.decode(encodedSubscriptionName), dispatchRate, isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully set subscription level dispatch rate:"
+                                + " tenant={}, namespace={}, topic={}, sub={}, dispatchRate={}",
+                        clientAppId(),
+                        tenant,
+                        namespace,
+                        topicName.getLocalName(),
+                        encodedSubscriptionName,
+                        dispatchRate);
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("setSubscriptionLevelDispatchRate", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
+    @ApiOperation(value = "Remove message dispatch rate configuration for specified subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeSubscriptionLevelDispatchRate(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String encodedSubscriptionName,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalRemoveSubscriptionLevelDispatchRate(
+                    Codec.decode(encodedSubscriptionName), isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully remove subscription level dispatch rate: "
+                                + "tenant={}, namespace={}, topic={}, sub={}",
+                        clientAppId(), tenant, namespace, topicName.getLocalName(), encodedSubscriptionName);
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("removeSubscriptionLevelDispatchRate", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
+    @ApiOperation(value = "Get compaction threshold configuration for specified topic.", response = Long.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2858,12 +3625,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetCompactionThreshold(applied))
+            .thenCompose(__ -> internalGetCompactionThreshold(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getCompactionThreshold", ex, asyncResponse);
@@ -2874,8 +3642,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
     @ApiOperation(value = "Set compaction threshold configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2883,12 +3651,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Dispatch rate for the specified topic") long compactionThreshold) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetCompactionThreshold(compactionThreshold))
+            .thenCompose(__ -> internalSetCompactionThreshold(compactionThreshold, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic compaction threshold:"
@@ -2897,7 +3666,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(compactionThreshold));
+                            objectWriter().writeValueAsString(compactionThreshold));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -2910,8 +3679,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
     @ApiOperation(value = "Remove compaction threshold configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2919,11 +3688,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveCompactionThreshold())
+            .thenCompose(__ -> internalRemoveCompactionThreshold(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic compaction threshold: tenant={}, namespace={}, topic={}",
                         clientAppId(),
@@ -2940,9 +3710,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
-    @ApiOperation(value = "Get max consumers per subscription configuration for specified topic.")
+    @ApiOperation(
+            value = "Get max consumers per subscription configuration for specified topic.",
+            response = Integer.class
+    )
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2950,11 +3723,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetMaxConsumersPerSubscription())
+            .thenCompose(__ -> internalGetMaxConsumersPerSubscription(isGlobal))
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
                     : Response.noContent().build()))
             .exceptionally(ex -> {
@@ -2966,8 +3740,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
     @ApiOperation(value = "Set max consumers per subscription configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -2976,12 +3750,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") int maxConsumersPerSubscription) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription))
+            .thenCompose(__ -> internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic max consumers per subscription:"
@@ -2990,7 +3765,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(maxConsumersPerSubscription));
+                            objectWriter().writeValueAsString(maxConsumersPerSubscription));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3003,8 +3778,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
     @ApiOperation(value = "Remove max consumers per subscription configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3012,11 +3787,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveMaxConsumersPerSubscription())
+            .thenCompose(__ -> internalRemoveMaxConsumersPerSubscription(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic max consumers per subscription:"
                                 + " tenant={}, namespace={}, topic={}",
@@ -3034,9 +3810,9 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
-    @ApiOperation(value = "Get publish rate configuration for specified topic.")
+    @ApiOperation(value = "Get publish rate configuration for specified topic.", response = PublishRate.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3044,11 +3820,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetPublishRate())
+            .thenCompose(__ -> internalGetPublishRate(isGlobal))
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
                     : Response.noContent().build()))
             .exceptionally(ex -> {
@@ -3060,8 +3837,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Set message publish rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3069,21 +3846,23 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") PublishRate publishRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetPublishRate(publishRate))
+            .thenCompose(__ -> internalSetPublishRate(publishRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic publish rate:"
-                                    + " tenant={}, namespace={}, topic={}, publishRate={}",
+                                    + " tenant={}, namespace={}, topic={}, isGlobal={}, publishRate={}",
                             clientAppId(),
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(publishRate));
+                            isGlobal,
+                            objectWriter().writeValueAsString(publishRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3096,8 +3875,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Remove message publish rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3105,17 +3884,19 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemovePublishRate())
+            .thenCompose(__ -> internalRemovePublishRate(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic publish rate: tenant={}, namespace={}, topic={}",
+                log.info("[{}] Successfully remove topic publish rate: tenant={}, namespace={}, topic={}, isGlobal={}",
                         clientAppId(),
                         tenant,
                         namespace,
-                        topicName.getLocalName());
+                        topicName.getLocalName(),
+                        isGlobal);
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3126,9 +3907,13 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscriptionTypesEnabled")
-    @ApiOperation(value = "Get is enable sub type fors specified topic.")
+    @ApiOperation(
+            value = "Get is enable sub type fors specified topic.",
+            response = CommandSubscribe.SubType.class,
+            responseContainer = "List"
+    )
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3136,11 +3921,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetSubscriptionTypesEnabled())
+            .thenCompose(__ -> internalGetSubscriptionTypesEnabled(isGlobal))
             .thenAccept(op -> {
                 asyncResponse.resume(op.isPresent() ? op.get()
                         : Response.noContent().build());
@@ -3154,8 +3940,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptionTypesEnabled")
     @ApiOperation(value = "Set is enable sub types for specified topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3163,13 +3949,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Enable sub types for the specified topic")
             Set<SubscriptionType> subscriptionTypesEnabled) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled))
+            .thenCompose(__ -> internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic is enabled sub types :"
@@ -3178,7 +3965,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(subscriptionTypesEnabled));
+                            objectWriter().writeValueAsString(subscriptionTypesEnabled));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3188,11 +3975,42 @@ public class PersistentTopics extends PersistentTopicsBase {
             });
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionTypesEnabled")
+    @ApiOperation(value = "Remove subscription types enabled for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeSubscriptionTypesEnabled(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalRemoveSubscriptionTypesEnabled(isGlobal))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully remove subscription types enabled: namespace={}, topic={}",
+                            clientAppId(),
+                            namespaceName,
+                            topicName.getLocalName());
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeSubscriptionTypesEnabled", ex, asyncResponse);
+                    return null;
+                });
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
-    @ApiOperation(value = "Get subscribe rate configuration for specified topic.")
+    @ApiOperation(value = "Get subscribe rate configuration for specified topic.", response = SubscribeRate.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3200,12 +4018,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-                .thenCompose(__ -> internalGetSubscribeRate(applied))
+                .thenCompose(__ -> internalGetSubscribeRate(applied, isGlobal))
                 .thenApply(asyncResponse::resume).exceptionally(ex -> {
             handleTopicPolicyException("getSubscribeRate", ex, asyncResponse);
             return null;
@@ -3215,8 +4034,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
     @ApiOperation(value = "Set subscribe rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3225,21 +4044,23 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetSubscribeRate(subscribeRate))
+            .thenCompose(__ -> internalSetSubscribeRate(subscribeRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic subscribe rate:"
-                                    + " tenant={}, namespace={}, topic={}, subscribeRate={}",
+                                    + " tenant={}, namespace={}, topic={}, isGlobal={} subscribeRate={}",
                             clientAppId(),
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(subscribeRate));
+                            isGlobal,
+                            objectWriter().writeValueAsString(subscribeRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3252,8 +4073,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
     @ApiOperation(value = "Remove subscribe rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
@@ -3261,17 +4082,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveSubscribeRate())
+            .thenCompose(__ -> internalRemoveSubscribeRate(isGlobal))
             .thenRun(() -> {
-                log.info("[{}] Successfully remove topic subscribe rate: tenant={}, namespace={}, topic={}",
+                log.info(
+                        "[{}] Successfully remove topic subscribe rate: tenant={}, namespace={}, topic={}, isGlobal={}",
                         clientAppId(),
                         tenant,
                         namespace,
-                        topicName.getLocalName());
+                        topicName.getLocalName(),
+                        isGlobal);
                 asyncResponse.resume(Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -3289,7 +4114,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void truncateTopic(
             @Suspended final AsyncResponse asyncResponse,
@@ -3299,11 +4124,22 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
         validateTopicName(tenant, namespace, encodedTopic);
-        internalTruncateTopic(asyncResponse, authoritative);
-
+        internalTruncateTopicAsync(authoritative)
+            .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+            .exceptionally(ex -> {
+                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                if (!isRedirectException(t)) {
+                    log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
+                }
+                if (t instanceof PulsarAdminException.NotFoundException) {
+                    t = new RestException(Response.Status.NOT_FOUND, t.getMessage());
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, t);
+                return null;
+            });
     }
 
     @POST
@@ -3329,7 +4165,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Whether to enable replicated subscription", required = true)
             boolean enabled) {
@@ -3341,6 +4177,455 @@ public class PersistentTopics extends PersistentTopicsBase {
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/replicatedSubscriptionStatus")
+    @ApiOperation(
+            value = "Get replicated subscription status on a topic.",
+            response = Boolean.class,
+            responseContainer = "Map"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 412, message = "Can't find owner for topic"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void getReplicatedSubscriptionStatus(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Name of subscription", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetReplicatedSubscriptionStatus(asyncResponse, decode(encodedSubName), authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Get schema compatibility strategy on a topic", response = SchemaCompatibilityStrategy.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist")})
+    public void getSchemaCompatibilityStrategy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the cluster", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+
+        preValidation(authoritative)
+                .thenCompose(__-> internalGetSchemaCompatibilityStrategy(applied))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getSchemaCompatibilityStrategy", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Set schema compatibility strategy on a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist")})
+    public void setSchemaCompatibilityStrategy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Strategy used to check the compatibility of new schema")
+                    SchemaCompatibilityStrategy strategy) {
+        validateTopicName(tenant, namespace, encodedTopic);
+
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(strategy))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully set topic schema compatibility strategy: tenant={}, namespace={}, "
+                                    + "topic={}, schemaCompatibilityStrategy={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            strategy);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    handleTopicPolicyException("setSchemaCompatibilityStrategy", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Remove schema compatibility strategy on a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist")})
+    public void removeSchemaCompatibilityStrategy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Strategy used to check the compatibility of new schema")
+                    SchemaCompatibilityStrategy strategy) {
+        validateTopicName(tenant, namespace, encodedTopic);
+
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(null))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully remove topic schema compatibility strategy: tenant={}, namespace={}, "
+                                    + "topic={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName());
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeSchemaCompatibilityStrategy", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/schemaValidationEnforced")
+    @ApiOperation(value = "Get schema validation enforced flag for topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
+    public void getSchemaValidationEnforced(@Suspended AsyncResponse asyncResponse,
+                                            @ApiParam(value = "Specify the tenant", required = true)
+                                            @PathParam("tenant") String tenant,
+                                            @ApiParam(value = "Specify the namespace", required = true)
+                                            @PathParam("namespace") String namespace,
+                                            @ApiParam(value = "Specify topic name", required = true)
+                                            @PathParam("topic") @Encoded String encodedTopic,
+                                            @QueryParam("applied") @DefaultValue("false") boolean applied,
+                                            @ApiParam(value = "Whether leader broker redirected this call to this "
+                                                    + "broker. For internal use.")
+                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetSchemaValidationEnforced(applied))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getSchemaValidationEnforced", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/schemaValidationEnforced")
+    @ApiOperation(value = "Set schema validation enforced flag on topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid")})
+    public void setSchemaValidationEnforced(@Suspended AsyncResponse asyncResponse,
+                                            @ApiParam(value = "Specify the tenant", required = true)
+                                            @PathParam("tenant") String tenant,
+                                            @ApiParam(value = "Specify the namespace", required = true)
+                                            @PathParam("namespace") String namespace,
+                                            @ApiParam(value = "Specify topic name", required = true)
+                                            @PathParam("topic") @Encoded String encodedTopic,
+                                            @ApiParam(value = "Whether leader broker redirected this call to this "
+                                                    + "broker. For internal use.")
+                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                            @ApiParam(required = true) boolean schemaValidationEnforced) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetSchemaValidationEnforced(schemaValidationEnforced))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setSchemaValidationEnforced", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/entryFilters")
+    @ApiOperation(value = "Get entry filters for a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
+    public void getEntryFilters(@Suspended AsyncResponse asyncResponse,
+                                @ApiParam(value = "Specify the tenant", required = true)
+                                @PathParam("tenant") String tenant,
+                                @ApiParam(value = "Specify the namespace", required = true)
+                                @PathParam("namespace") String namespace,
+                                @ApiParam(value = "Specify topic name", required = true)
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("applied") @DefaultValue("false") boolean applied,
+                                @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                                @ApiParam(value = "Whether leader broker redirected this call to this "
+                                        + "broker. For internal use.")
+                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetEntryFilters(applied, isGlobal))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getEntryFilters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/entryFilters")
+    @ApiOperation(value = "Set entry filters for specified topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setEntryFilters(@Suspended final AsyncResponse asyncResponse,
+                                            @PathParam("tenant") String tenant,
+                                            @PathParam("namespace") String namespace,
+                                            @PathParam("topic") @Encoded String encodedTopic,
+                                            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                                            @ApiParam(value = "Whether leader broker redirected this"
+                                                    + "call to this broker. For internal use.")
+                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                            @ApiParam(value = "Entry filters for the specified topic")
+                                        EntryFilters entryFilters) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetEntryFilters(entryFilters, isGlobal))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setEntryFilters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/entryFilters")
+    @ApiOperation(value = "Remove entry filters for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeEntryFilters(@Suspended final AsyncResponse asyncResponse,
+                                    @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @PathParam("topic") @Encoded String encodedTopic,
+                                    @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                                    @ApiParam(value = "Whether leader broker redirected this"
+                                            + "call to this broker. For internal use.")
+                                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalRemoveEntryFilters(isGlobal))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully remove entry filters: tenant={}, namespace={}, topic={}, isGlobal={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            isGlobal);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeEntryFilters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/shadowTopics")
+    @ApiOperation(value = "Get the shadow topic list for a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry")})
+    public void getShadowTopics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC,
+                        PolicyOperation.READ))
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenAccept(op -> asyncResponse.resume(op.map(TopicPolicies::getShadowTopics).orElse(null)))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getShadowTopics", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/shadowTopics")
+    @ApiOperation(value = "Set shadow topic list for a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+    })
+    public void setShadowTopics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "List of shadow topics", required = true) List<String> shadowTopics) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetShadowTopic(shadowTopics))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setShadowTopic", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/shadowTopics")
+    @ApiOperation(value = "Delete shadow topics for a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+    })
+    public void deleteShadowTopics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalDeleteShadowTopics())
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("deleteShadowTopic", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
+    @ApiOperation(value = "Override namespace's allowAutoSubscriptionCreation setting for a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Settings for automatic subscription creation")
+            AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetAutoSubscriptionCreation(autoSubscriptionCreationOverride, isGlobal))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
+    @ApiOperation(value = "Get autoSubscriptionCreation info in a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetAutoSubscriptionCreation(applied, isGlobal))
+                .thenApply(asyncResponse::resume).exceptionally(ex -> {
+                    handleTopicPolicyException("getAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
+    @ApiOperation(value = "Remove autoSubscriptionCreation ina a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetAutoSubscriptionCreation(null, isGlobal))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully remove topic removeAutoSubscriptionCreation: "
+                                    + "tenant={}, namespace={}, topic={}, isGlobal={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            isGlobal);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

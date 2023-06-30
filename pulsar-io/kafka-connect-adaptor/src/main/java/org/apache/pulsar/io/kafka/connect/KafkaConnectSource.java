@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,15 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import io.confluent.connect.avro.AvroData;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.pulsar.client.api.Schema;
@@ -29,17 +37,9 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
-import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
-
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
- * A pulsar source that runs
+ * A pulsar source that runs.
  */
 @Slf4j
 public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte[], byte[]>> {
@@ -59,6 +59,7 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
             config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
         }
         log.info("jsonWithEnvelope: {}", jsonWithEnvelope);
+
         super.open(config, sourceContext);
     }
 
@@ -69,21 +70,28 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
         return record;
     }
 
-    private static Map<String, String> PROPERTIES = Collections.emptyMap();
-    private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
-    private static long FLUSH_TIMEOUT_MS = 2000;
+    private static final AvroData avroData = new AvroData(1000);
 
-    private class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>> implements KVRecord<byte[], byte[]> {
+    public class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>>
+            implements KVRecord<byte[], byte[]> {
+
+        final int keySize;
+        final int valueSize;
+
+        final SourceRecord srcRecord;
 
         KafkaSourceRecord(SourceRecord srcRecord) {
             super(srcRecord);
-            AvroData avroData = new AvroData(1000);
+            this.srcRecord = srcRecord;
+
             byte[] keyBytes = keyConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
+            keySize = keyBytes != null ? keyBytes.length : 0;
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
 
             byte[] valueBytes = valueConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+            valueSize = valueBytes != null ? valueBytes.length : 0;
 
             this.value = new KeyValue<>(keyBytes, valueBytes);
 
@@ -147,6 +155,35 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
             } else {
                 return KeyValueEncodingType.SEPARATED;
             }
+        }
+
+        @Override
+        public void ack() {
+            // first try to commitRecord() for the current record in the batch
+            // then call super.ack() which calls commit() after complete batch of records is processed
+            try {
+                if (log.isDebugEnabled()) {
+                    log.debug("commitRecord() for record: {}", srcRecord);
+                }
+                getSourceTask().commitRecord(srcRecord,
+                        new RecordMetadata(
+                                new TopicPartition(srcRecord.topic() == null
+                                            ? topicName.orElse("UNDEFINED")
+                                            : srcRecord.topic(),
+                                        srcRecord.kafkaPartition() == null ? 0 : srcRecord.kafkaPartition()),
+                                -1L, // baseOffset == -1L means no offset
+                                0, // batchIndex, doesn't matter if baseOffset == -1L
+                                null == srcRecord.timestamp() ? -1L : srcRecord.timestamp(),
+                                keySize, // serializedKeySize
+                                valueSize // serializedValueSize
+                        ));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Source task failed to commit record, "
+                        + "source task should resend data, will get duplicate", e);
+                return;
+            }
+            super.ack();
         }
 
     }

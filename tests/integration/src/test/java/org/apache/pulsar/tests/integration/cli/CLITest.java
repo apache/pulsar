@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,17 +83,18 @@ public class CLITest extends PulsarTestSuite {
         final String namespace = "public/" + namespaceLocalName;
         assertEquals(0, result.getExitCode());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
         final String persistentTopicName = TopicName.get(
                 "persistent",
                 NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+                "get_topics_mode_" + UUID.randomUUID()).toString();
 
         final String nonPersistentTopicName = TopicName.get(
                 "non-persistent",
                 NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+                "get_topics_mode_" + UUID.randomUUID()).toString();
 
         Producer<byte[]> producer1 = client.newProducer()
                 .topic(persistentTopicName)
@@ -169,6 +170,80 @@ public class CLITest extends PulsarTestSuite {
                 "" + subscriptionPrefix + i
             );
             result.assertNoOutput();
+            i++;
+        }
+    }
+
+    @Test
+    public void testCreateUpdateSubscriptionWithPropertiesCommand() throws Exception {
+        String topic = "testCreateSubscriptionCommmand";
+
+        String subscriptionPrefix = "subscription-";
+
+        int i = 0;
+        for (BrokerContainer container : pulsarCluster.getBrokers()) {
+            ContainerExecResult result = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "create-subscription",
+                    "-p",
+                    "a=b",
+                    "-p",
+                    "c=d",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            result.assertNoOutput();
+
+            ContainerExecResult resultUpdate = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-p",
+                    "a=e",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultUpdate.assertNoOutput();
+
+            ContainerExecResult resultGet = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "get-subscription-properties",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            assertEquals(
+                    resultGet.getStdout().trim(), "{\"a\":\"e\"}",
+                    "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
+
+            ContainerExecResult resultClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-c",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultClear.assertNoOutput();
+
+            ContainerExecResult resultGetAfterClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "get-subscription-properties",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            assertEquals(
+                    resultGetAfterClear.getStdout().trim(), "{}",
+                    "unexpected output " + resultGetAfterClear.getStdout()
+                            + " - error " + resultGetAfterClear.getStderr());
+
             i++;
         }
     }
@@ -282,6 +357,28 @@ public class CLITest extends PulsarTestSuite {
                 "clear-properties",
                 namespace);
         assertTrue(result.getStdout().isEmpty());
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "bookies",
+                    "set-bookie-rack",
+                    "-b", "localhost:8082",
+                    "-r", "");
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "rack name is invalid, it should not be null, empty or '/'\n\n");
+        }
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "namespaces",
+                    "set-schema-autoupdate-strategy",
+                    namespace);
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "Either --compatibility or --disabled must be specified\n\n");
+        }
     }
 
     @Test
@@ -334,7 +431,21 @@ public class CLITest extends PulsarTestSuite {
                               );
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: HTTP 404 Not Found"));
+            assertTrue(e.getResult().getStderr().contains("Schema not found"));
+        }
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "schemas",
+                    "extract",
+                    "--jar", "/pulsar/examples/api-examples.jar",
+                    "--type", "xml",
+                    "--classname", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                    topicName);
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "Invalid schema type xml. Valid options are: avro, json\n\n");
         }
     }
 
@@ -416,7 +527,7 @@ public class CLITest extends PulsarTestSuite {
         testPublishAndConsume("persistent://public/default/pojo-json", "json", Schema.JSON(Tick.class));
     }
 
-    private void testPublishAndConsume(String topic, String sub, Schema type) throws PulsarClientException {
+    private void testPublishAndConsume(String topic, String sub, Schema<Tick> type) throws PulsarClientException {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
@@ -480,7 +591,7 @@ public class CLITest extends PulsarTestSuite {
             ContainerExecResult result = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
                     "documents", "generate", moduleNames[i]);
-            Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
+            Assert.assertTrue(result.getStdout().contains("# " + moduleNames[i]));
         }
     }
 

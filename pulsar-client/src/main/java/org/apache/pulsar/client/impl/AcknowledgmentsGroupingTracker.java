@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.MessageId;
-
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 
 /**
@@ -33,7 +31,7 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
 
     boolean isDuplicate(MessageId messageId);
 
-    CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
+    CompletableFuture<Void> addAcknowledgment(MessageId msgId, AckType ackType, Map<String, Long> properties);
 
     CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType,
                                                   Map<String, Long> properties);

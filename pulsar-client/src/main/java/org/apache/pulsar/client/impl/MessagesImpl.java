@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import net.jcip.annotations.NotThreadSafe;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 @NotThreadSafe
 public class MessagesImpl<T> implements Messages<T> {
 
-    private List<Message<T>> messageList;
+    private final List<Message<T>> messageList;
 
     private final int maxNumberOfMessages;
     private final long maxSizeOfMessages;
@@ -45,6 +44,10 @@ public class MessagesImpl<T> implements Messages<T> {
     }
 
     protected boolean canAdd(Message<T> message) {
+        if (currentNumberOfMessages == 0) {
+            // It's ok to add at least one message into a batch.
+            return true;
+        }
         if (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 > maxNumberOfMessages) {
             return false;
         }
@@ -60,8 +63,8 @@ public class MessagesImpl<T> implements Messages<T> {
         if (message == null) {
             return;
         }
-        Preconditions.checkArgument(canAdd(message), "No more space to add messages.");
-        currentNumberOfMessages ++;
+        checkArgument(canAdd(message), "No more space to add messages.");
+        currentNumberOfMessages++;
         currentSizeOfMessages += message.size();
         messageList.add(message);
     }
@@ -75,6 +78,10 @@ public class MessagesImpl<T> implements Messages<T> {
         this.currentNumberOfMessages = 0;
         this.currentSizeOfMessages = 0;
         this.messageList.clear();
+    }
+
+    List<Message<T>> getMessageList() {
+        return messageList;
     }
 
     @Override

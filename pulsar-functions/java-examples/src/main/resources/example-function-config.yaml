@@ -22,9 +22,6 @@ namespace: "test-namespace"
 name: "example"
 className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
 inputs: ["test_src"]
-userConfig:
-  "PublishTopic": "test_result"
-
 output: "test_result"
 autoAck: true
 parallelism: 1

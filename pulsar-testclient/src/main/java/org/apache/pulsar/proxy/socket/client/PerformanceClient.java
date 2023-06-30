@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,13 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.util.concurrent.RateLimiter;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,29 +46,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-
-import com.google.common.collect.Lists;
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramLogWriter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.testclient.PositiveNumberParameterValidator;
 import org.apache.pulsar.testclient.IMessageFormatter;
 import org.apache.pulsar.testclient.PerfClientUtils;
+import org.apache.pulsar.testclient.PositiveNumberParameterValidator;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.HistogramLogWriter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-
-import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PerformanceClient {
 
@@ -84,7 +78,7 @@ public class PerformanceClient {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--conf-file" }, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
@@ -99,7 +93,8 @@ public class PerformanceClient {
         @Parameter(names = { "-s", "--size" }, description = "Message size in byte")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
@@ -110,13 +105,14 @@ public class PerformanceClient {
 
         @Parameter(
             names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation " +
-                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+            description = "Authentication parameters, whose format is determined by the implementation "
+                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         public String authParams;
 
         @Parameter(names = { "-m",
-                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep publishing")
+                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep"
+                + " publishing")
         public long numMessages = 0;
 
         @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
@@ -124,13 +120,15 @@ public class PerformanceClient {
 
         @Parameter(names = { "-e", "--payload-delimiter" },
                 description = "The delimiter used to split lines when using payload from a file")
-        public String payloadDelimiter = "\\n"; // here escaping \n since default value will be printed with the help text
+        // here escaping \n since default value will be printed with the help text
+        public String payloadDelimiter = "\\n";
 
         @Parameter(names = { "-fp", "--format-payload" },
-                description = "Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds")
+                description = "Format %i as a message index in the stream from producer and/or %t as the timestamp"
+                        + " nanoseconds")
         public boolean formatPayload = false;
 
-        @Parameter(names = {"-fc", "--format-class"}, description="Custom Formatter class name")
+        @Parameter(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
         public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
 
         @Parameter(names = { "-time",
@@ -148,12 +146,12 @@ public class PerformanceClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
@@ -163,7 +161,7 @@ public class PerformanceClient {
         if (arguments.topics.size() != 1) {
             System.err.println("Only one topic name is allowed");
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.confFile != null) {
@@ -220,7 +218,7 @@ public class PerformanceClient {
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[arguments.msgSize];
         Random random = new Random(0);
-        List<byte[]> payloadByteList = Lists.newArrayList();
+        List<byte[]> payloadByteList = new ArrayList<>();
         if (arguments.payloadFilename != null) {
             Path payloadFilePath = Paths.get(arguments.payloadFilename);
             if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
@@ -228,8 +226,10 @@ public class PerformanceClient {
             }
             // here escaping the default payload delimiter to correct value
             String delimiter = arguments.payloadDelimiter.equals("\\n") ? "\n" : arguments.payloadDelimiter;
-            String[] payloadList = new String(Files.readAllBytes(payloadFilePath), StandardCharsets.UTF_8).split(delimiter);
-            log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(), payloadList.length);
+            String[] payloadList = new String(Files.readAllBytes(payloadFilePath), StandardCharsets.UTF_8)
+                    .split(delimiter);
+            log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(),
+                    payloadList.length);
             for (String payload : payloadList) {
                 payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
             }
@@ -239,16 +239,18 @@ public class PerformanceClient {
             }
         } else {
             for (int i = 0; i < payloadBytes.length; ++i) {
-                payloadBytes[i] = (byte) (random.nextInt(26) + 65); // The value of the payloadBytes is from A to Z and the ASCII of A-Z is 65-90, so it needs to add 65
+                // The value of the payloadBytes is from A to Z and the ASCII of A-Z is 65-90, so it needs to add 65
+                payloadBytes[i] = (byte) (random.nextInt(26) + 65);
             }
         }
 
-        ExecutorService executor = Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
+        ExecutorService executor = Executors.newCachedThreadPool(
+                new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
         String topicName = arguments.topics.get(0);
         String restPath = TopicName.get(topicName).getRestPath();
-        String produceBaseEndPoint = TopicName.get(topicName).isV2() ?
-                arguments.proxyURL + "ws/v2/producer/" + restPath : arguments.proxyURL + "ws/producer/" + restPath;
+        String produceBaseEndPoint = TopicName.get(topicName).isV2()
+                ? arguments.proxyURL + "ws/v2/producer/" + restPath : arguments.proxyURL + "ws/producer/" + restPath;
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = arguments.numTopics > 1 ? produceBaseEndPoint + i : produceBaseEndPoint;
             URI produceUri = URI.create(topic);
@@ -258,7 +260,8 @@ public class PerformanceClient {
 
             if (StringUtils.isNotBlank(arguments.authPluginClassName) && StringUtils.isNotBlank(arguments.authParams)) {
                 try {
-                    Authentication auth = AuthenticationFactory.create(arguments.authPluginClassName, arguments.authParams);
+                    Authentication auth = AuthenticationFactory.create(arguments.authPluginClassName,
+                            arguments.authParams);
                     auth.start();
                     AuthenticationDataProvider authData = auth.getAuthData();
                     if (authData.hasDataForHttp()) {
@@ -300,13 +303,15 @@ public class PerformanceClient {
                 while (true) {
                     for (String topic : producersMap.keySet()) {
                         if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
-                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
+                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
+                                    + "--------------", arguments.testTime);
                             PerfClientUtils.exit(0);
                         }
 
                         if (arguments.numMessages > 0) {
                             if (totalSent >= arguments.numMessages) {
-                                log.trace("------------- DONE (reached the maximum number: [{}] of production) --------------", arguments.numMessages);
+                                log.trace("------------- DONE (reached the maximum number: [{}] of production) "
+                                        + "--------------", arguments.numMessages);
                                 Thread.sleep(10000);
                                 PerfClientUtils.exit(0);
                             }
@@ -376,16 +381,17 @@ public class PerformanceClient {
             reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - 99.99pct: {} ms",
-                    intFormat.format(total),
-                    throughputFormat.format(rate),
-                    throughputFormat.format(throughput),
-                    dec.format(reportHistogram.getMean() / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0));
+                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} ms "
+                            + "- 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - 99.99pct: {} ms",
+                    INTFORMAT.format(total),
+                    THROUGHPUTFORMAT.format(rate),
+                    THROUGHPUTFORMAT.format(throughput),
+                    DEC.format(reportHistogram.getMean() / 1000.0),
+                    DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
+                    DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
+                    DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
+                    DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
+                    DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0));
 
             histogramLogWriter.outputIntervalHistogram(reportHistogram);
             reportHistogram.reset();
@@ -446,25 +452,26 @@ public class PerformanceClient {
         log.info(
                 "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
                 totalMessagesSent,
-                totalFormat.format(rate),
-                totalFormat.format(throughput));
+                TOTALFORMAT.format(rate),
+                TOTALFORMAT.format(throughput));
     }
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram();
 
         log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
+                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
+                DEC.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
                 reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
                 reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
                 reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
-    static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
-    static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
-    static final DecimalFormat totalFormat = new DecimalFormat("0.000");
-    static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
+    static final DecimalFormat THROUGHPUTFORMAT = new PaddingDecimalFormat("0.0", 8);
+    static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
+    static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
     private static final Logger log = LoggerFactory.getLogger(PerformanceClient.class);
 
 }

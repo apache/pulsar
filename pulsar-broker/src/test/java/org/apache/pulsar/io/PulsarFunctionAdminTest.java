@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.io;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Method;
@@ -45,15 +44,14 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,10 +78,16 @@ public class PulsarFunctionAdminTest {
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    private final String TLS_SERVER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private final String TLS_SERVER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private final String TLS_CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private final String TLS_CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
+    private final String TLS_TRUST_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionAdminTest.class);
 
@@ -96,14 +100,15 @@ public class PulsarFunctionAdminTest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
-        config = spy(new ServiceConfiguration());
+        config = new ServiceConfiguration();
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -115,8 +120,7 @@ public class PulsarFunctionAdminTest {
         config.setAuthenticationProviders(providers);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config.setTlsAllowInsecureConnection(true);
-
+        config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
@@ -134,7 +138,6 @@ public class PulsarFunctionAdminTest {
                 PulsarAdmin.builder()
                         .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                         .tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
-                        .allowTlsInsecureConnection(true)
                         .authentication(authTls)
                         .build());
 
@@ -183,7 +186,8 @@ public class PulsarFunctionAdminTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
         workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
         workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());
@@ -204,7 +208,6 @@ public class PulsarFunctionAdminTest {
         workerConfig.setBrokerClientAuthenticationParameters(
                 String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
         workerConfig.setUseTls(true);
-        workerConfig.setTlsAllowInsecureConnection(true);
         workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
 
         PulsarWorkerService workerService = new PulsarWorkerService();

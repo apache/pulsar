@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,11 +25,9 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.Policies;
 
 public interface Dispatcher {
-    void addConsumer(Consumer consumer) throws BrokerServiceException;
+    CompletableFuture<Void> addConsumer(Consumer consumer);
 
     void removeConsumer(Consumer consumer) throws BrokerServiceException;
 
@@ -80,7 +78,7 @@ public interface Dispatcher {
 
     SubType getType();
 
-    void redeliverUnacknowledgedMessages(Consumer consumer);
+    void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
@@ -92,12 +90,12 @@ public interface Dispatcher {
         return Optional.empty();
     }
 
-    default void updateRateLimiter(DispatchRate dispatchRate) {
-
+    default void updateRateLimiter() {
+        //No-op
     }
 
-    default void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
-        //No-op
+    default boolean initializeDispatchRateLimiterIfNeeded() {
+        return false;
     }
 
     /**
@@ -112,8 +110,8 @@ public interface Dispatcher {
         return 0;
     }
 
-    default void clearDelayedMessages() {
-        //No-op
+    default CompletableFuture<Void> clearDelayedMessages() {
+        return CompletableFuture.completedFuture(null);
     }
 
     default void cursorIsReset() {
@@ -129,6 +127,23 @@ public interface Dispatcher {
      */
     default boolean checkAndUnblockIfStuck() {
         return false;
+    }
+
+
+    default long getFilterProcessedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterAcceptedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterRejectedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterRescheduledMsgCount() {
+        return 0;
     }
 
 }

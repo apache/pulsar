@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,13 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -32,6 +39,7 @@ import java.util.Date;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
@@ -153,12 +161,38 @@ public class AuthenticationProviderListTest {
         testAuthenticate(tokenBB, SUBJECT_B);
     }
 
+    private void testAuthenticateAsync(String token, String expectedSubject) throws Exception {
+        String actualSubject = authProvider.authenticateAsync(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        }).get();
+        assertEquals(actualSubject, expectedSubject);
+    }
+
+    @Test
+    public void testAuthenticateAsync() throws Exception {
+        testAuthenticateAsync(tokenAA, SUBJECT_A);
+        testAuthenticateAsync(tokenAB, SUBJECT_B);
+        testAuthenticateAsync(tokenBA, SUBJECT_A);
+        testAuthenticateAsync(tokenBB, SUBJECT_B);
+    }
+
+
     private AuthenticationState newAuthState(String token, String expectedSubject) throws Exception {
+        // Must pass the token to the newAuthState for legacy reasons.
         AuthenticationState authState = authProvider.newAuthState(
             AuthData.of(token.getBytes(UTF_8)),
             null,
             null
         );
+        authState.authenticateAsync(AuthData.of(token.getBytes(UTF_8))).get();
         assertEquals(authState.getAuthRole(), expectedSubject);
         assertTrue(authState.isComplete());
         assertFalse(authState.isExpired());
@@ -186,6 +220,45 @@ public class AuthenticationProviderListTest {
         verifyAuthStateExpired(authStateBA, SUBJECT_A);
         verifyAuthStateExpired(authStateBB, SUBJECT_B);
 
+    }
+
+    @Test
+    public void testAuthenticateHttpRequest() throws Exception {
+        HttpServletRequest requestAA = mock(HttpServletRequest.class);
+        when(requestAA.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestAA.getRemotePort()).thenReturn(8080);
+        when(requestAA.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenAA);
+        boolean doFilterAA = authProvider.authenticateHttpRequest(requestAA, null);
+        assertTrue(doFilterAA);
+        verify(requestAA).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_A));
+        verify(requestAA).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
+
+        HttpServletRequest requestAB = mock(HttpServletRequest.class);
+        when(requestAB.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestAB.getRemotePort()).thenReturn(8080);
+        when(requestAB.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenAB);
+        boolean doFilterAB = authProvider.authenticateHttpRequest(requestAB, null);
+        assertTrue(doFilterAB);
+        verify(requestAB).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_B));
+        verify(requestAB).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
+
+        HttpServletRequest requestBA = mock(HttpServletRequest.class);
+        when(requestBA.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestBA.getRemotePort()).thenReturn(8080);
+        when(requestBA.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenBA);
+        boolean doFilterBA = authProvider.authenticateHttpRequest(requestBA, null);
+        assertTrue(doFilterBA);
+        verify(requestBA).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_A));
+        verify(requestBA).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
+
+        HttpServletRequest requestBB = mock(HttpServletRequest.class);
+        when(requestBB.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestBB.getRemotePort()).thenReturn(8080);
+        when(requestBB.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenBB);
+        boolean doFilterBB = authProvider.authenticateHttpRequest(requestBB, null);
+        assertTrue(doFilterBB);
+        verify(requestBB).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_B));
+        verify(requestBB).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
     }
 
 }

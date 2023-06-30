@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -706,12 +707,19 @@ public class ResendRequestTest extends BrokerTestBase {
                 receivedConsumer1 += 1;
             }
         } while (message1 != null);
+        do {
+            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+            if (message2 != null) {
+                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                receivedConsumer2 += 1;
+            }
+        } while (message2 != null);
         log.info("Consumer 1 receives = " + receivedConsumer1);
         log.info("Consumer 2 receives = " + receivedConsumer2);
         log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
         // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer2, 0);
+        assertEquals(receivedConsumer1, 0);
 
         // 5. Consumer 2 asks for a redelivery but the request is ignored
         log.info("Consumer 2 asks for resend");
@@ -721,17 +729,17 @@ public class ResendRequestTest extends BrokerTestBase {
         message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
         message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         assertNull(message1);
-        assertNull(message2);
+        assertNotNull(message2);
     }
 
     @SuppressWarnings("unchecked")
     private BlockingQueue<Message<byte[]>> printIncomingMessageQueue(Consumer<byte[]> consumer) throws Exception {
-        BlockingQueue<Message<byte[]>> imq = null;
+        GrowableArrayBlockingQueue<Message<byte[]>> imq = null;
         ConsumerBase<byte[]> c = (ConsumerBase<byte[]>) consumer;
         Field field = ConsumerBase.class.getDeclaredField("incomingMessages");
         field.setAccessible(true);
-        imq = (BlockingQueue<Message<byte[]>>) field.get(c);
-        log.info("Incoming MEssage Queue: {}", imq);
+        imq = (GrowableArrayBlockingQueue<Message<byte[]>>) field.get(c);
+        log.info("Incoming MEssage Queue: {}", imq.toList());
         return imq;
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.kafka.connect.schema;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.storage.Converter;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -38,17 +36,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Slf4j
 public class KafkaSchemaWrappedSchema implements Schema<byte[]>, Serializable {
 
-    private SchemaInfo schemaInfo = null;
+    private final SchemaInfo schemaInfo;
 
-    public KafkaSchemaWrappedSchema(org.apache.pulsar.kafka.shade.avro.Schema schema,
-                                    Converter converter) {
+    public KafkaSchemaWrappedSchema(org.apache.avro.Schema schema, Converter converter) {
         Map<String, String> props = new HashMap<>();
         boolean isJsonConverter = converter instanceof JsonConverter;
         props.put(GenericAvroSchema.OFFSET_PROP, isJsonConverter ? "0" : "5");
-        this.schemaInfo = SchemaInfoImpl.builder()
-                .name(isJsonConverter? "KafKaJson" : "KafkaAvro")
+        this.schemaInfo = SchemaInfo.builder()
+                .name(isJsonConverter ? "KafKaJson" : "KafkaAvro")
                 .type(isJsonConverter ? SchemaType.JSON : SchemaType.AVRO)
-                .schema(schema.toString().getBytes(UTF_8))
+                .schema(schema.toString().getBytes(StandardCharsets.UTF_8))
                 .properties(props)
                 .build();
     }

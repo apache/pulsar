@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,15 +24,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.prestosql.spi.HostAddress;
-import io.prestosql.spi.connector.ColumnHandle;
-import io.prestosql.spi.connector.ConnectorSplit;
-import io.prestosql.spi.predicate.TupleDomain;
+import io.trino.spi.HostAddress;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.predicate.TupleDomain;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -102,7 +101,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.offloadPolicies = offloadPolicies;
 
         ObjectMapper objectMapper = new ObjectMapper();
-        this.schemaInfo = SchemaInfoImpl.builder()
+        this.schemaInfo = SchemaInfo.builder()
                 .name(originSchemaName)
                 .type(schemaType)
                 .schema(schema.getBytes("ISO8859-1"))

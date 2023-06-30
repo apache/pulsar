@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
+import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 
-import java.util.Optional;
-
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
-
 public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider {
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
+    public void configureAuthenticationConfig(AuthenticationConfig authConfig,
+                                              Optional<FunctionAuthData> functionAuthData) {
         if (!functionAuthData.isPresent()) {
             // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
             authConfig.setClientAuthenticationPlugin(null);
@@ -41,7 +40,9 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails, AuthenticationDataSource authenticationDataSource) throws Exception {
+    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+                                                    AuthenticationDataSource authenticationDataSource)
+            throws Exception {
         String token = null;
         try {
             token = getToken(authenticationDataSource);
@@ -57,12 +58,15 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
 
     @Override
     public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
-                                                     Optional<FunctionAuthData> existingFunctionAuthData, AuthenticationDataSource authenticationDataSource) throws Exception {
+                                                     Optional<FunctionAuthData> existingFunctionAuthData,
+                                                     AuthenticationDataSource authenticationDataSource)
+            throws Exception {
         return cacheAuthData(funcDetails, authenticationDataSource);
     }
 
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
+    public void cleanUpAuthData(Function.FunctionDetails funcDetails,
+                                Optional<FunctionAuthData> functionAuthData) throws Exception {
         //no-op
     }
 }

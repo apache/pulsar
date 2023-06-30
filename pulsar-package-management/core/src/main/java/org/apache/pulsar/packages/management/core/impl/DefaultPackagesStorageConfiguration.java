@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,5 +38,10 @@ public class DefaultPackagesStorageConfiguration implements PackagesStorageConfi
     @Override
     public void setProperty(Properties properties) {
         this.properties = properties;
+    }
+
+    @Override
+    public Properties getProperties() {
+        return this.properties;
     }
 }

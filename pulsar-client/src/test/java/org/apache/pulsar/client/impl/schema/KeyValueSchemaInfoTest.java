@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,13 +33,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
-import org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.json.JSONException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -172,11 +170,11 @@ public class KeyValueSchemaInfoTest {
             KeyValueEncodingType.SEPARATED
         );
 
-        SchemaInfo oldSchemaInfo = new SchemaInfoImpl()
-            .setName("")
-            .setType(SchemaType.KEY_VALUE)
-            .setSchema(kvSchema.getSchemaInfo().getSchema())
-            .setProperties(Collections.emptyMap());
+        SchemaInfo oldSchemaInfo = SchemaInfoImpl.builder()
+            .name("")
+            .type(SchemaType.KEY_VALUE)
+            .schema(kvSchema.getSchemaInfo().getSchema())
+            .properties(Collections.emptyMap()).build();
 
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(oldSchemaInfo),

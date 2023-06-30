@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,6 @@ import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.GenericContainer;
@@ -35,13 +34,14 @@ import org.testng.collections.Maps;
  * A tester used for testing a specific sink.
  */
 @Getter
-public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
+public abstract class SinkTester<ServiceContainerT extends GenericContainer> implements AutoCloseable {
 
     @Getter
     public enum SinkType {
         UNDEFINED("undefined"),
         CASSANDRA("cassandra"),
         KAFKA("kafka"),
+        KINESIS("kinesis"),
         JDBC_POSTGRES("jdbc-postgres"),
         HDFS("hdfs"),
         ELASTIC_SEARCH("elastic_search"),
@@ -89,9 +89,9 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         return serviceContainer;
     }
 
-    public void stopServiceContainer(PulsarCluster cluster) {
+    public void stopServiceContainer() {
         if (null != serviceContainer) {
-            cluster.stopService(networkAlias, serviceContainer);
+            PulsarCluster.stopService(networkAlias, serviceContainer);
         }
     }
 
@@ -127,6 +127,4 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
                     .send();
         }
     }
-
-
 }

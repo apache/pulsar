@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -133,9 +134,10 @@ public class PulsarTestClient extends PulsarClientImpl {
     @Override
     protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex, ProducerConfigurationData conf,
                                                   Schema<T> schema, ProducerInterceptors interceptors,
-                                                  CompletableFuture<Producer<T>> producerCreatedFuture) {
+                                                  CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                  Optional<String> overrideProducerName) {
         return new ProducerImpl<T>(this, topic, conf, producerCreatedFuture, partitionIndex, schema,
-                interceptors) {
+                interceptors, overrideProducerName) {
             @Override
             protected OpSendMsgQueue createPendingMessagesQueue() {
                 return new OpSendMsgQueue() {
@@ -151,11 +153,11 @@ public class PulsarTestClient extends PulsarClientImpl {
             }
 
             @Override
-            protected boolean shouldWriteOpSendMsg() {
+            protected ClientCnx getCnxIfReady() {
                 if (dropOpSendMessages) {
-                    return false;
+                    return null;
                 } else {
-                    return super.shouldWriteOpSendMsg();
+                    return super.getCnxIfReady();
                 }
             }
         };

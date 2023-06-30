@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -95,4 +95,16 @@ public interface Worker {
      * @return
      */
     CompletableFuture<Map<String, Collection<String>>> getAssignmentsAsync();
+
+    /**
+     * Triggers a rebalance of functions to workers.
+     * @throws PulsarAdminException
+     */
+    void rebalance() throws PulsarAdminException;
+
+    /**
+     * Triggers a rebalance of functions to workersasynchronously..
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> rebalanceAsync();
 }

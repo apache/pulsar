@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.ValidateResult;
 
 /**
  * Override of autoTopicCreation settings on a namespace level.
@@ -35,28 +36,29 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
     private String topicType;
     private Integer defaultNumPartitions;
 
-    public static boolean isValidOverride(AutoTopicCreationOverride override) {
+    public static ValidateResult validateOverride(AutoTopicCreationOverride override) {
         if (override == null) {
-            return false;
+            return ValidateResult.fail("[AutoTopicCreationOverride] can not be null");
         }
         if (override.isAllowAutoTopicCreation()) {
             if (!TopicType.isValidTopicType(override.getTopicType())) {
-                return false;
+                return ValidateResult.fail(String.format("Unknown topic type [%s]", override.getTopicType()));
             }
             if (TopicType.PARTITIONED.toString().equals(override.getTopicType())) {
                 if (override.getDefaultNumPartitions() == null) {
-                    return false;
+                    return ValidateResult.fail("[defaultNumPartitions] cannot be null when the type is partitioned.");
                 }
-                if (!(override.getDefaultNumPartitions() > 0)) {
-                    return false;
+                if (override.getDefaultNumPartitions() <= 0) {
+                    return ValidateResult.fail("[defaultNumPartitions] cannot be less than 1 for partition type.");
                 }
             } else if (TopicType.NON_PARTITIONED.toString().equals(override.getTopicType())) {
                 if (override.getDefaultNumPartitions() != null) {
-                    return false;
+                    return ValidateResult.fail("[defaultNumPartitions] is not allowed to be"
+                            + " set when the type is non-partition.");
                 }
             }
         }
-        return true;
+        return ValidateResult.success();
     }
 
     public static AutoTopicCreationOverrideImplBuilder builder() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -28,14 +31,18 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -47,30 +54,44 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
+    private HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+            1, TimeUnit.MILLISECONDS);
+
     public MLTransactionMetadataStoreTest() {
         super(3);
     }
 
-    @Test
-    public void testTransactionOperation() throws Exception {
+    @AfterClass
+    public void cleanup(){
+        transactionTimer.stop();
+    }
+
+    @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    public void testTransactionOperation(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(),
+                        mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
         int checkReplayRetryCount = 0;
         while (true) {
             checkReplayRetryCount++;
@@ -79,7 +100,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 break;
             }
             if (transactionMetadataStore.checkIfReady()) {
-                TxnID txnID = transactionMetadataStore.newTransaction(5000).get();
+                TxnID txnID = transactionMetadataStore.newTransaction(5000, null).get();
                 assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
@@ -122,32 +143,47 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @DataProvider(name = "isUseManagedLedger")
+    @DataProvider(name = "isUseManagedLedgerProperties")
     public Object[][] versions() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] { { true }, { false }};
     }
 
-    @Test(dataProvider = "isUseManagedLedger")
-    public void testRecoverSequenceId(boolean isUseManagedLedger) throws Exception {
+    @DataProvider(name = "bufferedWriterConfigDataProvider")
+    public Object[][] bufferedWriterConfigDataProvider() {
+        TxnLogBufferedWriterConfig disabled = new TxnLogBufferedWriterConfig();
+        disabled.setBatchEnabled(false);
+        TxnLogBufferedWriterConfig enabled = new TxnLogBufferedWriterConfig();
+        enabled.setBatchEnabled(true);
+        enabled.setBatchedWriteMaxRecords(3);
+        enabled.setBatchedWriteMaxDelayInMillis(1);
+        return new Object[][] { { enabled }, { disabled } };
+    }
+
+    @Test(dataProvider = "isUseManagedLedgerProperties")
+    public void testRecoverSequenceId(boolean isUseManagedLedgerProperties) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
+        TxnLogBufferedWriterConfig disabledBufferedWriter = new TxnLogBufferedWriterConfig();
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         managedLedgerConfig.setMaxEntriesPerLedger(3);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                managedLedgerConfig);
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, disabledBufferedWriter, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
-        TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
+        TxnID txnID = transactionMetadataStore.newTransaction(20000, null).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
-        if (isUseManagedLedger) {
+        if (isUseManagedLedgerProperties) {
             transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
         }
         assertEquals(txnID.getLeastSigBits(), 0);
@@ -155,24 +191,34 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         field.setAccessible(true);
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(mlTransactionLog);
         Position position = managedLedger.getLastConfirmedEntry();
-
-        if (isUseManagedLedger) {
-            Awaitility.await().until(() -> {
-                managedLedger.rollCurrentLedgerIfFull();
-                return !managedLedger.ledgerExists(position.getLedgerId());
-            });
+        if (isUseManagedLedgerProperties) {
+            Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+            stateUpdater.setAccessible(true);
+            stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
+            managedLedger.rollCurrentLedgerIfFull();
+            //There is new ledger been created
+            Awaitility.await().until(() -> managedLedger.getLedgersInfo().ceilingEntry(position.getLedgerId()) != null);
         }
+        mlTransactionLog.closeAsync().get(2, TimeUnit.SECONDS);
+        mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
+                managedLedgerConfig, disabledBufferedWriter, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
-        txnID = transactionMetadataStore.newTransaction(100000).get();
+        txnID = transactionMetadataStore.newTransaction(100000, null).get();
         assertEquals(txnID.getLeastSigBits(), 1);
     }
 
-    @Test
-    public void testInitTransactionReader() throws Exception {
+    /***
+     * Verify transaction meta store write and read correct.
+     * TODO After the batch feature is dynamically switched，append tests that contain both batch and non-batch data.
+     */
+    @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    public void testInitTransactionReader(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
@@ -181,12 +227,16 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                managedLedgerConfig);
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -194,8 +244,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 break;
             }
             if (transactionMetadataStore.checkIfReady()) {
-                TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
-                TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
+                TxnID txnID1 = transactionMetadataStore.newTransaction(1000, "user1").get();
+                TxnID txnID2 = transactionMetadataStore.newTransaction(1000, "user2").get();
                 assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
                 assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
 
@@ -209,26 +259,35 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 subscriptions.add(new TransactionSubscription("topic1", "sub1"));
                 subscriptions.add(new TransactionSubscription("topic2", "sub2"));
 
-                transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions).get();
-                transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions).get();
+                List<CompletableFuture<?>> futureList = new ArrayList<>();
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions));
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions));
+                FutureUtil.waitForAll(futureList).get();
+
                 List<TransactionSubscription> subscriptions1 = new ArrayList<>();
                 subscriptions1.add(new TransactionSubscription("topic1", "sub1"));
                 subscriptions1.add(new TransactionSubscription("topic3", "sub3"));
                 subscriptions1.add(new TransactionSubscription("topic3", "sub3"));
-                transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions1).get();
-                transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1).get();
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions1));
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1));
+                FutureUtil.waitForAll(futureList).get();
 
-                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
-                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
-
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN,
+                        false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.COMMITTING, TxnStatus.OPEN,
+                        false));
+                FutureUtil.waitForAll(futureList).get();
                 transactionMetadataStore.closeAsync();
 
                 MLTransactionLogImpl txnLog2 = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                        new ManagedLedgerConfig());
-                txnLog2.initialize().join();
+                        managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer,
+                        DISABLED_BUFFERED_WRITER_METRICS);
+                txnLog2.initialize().get(2, TimeUnit.SECONDS);
+
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
-                                txnLog2, new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                                txnLog2, new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+                transactionMetadataStoreTest.init(new TransactionRecoverTrackerImpl()).get();
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
@@ -245,6 +304,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         assertEquals(txnMeta2.ackedPartitions().size(), subscriptions.size());
                         Assert.assertTrue(subscriptions.containsAll(txnMeta1.ackedPartitions()));
                         Assert.assertTrue(subscriptions.containsAll(txnMeta2.ackedPartitions()));
+
+                        assertEquals(txnMeta1.getOwner(), "user1");
+                        assertEquals(txnMeta2.getOwner(), "user2");
                         assertEquals(txnMeta1.status(), TxnStatus.COMMITTING);
                         assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
                         transactionMetadataStoreTest
@@ -264,7 +326,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         } catch (ExecutionException e) {
                             Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
                         }
-                        TxnID txnID = transactionMetadataStoreTest.newTransaction(1000).get();
+                        TxnID txnID = transactionMetadataStoreTest.newTransaction(1000, null).get();
                         assertEquals(txnID.getLeastSigBits(), 2L);
                         break;
                     } else {
@@ -280,20 +342,28 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
-    public void testDeleteLog() throws Exception {
+    /***
+     * Verify transaction meta store delete logs after commit/abort correct.
+     * TODO After the batch feature is dynamically switched，append tests that contain both batch and non-batch data.
+     */
+    @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    public void testDeleteLog(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -301,35 +371,42 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 break;
             }
             if (transactionMetadataStore.checkIfReady()) {
-                TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
-                TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
+                TxnID txnID1 = transactionMetadataStore.newTransaction(1000, null).get();
+                TxnID txnID2 = transactionMetadataStore.newTransaction(1000, null).get();
                 assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
                 assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
 
+                List<CompletableFuture<?>> futureList = new ArrayList<>();
                 List<String> partitions = new ArrayList<>();
                 partitions.add("pt-1");
                 partitions.add("pt-2");
-                transactionMetadataStore.addProducedPartitionToTxn(txnID1, partitions).get();
-                transactionMetadataStore.addProducedPartitionToTxn(txnID2, partitions).get();
+                futureList.add(transactionMetadataStore.addProducedPartitionToTxn(txnID1, partitions));
+                futureList.add(transactionMetadataStore.addProducedPartitionToTxn(txnID2, partitions));
+                FutureUtil.waitForAll(futureList).get();
 
                 List<TransactionSubscription> subscriptions = new ArrayList<>();
                 subscriptions.add(new TransactionSubscription("topic1", "sub1"));
                 subscriptions.add(new TransactionSubscription("topic2", "sub2"));
 
-                transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions).get();
-                transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions).get();
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions));
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions));
+                FutureUtil.waitForAll(futureList).get();
+
                 List<TransactionSubscription> subscriptions1 = new ArrayList<>();
                 subscriptions1.add(new TransactionSubscription("topic1", "sub1"));
                 subscriptions1.add(new TransactionSubscription("topic3", "sub3"));
                 subscriptions1.add(new TransactionSubscription("topic3", "sub3"));
-                transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions1).get();
-                transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1).get();
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID1, subscriptions1));
+                futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1));
+                FutureUtil.waitForAll(futureList).get();
 
-                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
-                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false).get();
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false));
 
-                transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
-                transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false).get();
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false));
+                FutureUtil.waitForAll(futureList).get();
+
                 Field field = mlTransactionLog.getClass().getDeclaredField("cursor");
                 field.setAccessible(true);
                 ManagedCursor cursor = (ManagedCursor) field.get(mlTransactionLog);
@@ -343,59 +420,71 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
-    public void testRecoverWhenDeleteFromCursor() throws Exception {
+    /**
+     * Verify transaction meta store recover correct.
+     * TODO After the batch feature is dynamically switched，append tests that contain both batch and non-batch data.
+     */
+    @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    public void testRecoverWhenDeleteFromCursor(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
-
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
 
         // txnID1 have not deleted from cursor, we can recover from transaction log
-        TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
+        TxnID txnID1 = transactionMetadataStore.newTransaction(1000, null).get();
         // txnID2 have deleted from cursor.
-        TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
+        TxnID txnID2 = transactionMetadataStore.newTransaction(1000, null).get();
 
         transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false).get();
         transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false).get();
 
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
     }
 
-    @Test
-    public void testManageLedgerWriteFailState() throws Exception {
+    @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    public void testManageLedgerWriteFailState(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
-        mlTransactionLog.initialize().join();
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
-        transactionMetadataStore.newTransaction(5000).get();
+        transactionMetadataStore.newTransaction(5000, null).get();
         Field field = MLTransactionLogImpl.class.getDeclaredField("managedLedger");
         field.setAccessible(true);
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(mlTransactionLog);
@@ -404,12 +493,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         AtomicReferenceFieldUpdater state = (AtomicReferenceFieldUpdater) field.get(managedLedger);
         state.set(managedLedger, WriteFailed);
         try {
-            transactionMetadataStore.newTransaction(5000).get();
+            transactionMetadataStore.newTransaction(5000, null).get();
             fail();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
         }
-        transactionMetadataStore.newTransaction(5000).get();
+        transactionMetadataStore.newTransaction(5000, null).get();
 
     }
 

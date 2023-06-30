@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,6 +61,9 @@ public interface TopicStats {
     /** Get estimated total unconsumed or backlog size in bytes. */
     long getBacklogSize();
 
+    /** Get the publish time of the earliest message over all the backlogs. */
+    long getEarliestMsgPublishTimeInBacklogs();
+
     /** Space used to store the offloaded messages for the topic/. */
     long getOffloadedStorageSize();
 
@@ -88,4 +91,9 @@ public interface TopicStats {
 
     /** The compaction stats. */
     CompactionStats getCompaction();
+
+    /** The broker that owns this topic. **/
+    String getOwnerBroker();
+
+    long getDelayedMessageIndexSizeInBytes();
 }

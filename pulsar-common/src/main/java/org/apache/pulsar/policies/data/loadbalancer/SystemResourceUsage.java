@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,14 +42,6 @@ public class SystemResourceUsage {
         cpu = new ResourceUsage(-1, -1);
         memory = new ResourceUsage(-1, -1);
         directMemory = new ResourceUsage(-1, -1);
-    }
-
-    public void reset() {
-        bandwidthIn.reset();
-        bandwidthOut.reset();
-        cpu.reset();
-        memory.reset();
-        directMemory.reset();
     }
 
     public ResourceUsage getBandwidthIn() {

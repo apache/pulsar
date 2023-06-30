@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils.functioncache;
 
 import java.io.File;
@@ -29,11 +28,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 
 /**
  * A cache entry in the function cache. Tracks which workers still reference
@@ -70,8 +67,12 @@ public class FunctionCacheEntry implements AutoCloseable {
 
     FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader,
                        String narExtractionDirectory) throws IOException {
-        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(),
-                rootClassLoader, narExtractionDirectory);
+
+        this.classLoader = NarClassLoaderBuilder.builder()
+                .narFile(new File(narArchive))
+                .extractionDirectory(narExtractionDirectory)
+                .parentClassLoader(rootClassLoader)
+                .build();
         this.classpaths = Collections.emptySet();
         this.jarFiles = Collections.singleton(narArchive);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));

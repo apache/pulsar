@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,24 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import static org.apache.pulsar.metadata.impl.EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
+import com.google.common.base.Splitter;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Slf4j
 public class MetadataStoreFactoryImpl {
+
+    public static final String METADATASTORE_PROVIDERS_PROPERTY = "pulsar.metadatastore.providers";
 
     public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws
             MetadataStoreException {
@@ -45,11 +57,65 @@ public class MetadataStoreFactoryImpl {
     private static MetadataStore newInstance(String metadataURL, MetadataStoreConfig metadataStoreConfig,
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
+        MetadataStoreProvider provider = findProvider(metadataURL);
+        return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
+    }
 
-        if (metadataURL.startsWith("memory://")) {
-            return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
-        } else {
-            return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+    static Map<String, MetadataStoreProvider> loadProviders() {
+        Map<String, MetadataStoreProvider> providers = new HashMap<>();
+        providers.put(MEMORY_SCHEME_IDENTIFIER, new MemoryMetadataStoreProvider());
+        providers.put(ROCKSDB_SCHEME_IDENTIFIER, new RocksdbMetadataStoreProvider());
+        providers.put(ETCD_SCHEME_IDENTIFIER, new EtcdMetadataStoreProvider());
+        providers.put(ZK_SCHEME_IDENTIFIER, new ZkMetadataStoreProvider());
+
+        String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY, "");
+
+        for (String className : Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
+            try {
+                Class<? extends MetadataStoreProvider> clazz =
+                        (Class<? extends MetadataStoreProvider>) Class.forName(className);
+                MetadataStoreProvider provider = clazz.getConstructor().newInstance();
+                String scheme = provider.urlScheme();
+                providers.put(scheme + ":", provider);
+            } catch (Exception e) {
+                log.warn("Failed to load metadata store provider class for name '{}'", className, e);
+            }
         }
+        return providers;
+    }
+
+    private static MetadataStoreProvider findProvider(String metadataURL) {
+        Map<String, MetadataStoreProvider> providers = loadProviders();
+        for (Map.Entry<String, MetadataStoreProvider> entry : providers.entrySet()) {
+            if (metadataURL.startsWith(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return providers.get(ZK_SCHEME_IDENTIFIER);
+    }
+
+    /**
+     * Removes the identifier from the full metadata url.
+     *
+     * zk:my-zk:3000 -> my-zk:3000
+     * etcd:my-etcd:3000 -> my-etcd:3000
+     * my-default-zk:3000 -> my-default-zk:3000
+     * @param metadataURL
+     * @return
+     */
+    public static String removeIdentifierFromMetadataURL(String metadataURL) {
+        MetadataStoreProvider provider = findProvider(metadataURL);
+        if (metadataURL.startsWith(provider.urlScheme() + ":")) {
+            return metadataURL.substring(provider.urlScheme().length() + 1);
+        }
+        return metadataURL;
+    }
+
+    public static boolean isBasedOnZookeeper(String metadataURL) {
+        if (!metadataURL.contains("://")) {
+            return true;
+        }
+
+        return metadataURL.startsWith("zk");
     }
 }

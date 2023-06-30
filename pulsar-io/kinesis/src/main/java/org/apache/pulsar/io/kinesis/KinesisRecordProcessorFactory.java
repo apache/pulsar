@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import java.util.concurrent.LinkedBlockingQueue;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
-
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class KinesisRecordProcessorFactory implements ShardRecordProcessorFactory {
 
     private final LinkedBlockingQueue<KinesisRecord> queue;
     private final KinesisSourceConfig config;
-    
-    public KinesisRecordProcessorFactory(LinkedBlockingQueue<KinesisRecord> queue, 
-            KinesisSourceConfig kinesisSourceConfig) {
+    public KinesisRecordProcessorFactory(LinkedBlockingQueue<KinesisRecord> queue,
+                                         KinesisSourceConfig kinesisSourceConfig) {
         this.queue = queue;
         this.config = kinesisSourceConfig;
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,52 +18,41 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
+import java.util.ArrayList;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarUnpacker;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATMOST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
-import static org.mockito.ArgumentMatchers.any;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
 /**
- * Unit test of {@link Reflections}.
+ * Unit test of {@link SinkConfigUtilsTest}.
  */
-@PrepareForTest({ConnectorUtils.class, NarUnpacker.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
-public class SinkConfigUtilsTest extends PowerMockTestCase {
-
-    private ConnectorDefinition defn;
+public class SinkConfigUtilsTest {
 
     @Data
     @Accessors(chain = true)
@@ -71,6 +60,19 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     public static class TestSinkConfig {
         @ConfigValidationAnnotations.NotNull
         private String configParameter;
+    }
+
+    @Test
+    public void testAutoAckConvertFailed() throws IOException {
+
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setAutoAck(false);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            SinkConfigUtils.convert(sinkConfig,
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        });
     }
 
     @Test
@@ -101,15 +103,100 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
 
         sinkConfig.setConfigs(configs);
         sinkConfig.setRetainOrdering(false);
+        sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setAutoAck(true);
-        sinkConfig.setTimeoutMs(2000l);
+        sinkConfig.setCleanupSubscription(false);
+        sinkConfig.setTimeoutMs(2000L);
         sinkConfig.setRuntimeFlags("-DKerberos");
-        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        sinkConfig.setCleanupSubscription(true);
+
+        sinkConfig.setResources(Resources.getDefaultResources());
+
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
+
+        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertEquals(Function.SubscriptionType.SHARED, functionDetails.getSource().getSubscriptionType());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertEquals(
-                new Gson().toJson(sinkConfig),
-                new Gson().toJson(convertedConfig)
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig)
         );
+
+        sinkConfig.setRetainOrdering(true);
+        sinkConfig.setRetainKeyOrdering(false);
+
+        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertEquals(Function.SubscriptionType.FAILOVER, functionDetails.getSource().getSubscriptionType());
+        convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig));
+
+        sinkConfig.setRetainOrdering(false);
+        sinkConfig.setRetainKeyOrdering(true);
+
+        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertEquals(Function.SubscriptionType.KEY_SHARED, functionDetails.getSource().getSubscriptionType());
+        convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig));
+    }
+
+    @Test
+    public void testParseRetainOrderingField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setRetainOrdering(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
+        }
+    }
+
+    @Test
+    public void testParseKeyRetainOrderingField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setRetainKeyOrdering(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getRetainKeyOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
+        }
+    }
+
+    @Test
+    public void testParseProcessingGuaranteesField() throws IOException {
+        List<FunctionConfig.ProcessingGuarantees> testcases = Lists.newArrayList(
+                EFFECTIVELY_ONCE,
+                ATMOST_ONCE,
+                ATLEAST_ONCE,
+                null
+        );
+
+        for (FunctionConfig.ProcessingGuarantees testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setProcessingGuarantees(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getProcessingGuarantees(), testcase == null ? ATLEAST_ONCE : testcase);
+        }
+    }
+
+    @Test
+    public void testCleanSubscriptionField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setCleanupSubscription(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getCleanupSubscription(), testcase == null ? Boolean.valueOf(true) : testcase);
+        }
     }
 
     @Test
@@ -191,6 +278,24 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
     }
 
+    @Test
+    public void testMergeDifferentInputSpecWithInputsSet() {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(false).receiverQueueSize(1000).build());
+
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        ConsumerConfig newConsumerConfig = ConsumerConfig.builder().isRegexPattern(false).serdeClassName("test-serde").receiverQueueSize(58).build();
+        inputSpecs.put("test-input", newConsumerConfig);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
+        newSinkConfig.setInputs(new ArrayList<>());
+        newSinkConfig.getInputs().add("test-input");
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(mergedConfig.getInputSpecs().get("test-input"), newConsumerConfig);
+
+        // make sure original sinkConfig was not modified
+        assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SinkConfig sinkConfig = createSinkConfig();
@@ -202,6 +307,13 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     public void testMergeDifferentRetainOrdering() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("retainOrdering", true);
+        SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Key Ordering cannot be altered")
+    public void testMergeDifferentRetainKeyOrdering() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("retainKeyOrdering", true);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
@@ -262,7 +374,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
                 mergedConfig.getParallelism(),
-                new Integer(101)
+                Integer.valueOf(101)
         );
         mergedConfig.setParallelism(sinkConfig.getParallelism());
         assertEquals(
@@ -276,8 +388,8 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         SinkConfig sinkConfig = createSinkConfig();
         Resources resources = new Resources();
         resources.setCpu(0.3);
-        resources.setRam(1232l);
-        resources.setDisk(123456l);
+        resources.setRam(1232L);
+        resources.setDisk(123456L);
         SinkConfig newSinkConfig = createUpdatedSinkConfig("resources", resources);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
@@ -294,13 +406,26 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testMergeDifferentTimeout() {
         SinkConfig sinkConfig = createSinkConfig();
-        SinkConfig newSinkConfig = createUpdatedSinkConfig("timeoutMs", 102l);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("timeoutMs", 102L);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
                 mergedConfig.getTimeoutMs(),
-                new Long(102l)
+                Long.valueOf(102L)
         );
         mergedConfig.setTimeoutMs(sinkConfig.getTimeoutMs());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentCleanupSubscription() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertFalse(mergedConfig.getCleanupSubscription());
+        mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
         assertEquals(
                 new Gson().toJson(sinkConfig),
                 new Gson().toJson(mergedConfig)
@@ -323,30 +448,68 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testValidateConfig() throws IOException {
-        mockStatic(ConnectorUtils.class);
-        mockStatic(NarUnpacker.class);
-        defn = new ConnectorDefinition();
-        defn.setSinkConfigClass(TestSinkConfig.class.getName());
-        PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
-
-        File tmpdir = Files.createTempDirectory("test").toFile();
-        PowerMockito.when(NarUnpacker.unpackNar(any(), any())).thenReturn(tmpdir);
-
+    public void testMergeDifferentTransformFunction() {
         SinkConfig sinkConfig = createSinkConfig();
+        String newFunction = "builtin://new";
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("transformFunction", newFunction);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                mergedConfig.getTransformFunction(),
+                newFunction
+        );
+        mergedConfig.setTransformFunction(sinkConfig.getTransformFunction());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
 
-        NarClassLoader narClassLoader = NarClassLoader.getFromArchive(
-                tmpdir, Collections.emptySet(),
-                Thread.currentThread().getContextClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+    @Test
+    public void testMergeDifferentTransformFunctionClassName() {
+        SinkConfig sinkConfig = createSinkConfig();
+        String newFunctionClassName = "NewTransformFunction";
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("transformFunctionClassName", newFunctionClassName);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                mergedConfig.getTransformFunctionClassName(),
+                newFunctionClassName
+        );
+        mergedConfig.setTransformFunctionClassName(sinkConfig.getTransformFunctionClassName());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentTransformFunctionConfig() {
+        SinkConfig sinkConfig = createSinkConfig();
+        String newFunctionConfig = "{\"new-key\": \"new-value\"}";
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("transformFunctionConfig", newFunctionConfig);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                mergedConfig.getTransformFunctionConfig(),
+                newFunctionConfig
+        );
+        mergedConfig.setTransformFunctionConfig(sinkConfig.getTransformFunctionConfig());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testValidateConfig() {
+        SinkConfig sinkConfig = createSinkConfig();
 
         // Good config
         sinkConfig.getConfigs().put("configParameter", "Test");
-        SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader);
+        SinkConfigUtils.validateSinkConfig(sinkConfig, TestSinkConfig.class);
 
         // Bad config
         sinkConfig.getConfigs().put("configParameter", null);
         Exception e = expectThrows(IllegalArgumentException.class,
-                () -> SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader));
+                () -> SinkConfigUtils.validateSinkConfig(sinkConfig, TestSinkConfig.class));
         assertTrue(e.getMessage().contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
     }
 
@@ -362,10 +525,16 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setRetainOrdering(false);
+        sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setConfigs(new HashMap<>());
         sinkConfig.setAutoAck(true);
-        sinkConfig.setTimeoutMs(2000l);
+        sinkConfig.setTimeoutMs(2000L);
+        sinkConfig.setCleanupSubscription(true);
         sinkConfig.setArchive("DummyArchive.nar");
+        sinkConfig.setCleanupSubscription(true);
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionClassName("Transform");
+        sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
         return sinkConfig;
     }
 
@@ -385,7 +554,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testPoolMessages() throws IOException {
         SinkConfig sinkConfig = createSinkConfig();
-        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
@@ -395,9 +564,24 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
                 .poolMessages(true).build());
         sinkConfig.setInputSpecs(inputSpecs);
 
-        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+    }
+
+    @Test
+    public void testAllowDisableSinkTimeout() {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.setInputSpecs(null);
+        sinkConfig.setTopicsPattern("my-topic-*");
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(), null,
+                true);
+        sinkConfig.setTimeoutMs(null);
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(), null,
+                true);
+        sinkConfig.setTimeoutMs(0L);
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(), null,
+                true);
     }
 }

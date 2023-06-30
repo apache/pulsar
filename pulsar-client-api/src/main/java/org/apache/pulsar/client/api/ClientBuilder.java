@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -127,6 +127,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder listenerName(String name);
 
     /**
+     * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * @return the client builder instance
+     */
+    ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      *
      * <p>Example:
@@ -221,23 +227,25 @@ public interface ClientBuilder extends Serializable, Cloneable {
     /**
      * Set lookup timeout <i>(default: matches operation timeout)</i>
      *
-     * Lookup operations have a different load pattern to other operations. They can be handled by any broker, are not
-     * proportional to throughput, and are harmless to retry. Given this, it makes sense to allow them to retry longer
-     * than normal operation, especially if they experience a timeout.
+     * <p>
+     * Lookup operations have a different load pattern to other operations.
+     * They can be handled by any broker, are not proportional to throughput,
+     * and are harmless to retry. Given this, it makes sense to allow them to
+     * retry longer than normal operation, especially if they experience a timeout.
      *
-     * By default this is set to match operation timeout. This is to maintain legacy behaviour. However, in practice
-     * it should be set to 5-10x the operation timeout.
+     * <p>
+     * By default, this is set to match operation timeout. This is to maintain legacy behaviour.
+     * However, in practice it should be set to 5-10x the operation timeout.
      *
-     * @param lookupTimeout
-     *            lookup timeout
-     * @param unit
-     *            time unit for {@code lookupTimeout}
+     * @param lookupTimeout lookup timeout
+     * @param unit time unit for {@code lookupTimeout}
      * @return the client builder instance
      */
     ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit);
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for handling connections to brokers
+     * <i>(default: Runtime.getRuntime().availableProcessors())</i>.
      *
      * @param numIoThreads the number of IO threads
      * @return the client builder instance
@@ -245,11 +253,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder ioThreads(int numIoThreads);
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for message listeners
+     * <i>(default: Runtime.getRuntime().availableProcessors())</i>.
      *
      * <p>The listener thread pool is shared across all the consumers and readers that are
-     * using a "listener" model to get messages. For a given consumer, the listener will be
-     * always invoked from the same thread, to ensure ordering.
+     * using a "listener" model to get messages. For a given consumer, the listener will
+     * always be invoked from the same thread, to ensure ordering.
      *
      * @param numListenerThreads the number of listener threads
      * @return the client builder instance
@@ -293,6 +302,22 @@ public interface ClientBuilder extends Serializable, Cloneable {
      */
     @Deprecated
     ClientBuilder enableTls(boolean enableTls);
+
+    /**
+     * Set the path to the TLS key file.
+     *
+     * @param tlsKeyFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyFilePath(String tlsKeyFilePath);
+
+    /**
+     * Set the path to the TLS certificate file.
+     *
+     * @param tlsCertificateFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath);
 
     /**
      * Set the path to the trusted TLS certificate file.
@@ -339,6 +364,30 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the key store file.
+     *
+     * @param tlsKeyStoreType
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStoreType(String tlsKeyStoreType);
+
+    /**
+     * The location of the key store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsKeyStorePassword
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword);
 
     /**
      * The file format of the trust store file.
@@ -443,7 +492,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder maxLookupRedirects(int maxLookupRedirects);
 
     /**
-     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+     * Set max number of broker-rejected requests in a certain time-frame (60 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>.
      *
@@ -537,6 +586,14 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
+
+    /**
+     * Set dns lookup bind address and port.
+     * @param address dnsBindAddress
+     * @param port dnsBindPort
+     * @return
+     */
+    ClientBuilder dnsLookupBind(String address, int port);
 
     /**
      *  Set socks5 proxy address.

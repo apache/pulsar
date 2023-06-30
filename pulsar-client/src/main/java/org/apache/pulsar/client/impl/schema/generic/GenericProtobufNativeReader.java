@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,19 +21,18 @@ package org.apache.pulsar.client.impl.schema.generic;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> {
 
@@ -65,7 +64,8 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
             if (!(bytes.length == length && offset == 0)) { //skip unnecessary bytes copy
                 bytes = Arrays.copyOfRange(bytes, offset, offset + length);
             }
-            return new GenericProtobufNativeRecord(schemaVersion, descriptor, fields, DynamicMessage.parseFrom(descriptor, bytes));
+            return new GenericProtobufNativeRecord(schemaVersion, descriptor, fields,
+                    DynamicMessage.parseFrom(descriptor, bytes));
         } catch (InvalidProtocolBufferException e) {
             throw new SchemaSerializationException(e);
         }
@@ -74,7 +74,8 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
     @Override
     public GenericProtobufNativeRecord read(InputStream inputStream) {
         try {
-            return new GenericProtobufNativeRecord(schemaVersion, descriptor, fields, DynamicMessage.parseFrom(descriptor, inputStream));
+            return new GenericProtobufNativeRecord(schemaVersion, descriptor, fields,
+                    DynamicMessage.parseFrom(descriptor, inputStream));
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

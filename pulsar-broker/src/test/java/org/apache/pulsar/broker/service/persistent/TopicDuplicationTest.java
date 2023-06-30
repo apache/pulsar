@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,9 +54,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setBrokerDeduplicationEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
@@ -160,7 +157,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> assertFalse(messageDeduplication.isEnabled()));
         producer.newMessage().value("msg").sequenceId(1).send();
         checkDeduplicationDisabled(producerName, messageDeduplication);
-        //remove namespace-level , use broker-level
+        //remove namespace-level, use broker-level
         admin.namespaces().removeDeduplicationStatus(myNamespace);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDeduplicationStatus(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.isEnabled()));
@@ -223,16 +220,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testTopicPolicyTakeSnapshot() throws Exception {
-        super.internalCleanup();
-        resetConfig();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
+        cleanup();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(7);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalSetup();
-        super.producerBaseSetup();
+        setup();
 
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
@@ -240,7 +233,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING).topic(topicName).enableBatching(false).producerName(producerName).create();
         waitCacheInit(topicName);
-        admin.topics().setDeduplicationSnapshotInterval(topicName, 3);
+        admin.topicPolicies().setDeduplicationSnapshotInterval(topicName, 3);
         admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 5);
 
         int msgNum = 10;
@@ -264,7 +257,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(position, markDeletedPosition);
 
         //remove topic-level policies, namespace-level should be used, interval becomes 5 seconds
-        admin.topics().removeDeduplicationSnapshotInterval(topicName);
+        admin.topicPolicies().removeDeduplicationSnapshotInterval(topicName);
         producer.newMessage().value("msg").send();
         //zk update time + 5 second interval time
         Awaitility.await()
@@ -334,14 +327,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     private void testTakeSnapshot(boolean enabledSnapshot) throws Exception {
-        super.internalCleanup();
-        resetConfig();
+        cleanup();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(enabledSnapshot ? 1 : 0);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalSetup();
-        super.producerBaseSetup();
+        setup();
 
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
@@ -411,14 +402,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testNamespacePolicyTakeSnapshot() throws Exception {
-        super.internalCleanup();
-        resetConfig();
+        cleanup();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(3);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalSetup();
-        super.producerBaseSetup();
+        setup();
 
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
@@ -463,14 +452,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testDisableNamespacePolicyTakeSnapshot() throws Exception {
-        super.internalCleanup();
-        resetConfig();
+        cleanup();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalSetup();
-        super.producerBaseSetup();
+        setup();
 
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";

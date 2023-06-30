@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -123,9 +123,11 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
     @Override
     public void handleCommittingAndAbortingTransaction() {
         committingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE, false));
+                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
+                        false));
 
         abortingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE, false));
+                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
+                        false));
     }
 }

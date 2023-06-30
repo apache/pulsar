@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import java.nio.file.Paths;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.file.utils.GZipFiles;
 import org.apache.pulsar.io.file.utils.ZipFiles;

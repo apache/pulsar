@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,18 @@ package org.apache.pulsar.metadata.api;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
  */
 @Builder
 @Getter
+@ToString
 public class MetadataStoreConfig {
+    public static final String METADATA_STORE = "metadata-store";
+    public static final String STATE_METADATA_STORE = "state-metadata-store";
+    public static final String CONFIGURATION_METADATA_STORE = "configuration-metadata-store";
 
     /**
      * The (implementation specific) session timeout, in milliseconds.
@@ -39,4 +44,52 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final boolean allowReadOnlyOperations = false;
+
+    /**
+     * Config file path for the underlying metadata store implementation.
+     */
+    @Builder.Default
+    private final String configFilePath = null;
+
+    /**
+     * Whether we should enable metadata operations batching.
+     */
+    @Builder.Default
+    private final boolean batchingEnabled = true;
+
+    /**
+     * Maximum delay to impose on batching grouping.
+     */
+    @Builder.Default
+    private final int batchingMaxDelayMillis = 5;
+
+    /**
+     * Maximum number of operations to include in a singular batch.
+     */
+    @Builder.Default
+    private final int batchingMaxOperations = 1_000;
+
+    /**
+     * Maximum size of a batch.
+     */
+    @Builder.Default
+    private final int batchingMaxSizeKb = 128;
+
+    /**
+     * The name of a metadata store.
+     */
+    @Builder.Default
+    private final String metadataStoreName = "";
+
+    /**
+     * Whether we should enable fsync for local metadata store, It's supported by RocksdbMetadataStore for now.
+     */
+    @Builder.Default
+    private final boolean fsyncEnable = true;
+
+    /**
+     * Pluggable MetadataEventSynchronizer to sync metadata events across the
+     * separate clusters.
+     */
+    private MetadataEventSynchronizer synchronizer;
 }

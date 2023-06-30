@@ -24,13 +24,20 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io-debezium</artifactId>
-    <version>2.10.0-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium-postgres</artifactId>
   <name>Pulsar IO :: Debezium :: postgres</name>
 
   <dependencies>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-core</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -42,6 +49,13 @@
       <groupId>io.debezium</groupId>
       <artifactId>debezium-connector-postgres</artifactId>
       <version>${debezium.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${debezium.postgresql.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
   </dependencies>

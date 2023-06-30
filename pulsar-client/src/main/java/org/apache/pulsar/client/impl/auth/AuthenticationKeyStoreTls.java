@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -43,7 +42,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
 
     // parameter name
     public static final String KEYSTORE_TYPE = "keyStoreType";
-    public static final String KEYSTORE_PATH= "keyStorePath";
+    public static final String KEYSTORE_PATH = "keyStorePath";
     public static final String KEYSTORE_PW = "keyStorePassword";
     private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,7 +83,7 @@ public class PulsarInitialNamespaceSetup {
         }
 
         try (MetadataStore configStore = PulsarClusterMetadataSetup
-                .initMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             for (String namespace : arguments.namespaces) {
                 NamespaceName namespaceName = null;

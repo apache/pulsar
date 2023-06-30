@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,18 @@
 package org.apache.pulsar.io.kinesis;
 
 import java.util.concurrent.LinkedBlockingQueue;
-
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.kinesis.exceptions.InvalidStateException;
 import software.amazon.kinesis.exceptions.KinesisClientLibDependencyException;
 import software.amazon.kinesis.exceptions.ShutdownException;
 import software.amazon.kinesis.exceptions.ThrottlingException;
-import software.amazon.kinesis.lifecycle.events.*;
+import software.amazon.kinesis.lifecycle.events.InitializationInput;
+import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
+import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
+import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
+import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
-
-import lombok.extern.slf4j.Slf4j;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 @Slf4j
@@ -41,7 +43,6 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     private final LinkedBlockingQueue<KinesisRecord> queue;
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
-    
     public KinesisRecordProcessor(LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig config) {
         this.queue = queue;
         this.checkpointInterval = config.getCheckpointInterval();
@@ -51,7 +52,6 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
 
     private void checkpoint(RecordProcessorCheckpointer checkpointer) {
         log.info("Checkpointing shard " + kinesisShardId);
-        
         for (int i = 0; i < numRetries; i++) {
             try {
                 checkpointer.checkpoint();

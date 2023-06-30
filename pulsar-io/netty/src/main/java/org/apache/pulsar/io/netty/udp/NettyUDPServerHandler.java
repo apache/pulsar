@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.io.netty.udp;
 
-import java.io.Serializable;
-import java.util.Optional;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.netty.NettySource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
+import java.io.Serializable;
+import java.util.Optional;
 import lombok.Data;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.netty.NettySource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Handles a server-side channel.
@@ -45,11 +43,10 @@ public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramP
     public NettyUDPServerHandler(NettySource nettySource) {
         this.nettySource = nettySource;
     }
-    
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket packet) throws Exception {
         byte[] bytes = ByteBufUtil.getBytes(packet.content());
-        nettySource.consume(new NettyUDPRecord(Optional.ofNullable(""), bytes));
+        nettySource.consume(new NettyUDPRecord(Optional.of(""), bytes));
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
@@ -30,6 +32,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
  */
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
@@ -52,7 +57,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void messageReceived() {
+    protected void messageReceived() {
         waitingForPingResponse = false;
     }
 
@@ -65,8 +70,9 @@ public abstract class PulsarHandler extends PulsarDecoder {
             log.debug("[{}] Scheduling keep-alive task every {} s", ctx.channel(), keepAliveIntervalSeconds);
         }
         if (keepAliveIntervalSeconds > 0) {
-            this.keepAliveTask = ctx.executor().scheduleAtFixedRate(this::handleKeepAliveTimeout,
-                    keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
+            this.keepAliveTask = ctx.executor()
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(this::handleKeepAliveTimeout),
+                            keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
         }
     }
 
@@ -76,16 +82,23 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void handlePing(CommandPing ping) {
+    protected final void handlePing(CommandPing ping) {
         // Immediately reply success to ping requests
         if (log.isDebugEnabled()) {
             log.debug("[{}] Replying back to ping message", ctx.channel());
         }
-        ctx.writeAndFlush(Commands.newPong());
+        ctx.writeAndFlush(Commands.newPong())
+                .addListener(future -> {
+                    if (!future.isSuccess()) {
+                        log.warn("[{}] Forcing connection to close since cannot send a pong message.",
+                                ctx.channel(), future.cause());
+                        ctx.close();
+                    }
+                });
     }
 
     @Override
-    final protected void handlePong(CommandPong pong) {
+    protected final void handlePong(CommandPong pong) {
     }
 
     private void handleKeepAliveTimeout() {
@@ -108,7 +121,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
                 log.debug("[{}] Sending ping message", ctx.channel());
             }
             waitingForPingResponse = true;
-            ctx.writeAndFlush(Commands.newPing());
+            sendPing();
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());
@@ -116,7 +129,18 @@ public abstract class PulsarHandler extends PulsarDecoder {
         }
     }
 
-    protected void cancelKeepAliveTask() {
+    protected ChannelFuture sendPing() {
+        return ctx.writeAndFlush(Commands.newPing())
+                .addListener(future -> {
+                    if (!future.isSuccess()) {
+                        log.warn("[{}] Forcing connection to close since cannot send a ping message.",
+                                ctx.channel(), future.cause());
+                        ctx.close();
+                    }
+                });
+    }
+
+    public void cancelKeepAliveTask() {
         if (keepAliveTask != null) {
             keepAliveTask.cancel(false);
             keepAliveTask = null;

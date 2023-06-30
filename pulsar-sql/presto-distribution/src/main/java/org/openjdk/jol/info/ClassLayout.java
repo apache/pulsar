@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,7 +42,7 @@ public class ClassLayout {
         try {
             size = ObjectSizeCalculator.getObjectSize(new ObjenesisStd().newInstance(clazz));
         } catch (Throwable th) {
-            log.info("Error estimating size of class %s",clazz, th);
+            log.info("Error estimating size of class %s", clazz, th);
         }
         return new ClassLayout(Math.toIntExact(size));
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,11 @@
 package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -44,13 +48,16 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 @Slf4j
 public class TopicSchema {
 
-    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
-    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
-    public TopicSchema(PulsarClient client) {
+    private final ClassLoader functionsClassloader;
+
+    public TopicSchema(PulsarClient client, ClassLoader functionsClassloader) {
         this.client = client;
+        this.functionsClassloader = AccessController.doPrivileged(
+                (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[0], functionsClassloader)
+        );
     }
 
     /**
@@ -84,17 +91,20 @@ public class TopicSchema {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(clazz, schemaType));
     }
 
-    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
-        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
+    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input,
+                               ClassLoader classLoader) {
+        return cachedSchemas.computeIfAbsent(topic,
+                t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
     }
 
-    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input,
+                               ClassLoader classLoader) {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input, classLoader));
     }
 
 
     /**
-     * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
+     * If the topic is already created, we should be able to fetch the schema type (avro, json, ...).
      */
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
         if (GenericObject.class.isAssignableFrom(clazz)) {
@@ -168,7 +178,7 @@ public class TopicSchema {
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
-            return (Schema<T>)Schema.KV_BYTES();
+            return (Schema<T>) Schema.KV_BYTES();
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
@@ -195,12 +205,14 @@ public class TopicSchema {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader){
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input,
+                                            ClassLoader classLoader) {
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, classLoader);
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input,
+                                            ClassLoader classLoader) {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
@@ -238,11 +250,12 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
-        return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input,
+                functionsClassloader);
     }
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input) {
-        return newSchemaInstance(topic, clazz, conf, input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, conf, input, functionsClassloader);
     }
 }

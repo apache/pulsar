@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.api.BaseContext;
 
 /**
@@ -34,7 +35,7 @@ import org.apache.pulsar.functions.api.BaseContext;
 @InterfaceStability.Stable
 public interface SinkContext extends BaseContext {
     /**
-     * The name of the sink that we are executing
+     * The name of the sink that we are executing.
      * @return The Sink name
      */
     String getSinkName();
@@ -47,7 +48,14 @@ public interface SinkContext extends BaseContext {
     Collection<String> getInputTopics();
 
     /**
-     * Get subscription type used by the source providing data for the sink
+     * Get sink config at startup.
+     *
+     * @return sink config
+     */
+    SinkConfig getSinkConfig();
+
+    /**
+     * Get subscription type used by the source providing data for the sink.
      *
      * @return subscription type
      */

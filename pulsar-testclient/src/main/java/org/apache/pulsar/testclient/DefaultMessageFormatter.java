@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,10 @@ package org.apache.pulsar.testclient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
+import org.apache.commons.lang3.RandomStringUtils;
 
 public class DefaultMessageFormatter implements IMessageFormatter {
-    Random r  = new Random();
+    private final Random r  = new Random();
 
 
     @Override
@@ -38,8 +39,8 @@ public class DefaultMessageFormatter implements IMessageFormatter {
         while (idx > 0) {
 
             float size = 0;
-            int i=1;
-            for (; idx+i < sMessage.length(); i++) {
+            int i = 1;
+            for (; idx + i < sMessage.length(); i++) {
                 char c = sMessage.charAt(idx + i);
                 if (Character.isDigit(c) && c != '.') {
                     continue;
@@ -50,18 +51,18 @@ public class DefaultMessageFormatter implements IMessageFormatter {
                 break;
             }
             if (i != 1) {
-                size = Float.valueOf(new String(sMessage.substring(idx+1,idx+i)));
+                size = Float.parseFloat(sMessage.substring(idx + 1, idx + i));
             }
 
-            String sub = sMessage.substring(idx, idx+i+1);
+            String sub = sMessage.substring(idx, idx + i + 1);
 
-            if (sMessage.charAt(idx+i) == 'f') {
-                sMessage=sMessage.replaceFirst(sub, getFloatValue(size));
-            } else if (sMessage.charAt(idx+i) == 'l') {
-                sMessage=sMessage.replaceFirst(sub, getLongValue(size));
-            } else if (sMessage.charAt(idx+i) == 'd') {
+            if (sMessage.charAt(idx + i) == 'f') {
+                sMessage = sMessage.replaceFirst(sub, getFloatValue(size));
+            } else if (sMessage.charAt(idx + i) == 'l') {
+                sMessage = sMessage.replaceFirst(sub, getLongValue(size));
+            } else if (sMessage.charAt(idx + i) == 'd') {
                 sMessage = sMessage.replaceFirst(sub, getIntValue(size));
-            } else if (sMessage.charAt(idx+i) == 's') {
+            } else if (sMessage.charAt(idx + i) == 's') {
                 sMessage = sMessage.replaceFirst(sub, getStringValue(size));
             }
             idx = sMessage.indexOf("%", idx);
@@ -69,7 +70,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
         return sMessage.getBytes(StandardCharsets.UTF_8);
     }
 
-    private float _getFloatValue(float size) {
+    private float get_FloatValue(float size) {
         float f = r.nextFloat();
         int mag = (int) Math.abs(size);
         f = f * (float) Math.pow(10, mag);
@@ -80,40 +81,29 @@ public class DefaultMessageFormatter implements IMessageFormatter {
     }
 
     private String getStringValue(float size) {
-        int s = (int) size;
-        if (size == 0) {
-            size = 20;
-        };
-        String result = "";
-        for(int i = 0; i < s; i++) {
-            result = result + (char) ((int) 'a' + (int) (r.nextFloat() * 26));
-        }
-        return result;
+        return RandomStringUtils.randomAlphabetic((int) size);
     }
 
     private String getFloatValue(float size) {
         if (size == 0) {
             return String.valueOf(r.nextFloat());
         }
-        String format = "%" + String.valueOf(size) + "f";
+        String format = "%" + size + "f";
 
-        return String.format(format, _getFloatValue(size));
+        return String.format(format, get_FloatValue(size));
     }
 
     private String getIntValue(float size) {
-        int i = 0;
-        if (size != 0) {
-            i = (int) _getFloatValue(size);
+        if (size == 0) {
+            return String.valueOf(r.nextInt());
         }
-        if (i == 0) {
-            i = r.nextInt() + 1;
-        }
-        return String.valueOf(i);
+
+        return String.valueOf((int) get_FloatValue(size));
     }
     private String getLongValue(float size) {
         if (size == 0) {
             return String.valueOf(r.nextLong());
         }
-        return String.valueOf((long) _getFloatValue(size));
+        return String.valueOf((long) get_FloatValue(size));
     }
 }

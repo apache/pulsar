@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,9 @@
  */
 package org.apache.pulsar.functions.source;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.TreeMap;
-
 import lombok.Data;
-
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Data
@@ -38,7 +30,8 @@ public abstract class PulsarSourceConfig {
     SubscriptionType subscriptionType;
     private String subscriptionName;
     private SubscriptionInitialPosition subscriptionPosition;
-    // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
+    // Whether call consumer.seek(latest) to skip contents between last ask message and the latest message
+    private Boolean skipToLatest;
     private Integer maxMessageRetries = -1;
     private String deadLetterTopic;
 

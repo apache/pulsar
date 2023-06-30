@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -70,11 +70,25 @@ public class PulsarAdminException extends Exception {
     }
 
     /**
+     * This method is meant to be overriden by all subclasses.
+     * We cannot make it 'abstract' because it would be a breaking change in the public API.
+     * @return a new PulsarAdminException
+     */
+    protected PulsarAdminException clone() {
+        return new PulsarAdminException(getMessage(), getCause(), httpError, statusCode);
+    }
+
+    /**
      * Not Authorized Exception.
      */
     public static class NotAuthorizedException extends PulsarAdminException {
         public NotAuthorizedException(Throwable t, String httpError, int statusCode) {
             super(httpError, t, httpError, statusCode);
+        }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new NotAuthorizedException(getCause(), getHttpError(), getStatusCode());
         }
     }
 
@@ -85,6 +99,11 @@ public class PulsarAdminException extends Exception {
         public NotFoundException(Throwable t, String httpError, int statusCode) {
             super(httpError, t, httpError, statusCode);
         }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new NotFoundException(getCause(), getHttpError(), getStatusCode());
+        }
     }
 
     /**
@@ -93,6 +112,11 @@ public class PulsarAdminException extends Exception {
     public static class NotAllowedException extends PulsarAdminException {
         public NotAllowedException(Throwable t, String httpError, int statusCode) {
             super(httpError, t, httpError, statusCode);
+        }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new NotAllowedException(getCause(), getHttpError(), getStatusCode());
         }
     }
 
@@ -103,6 +127,11 @@ public class PulsarAdminException extends Exception {
         public ConflictException(Throwable t, String httpError, int statusCode) {
             super(httpError, t, httpError, statusCode);
         }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new ConflictException(getCause(), getHttpError(), getStatusCode());
+        }
     }
 
     /**
@@ -112,6 +141,11 @@ public class PulsarAdminException extends Exception {
         public PreconditionFailedException(Throwable t, String httpError, int statusCode) {
             super(httpError, t, httpError, statusCode);
         }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new PreconditionFailedException(getCause(), getHttpError(), getStatusCode());
+        }
     }
 
     /**
@@ -120,6 +154,11 @@ public class PulsarAdminException extends Exception {
     public static class TimeoutException extends PulsarAdminException {
         public TimeoutException(Throwable t) {
             super(t);
+        }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new TimeoutException(getCause());
         }
     }
 
@@ -131,8 +170,14 @@ public class PulsarAdminException extends Exception {
             super(message, t, httpError, statusCode);
         }
 
+        @Deprecated
         public ServerSideErrorException(Throwable t) {
             super("Some error occourred on the server", t);
+        }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new ServerSideErrorException(getCause(), getMessage(), getHttpError(), getStatusCode());
         }
     }
 
@@ -147,6 +192,11 @@ public class PulsarAdminException extends Exception {
         public HttpErrorException(Throwable t) {
             super(t);
         }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new HttpErrorException(getCause());
+        }
     }
 
     /**
@@ -160,6 +210,11 @@ public class PulsarAdminException extends Exception {
         public ConnectException(String message, Throwable t) {
             super(message, t);
         }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new ConnectException(getMessage(), getCause());
+        }
     }
 
     /**
@@ -170,8 +225,30 @@ public class PulsarAdminException extends Exception {
             super(t);
         }
 
+        @Deprecated
         public GettingAuthenticationDataException(String msg) {
             super(msg);
         }
+
+        @Override
+        protected PulsarAdminException clone() {
+            return new GettingAuthenticationDataException(getCause());
+        }
+    }
+
+    /**
+     * Clone the exception and grab the current stacktrace.
+     * @param e a PulsarAdminException
+     * @return a new PulsarAdminException, of the same class.
+     */
+    public static PulsarAdminException wrap(PulsarAdminException e) {
+        PulsarAdminException cloned =  e.clone();
+        if (e.getClass() != cloned.getClass()) {
+            throw new IllegalStateException("Cloning a " + e.getClass() + " generated a "
+                    + cloned.getClass() + ", this is a bug, original error is " + e, e);
+        }
+        // adding a reference to the original exception.
+        cloned.addSuppressed(e);
+        return (PulsarAdminException) cloned.fillInStackTrace();
     }
 }

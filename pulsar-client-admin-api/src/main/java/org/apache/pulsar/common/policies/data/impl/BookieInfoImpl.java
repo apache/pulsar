@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data.impl;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 
 /**
@@ -40,6 +41,7 @@ public final class BookieInfoImpl implements BookieInfo {
     public static class BookieInfoImplBuilder implements BookieInfo.Builder {
         private String rack;
         private String hostname;
+        private static final String PATH_SEPARATOR = "/";
 
         public BookieInfoImplBuilder rack(String rack) {
             this.rack = rack;
@@ -52,7 +54,15 @@ public final class BookieInfoImpl implements BookieInfo {
         }
 
         public BookieInfoImpl build() {
+            checkArgument(rack != null && !rack.isEmpty() && !rack.equals(PATH_SEPARATOR),
+                    "rack name is invalid, it should not be null, empty or '/'");
             return new BookieInfoImpl(rack, hostname);
+        }
+
+        public static void checkArgument(boolean expression, @NonNull Object errorMessage) {
+            if (!expression) {
+                throw new IllegalArgumentException(String.valueOf(errorMessage));
+            }
         }
     }
 }

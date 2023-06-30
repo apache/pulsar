@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,47 +18,36 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -69,31 +58,18 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@PrepareForTest({ ZooKeeperDataCache.class, BrokerService.class })
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 @Test(groups = "broker")
 public class PersistentSubscriptionTest {
 
-    private PulsarService pulsarMock;
-    private BrokerService brokerMock;
-    private ManagedLedgerFactory mlFactoryMock;
-    private MetadataStore store;
+    private PulsarTestContext pulsarTestContext;
     private ManagedLedger ledgerMock;
     private ManagedCursorImpl cursorMock;
     private PersistentTopic topic;
@@ -114,85 +90,20 @@ public class PersistentSubscriptionTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-subscription-test").build();
-        eventLoopGroup = new NioEventLoopGroup();
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
+                .spyByDefault()
+                .configCustomizer(config -> {
+                    config.setTransactionCoordinatorEnabled(true);
+                    config.setTransactionPendingAckStoreProviderClassName(
+                            CustomTransactionPendingAckStoreProvider.class.getName());
+                    config.setTransactionBufferProviderClassName(InMemTransactionBufferProvider.class.getName());
+                })
+                .useTestPulsarResources()
+                .build();
 
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
-        svcConfig.setBrokerShutdownTimeoutMs(0L);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        pulsarMock = spy(new PulsarService(svcConfig));
-        PulsarResources pulsarResources = mock(PulsarResources.class);
-        doReturn(pulsarResources).when(pulsarMock).getPulsarResources();
-        NamespaceResources namespaceResources = mock(NamespaceResources.class);
-        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
-
-        doReturn(Optional.of(new Policies())).when(namespaceResources).getPoliciesIfCached(any());
-
-        doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
-        doReturn(new TransactionPendingAckStoreProvider() {
-            @Override
-            public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
-                return CompletableFuture.completedFuture(new PendingAckStore() {
-                    @Override
-                    public void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService executorService) {
-                        try {
-                            Field field = PendingAckHandleState.class.getDeclaredField("state");
-                            field.setAccessible(true);
-                            field.set(pendingAckHandle, PendingAckHandleState.State.Ready);
-                        } catch (NoSuchFieldException | IllegalAccessException e) {
-                            fail();
-                        }
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> closeAsync() {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
-            }
-
-            @Override
-            public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
-                return CompletableFuture.completedFuture(true);
-            }
-        }).when(pulsarMock).getTransactionPendingAckStoreProvider();
-        doReturn(svcConfig).when(pulsarMock).getConfiguration();
-        doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
-
-        mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsarMock).getManagedLedgerFactory();
-
-        ZooKeeper zkMock = createMockZooKeeper();
-        doReturn(createMockBookKeeper(executor))
-                .when(pulsarMock).getBookKeeperClient();
-
-        store = new ZKMetadataStore(zkMock);
-        doReturn(store).when(pulsarMock).getLocalMetadataStore();
-        doReturn(store).when(pulsarMock).getConfigurationMetadataStore();
-
-        brokerMock = spy(new BrokerService(pulsarMock, eventLoopGroup));
-        doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
-        doReturn(brokerMock).when(pulsarMock).getBrokerService();
+        NamespaceResources namespaceResources = pulsarTestContext.getPulsarResources().getNamespaceResources();
+        doReturn(Optional.of(new Policies())).when(namespaceResources)
+                .getPoliciesIfCached(any());
 
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -204,7 +115,7 @@ public class PersistentSubscriptionTest {
         doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
         doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
 
-        topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
+        topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
 
         consumerMock = mock(Consumer.class);
 
@@ -213,65 +124,14 @@ public class PersistentSubscriptionTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        brokerMock.close(); //to clear pulsarStats
-        try {
-            pulsarMock.close();
-        } catch (Exception e) {
-            log.warn("Failed to close pulsar service", e);
-            throw e;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
-
-        store.close();
-        executor.shutdownNow();
-        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test
-    public void testCanAcknowledgeAndCommitForTransaction() throws ExecutionException, InterruptedException {
-        doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
-
-        List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 1), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 3), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 5), 0));
-
-        doAnswer((invocationOnMock) -> {
-            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(),
-                    positionsPair.toArray()));
-            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
-                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
-            return null;
-        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
-        // Single ack for txn
-        persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
-
-        // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
-
-        List<PositionImpl> positions = new ArrayList<>();
-        positions.add(new PositionImpl(3, 100));
-
-        // Cumulative ack for txn
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
-
-        doAnswer((invocationOnMock) -> {
-            assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
-            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
-                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
-            return null;
-        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
-        // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
-    }
-
-    @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
         List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 1), 0));
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 3), 0));
@@ -300,7 +160,7 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(1, 100));
 
         // Cumulative ack for txn1
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
+        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions).get();
 
         positions.clear();
         positions.add(new PositionImpl(2, 1));
@@ -352,5 +212,75 @@ public class PersistentSubscriptionTest {
         positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
 
         persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
+    }
+
+    @Test
+    public void testAcknowledgeUpdateCursorLastActive() throws Exception {
+        doAnswer((invocationOnMock) -> {
+            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                    .deleteComplete(invocationOnMock.getArguments()[2]);
+            return null;
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        doCallRealMethod().when(cursorMock).updateLastActive();
+        doCallRealMethod().when(cursorMock).getLastActive();
+
+        List<Position> positionList = new ArrayList<>();
+        positionList.add(new PositionImpl(1, 1));
+        long beforeAcknowledgeTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+
+        // `acknowledgeMessage` should update cursor last active
+        assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
+    }
+
+    public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
+        @Override
+        public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
+            return CompletableFuture.completedFuture(new PendingAckStore() {
+                @Override
+                public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
+                    try {
+                        Field field = PendingAckHandleState.class.getDeclaredField("state");
+                        field.setAccessible(true);
+                        field.set(pendingAckHandle, PendingAckHandleState.State.Ready);
+                    } catch (NoSuchFieldException | IllegalAccessException e) {
+                        fail();
+                    }
+                }
+
+                @Override
+                public CompletableFuture<Void> closeAsync() {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
+                                                                   List<MutablePair<PositionImpl, Integer>> positions) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
+                    return CompletableFuture.completedFuture(null);
+                }
+            });
+        }
+
+        @Override
+        public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+            return CompletableFuture.completedFuture(true);
+        }
     }
 }

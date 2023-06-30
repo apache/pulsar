@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,13 +22,16 @@ import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.AbstractSubscription;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -48,7 +51,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NonPersistentSubscription implements Subscription {
+public class NonPersistentSubscription extends AbstractSubscription implements Subscription {
     private final NonPersistentTopic topic;
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
@@ -63,25 +66,19 @@ public class NonPersistentSubscription implements Subscription {
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
-    // Timestamp of when this subscription was last seen active
-    private volatile long lastActive;
-
-    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
-    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
-
-    // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
-    private final boolean isDurable;
+    private volatile Map<String, String> subscriptionProperties;
 
     private KeySharedMode keySharedMode = null;
 
-    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable) {
+    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName,
+                                     Map<String, String> properties) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
-        this.lastActive = System.currentTimeMillis();
-        this.isDurable = isDurable;
+        this.subscriptionProperties = properties != null
+                ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
     }
 
     @Override
@@ -106,7 +103,6 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
-        updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
@@ -143,10 +139,9 @@ public class NonPersistentSubscription implements Subscription {
                 break;
             case Key_Shared:
                 KeySharedMeta ksm = consumer.getKeySharedMeta();
-                keySharedMode = ksm.getKeySharedMode();
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
-                        || ((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
-                        != keySharedMode) {
+                        || !((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                .hasSameKeySharedPolicy(ksm)) {
                     previousDispatcher = dispatcher;
                     this.dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, ksm);
                 }
@@ -169,17 +164,11 @@ public class NonPersistentSubscription implements Subscription {
             }
         }
 
-        try {
-            dispatcher.addConsumer(consumer);
-            return CompletableFuture.completedFuture(null);
-        } catch (BrokerServiceException brokerServiceException) {
-            return FutureUtil.failedFuture(brokerServiceException);
-        }
+        return dispatcher.addConsumer(consumer);
     }
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
-        updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
@@ -187,7 +176,8 @@ public class NonPersistentSubscription implements Subscription {
         ConsumerStatsImpl stats = consumer.getStats();
         bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
-        if (!isDurable) {
+        // Unsubscribe when all the consumers disconnected.
+        if (dispatcher != null && CollectionUtils.isEmpty(dispatcher.getConsumers())) {
             topic.unsubscribe(subName);
         }
 
@@ -453,11 +443,17 @@ public class NonPersistentSubscription implements Subscription {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
+                subStats.messageAckRate += consumerStats.messageAckRate;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
             });
+
+            subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();
+            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
+            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
+            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
         }
 
         subStats.type = getTypeString();
@@ -472,7 +468,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
      // No-op
     }
 
@@ -510,13 +506,28 @@ public class NonPersistentSubscription implements Subscription {
         return completableFuture;
     }
 
+    @Override
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
+        CompletableFuture<AnalyzeBacklogResult> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(
+                new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));
+        return completableFuture;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
 
-    public long getLastActive() {
-        return lastActive;
+    public Map<String, String> getSubscriptionProperties() {
+        return subscriptionProperties;
     }
 
-    public void updateLastActive() {
-        this.lastActive = System.currentTimeMillis();
+    @Override
+    public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
+        if (subscriptionProperties == null || subscriptionProperties.isEmpty()) {
+          this.subscriptionProperties = Collections.emptyMap();
+        } else {
+           this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
+        }
+        return CompletableFuture.completedFuture(null);
     }
+
 }

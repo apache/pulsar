@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,8 +34,8 @@ import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-
 import org.apache.avro.reflect.Nullable;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -55,6 +55,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -70,8 +71,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyTest.class);
 
-    private ProxyService proxyService;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    protected ProxyService proxyService;
+    protected ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Data
     @ToString
@@ -90,8 +91,9 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.ofNullable(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
@@ -194,7 +196,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public void testAutoCreateTopic() throws Exception{
         int defaultPartition = 2;
         int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
-        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(defaultPartition);
         try {
             @Cleanup
@@ -205,7 +207,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             List<String> partitionNames = partitionNamesFuture.get(30000, TimeUnit.MILLISECONDS);
             Assert.assertEquals(partitionNames.size(), defaultPartition);
         } finally {
-            pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
+            pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar.getConfiguration().setDefaultNumPartitions(defaultNumPartitions);
         }
     }
@@ -308,6 +310,28 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             requireNonNull(msg);
             consumer.acknowledge(msg);
         }
+    }
+
+    @Test
+    public void testGetClientVersion() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .build();
+
+        String topic = "persistent://sample/test/local/testGetClientVersion";
+        String subName = "test-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+
+        consumer.receiveAsync();
+
+
+        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers()
+                .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
     }
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)

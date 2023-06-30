@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.windowing;
 import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.EXPIRE;
 import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.PROCESS;
 import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.STOP;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -30,9 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -63,7 +60,7 @@ public class WindowManager<T> implements TriggerHandler {
     private final ReentrantLock lock;
 
     /**
-     * Constructs a {@link WindowManager}
+     * Constructs a {@link WindowManager}.
      *
      * @param lifecycleListener the {@link WindowLifecycleListener}
      * @param queue a collection where the events in the window can be enqueued.
@@ -98,14 +95,16 @@ public class WindowManager<T> implements TriggerHandler {
     }
 
     /**
-     * Tracks a window event
+     * Tracks a window event.
      *
      * @param windowEvent the window event to track
      */
     public void add(Event<T> windowEvent) {
         // watermark events are not added to the queue.
         if (windowEvent.isWatermark()) {
-            log.debug(String.format("Got watermark event with ts %d", windowEvent.getTimestamp()));
+            if (log.isDebugEnabled()) {
+                log.debug("Got watermark event with ts {}", windowEvent.getTimestamp());
+            }
         } else {
             queue.add(windowEvent);
         }
@@ -123,10 +122,10 @@ public class WindowManager<T> implements TriggerHandler {
 
         lock.lock();
         try {
-    /*
-     * scan the entire window to handle out of order events in
-     * the case of time based windows.
-     */
+           /*
+            * scan the entire window to handle out of order events in
+            * the case of time based windows.
+            */
             windowEvents = scanEvents(true);
             expired = new ArrayList<>(expiredEvents);
             expiredEvents.clear();
@@ -145,8 +144,9 @@ public class WindowManager<T> implements TriggerHandler {
         prevWindowEvents.clear();
         if (!events.isEmpty()) {
             prevWindowEvents.addAll(windowEvents);
-            log.debug(String.format("invoking windowLifecycleListener onActivation, [%d] events in "
-                    + "window.", events.size()));
+            if (log.isDebugEnabled()) {
+                log.debug("invoking windowLifecycleListener onActivation, [{}] events in window.", events.size());
+            }
             windowLifecycleListener.onActivation(events, newEvents, expired,
                     evictionPolicy.getContext().getReferenceTime());
         } else {
@@ -216,7 +216,9 @@ public class WindowManager<T> implements TriggerHandler {
             lock.unlock();
         }
         eventsSinceLastExpiry.set(0);
-        log.debug(String.format("[%d] events expired from window.", eventsToExpire.size()));
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] events expired from window.", eventsToExpire.size());
+        }
         if (!eventsToExpire.isEmpty()) {
             log.debug("invoking windowLifecycleListener.onExpiry");
             windowLifecycleListener.onExpiry(eventsToExpire);

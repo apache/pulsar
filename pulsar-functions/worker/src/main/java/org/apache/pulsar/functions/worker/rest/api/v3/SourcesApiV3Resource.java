@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,18 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
@@ -34,19 +46,6 @@ import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
 
 @Slf4j
 @Api(value = "/sources", description = "Sources admin apis", tags = "sources")
@@ -71,7 +70,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                                    final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {
 
         sources().registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sourceConfig, clientAppId(), clientAuthData());
+                functionPkgUrl, sourceConfig, authParams());
 
     }
 
@@ -88,7 +87,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
 
         sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, sourceConfig, authParams(), updateOptions);
     }
 
 
@@ -97,7 +96,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public void deregisterSource(final @PathParam("tenant") String tenant,
                                  final @PathParam("namespace") String namespace,
                                  final @PathParam("sourceName") String sourceName) {
-        sources().deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().deregisterFunction(tenant, namespace, sourceName, authParams());
     }
 
     @GET
@@ -107,7 +106,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("sourceName") String sourceName)
             throws IOException {
-        return sources().getSourceInfo(tenant, namespace, sourceName);
+        return sources().getSourceInfo(tenant, namespace, sourceName, authParams());
     }
 
     @GET
@@ -128,8 +127,8 @@ public class SourcesApiV3Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace,
             final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) throws IOException {
-        return sources().getSourceInstanceStatus(
-            tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return sources().getSourceInstanceStatus(tenant, namespace, sourceName, instanceId, uri.getRequestUri(),
+                authParams());
     }
 
     @GET
@@ -148,7 +147,8 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public SourceStatus getSourceStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("sourceName") String sourceName) throws IOException {
-        return sources().getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return sources()
+                .getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), authParams());
     }
 
     @GET
@@ -156,7 +156,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public List<String> listSources(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace) {
-        return sources().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sources().listFunctions(tenant, namespace, authParams());
     }
 
     @POST
@@ -165,14 +165,15 @@ public class SourcesApiV3Resource extends FunctionApiResource {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace,
                               final @PathParam("sourceName") String sourceName,
                               final @PathParam("instanceId") String instanceId) {
-        sources().restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
+        sources().restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(),
+                authParams());
     }
 
     @POST
@@ -185,61 +186,63 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     public void restartSource(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace,
                               final @PathParam("sourceName") String sourceName) {
-        sources().restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().restartFunctionInstances(tenant, namespace, sourceName, authParams());
     }
 
     @POST
     @ApiOperation(value = "Stop source instance", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(final @PathParam("tenant") String tenant,
                            final @PathParam("namespace") String namespace,
                            final @PathParam("sourceName") String sourceName,
                            final @PathParam("instanceId") String instanceId) {
-        sources().stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
+        sources().stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(),
+                authParams());
     }
 
     @POST
     @ApiOperation(value = "Stop all source instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(final @PathParam("tenant") String tenant,
                            final @PathParam("namespace") String namespace,
                            final @PathParam("sourceName") String sourceName) {
-        sources().stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().stopFunctionInstances(tenant, namespace, sourceName, authParams());
     }
 
     @POST
     @ApiOperation(value = "Start source instance", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(final @PathParam("tenant") String tenant,
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sourceName") String sourceName,
                             final @PathParam("instanceId") String instanceId) {
-        sources().startFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(), clientAppId(), clientAuthData());
+        sources().startFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri(),
+                authParams());
     }
 
     @POST
     @ApiOperation(value = "Start all source instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(final @PathParam("tenant") String tenant,
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sourceName") String sourceName) {
-        sources().startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().startFunctionInstances(tenant, namespace, sourceName, authParams());
     }
 
     @GET
@@ -273,8 +276,8 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources/{name}/configdefinition")
     public List<ConfigFieldDefinition> getSourceConfigDefinition(
-            @ApiParam(value = "The name of the builtin source")
-            final @PathParam("name") String name) throws IOException {
+            @ApiParam(value = "The name of the builtin source") final @PathParam("name") String name)
+            throws IOException {
         return sources().getSourceConfigDefinition(name);
     }
 
@@ -290,6 +293,6 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        sources().reloadConnectors(clientAppId(), clientAuthData());
+        sources().reloadConnectors(authParams());
     }
 }

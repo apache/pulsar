@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 /**
@@ -32,6 +31,12 @@ public enum ProducerAccessMode {
      * Require exclusive access for producer. Fail immediately if there's already a producer connected.
      */
     Exclusive,
+
+    /**
+     * Acquire exclusive access for the producer. Any existing producer will be removed and
+     * invalidated immediately.
+     */
+    ExclusiveWithFencing,
 
     /**
      * Producer creation is pending until it can acquire exclusive access.

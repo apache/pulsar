@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.io.file;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
@@ -64,7 +62,7 @@ public class FileSourceConfig implements Serializable {
     /**
      * Only files whose names match the given regular expression will be picked up.
      */
-    private String fileFilter = "[^\\.].*";
+    private String fileFilter = "[^.].*";
 
     /**
      * When 'recurse' property is true, then only sub-directories whose
@@ -112,6 +110,12 @@ public class FileSourceConfig implements Serializable {
      */
     private Integer numWorkers = 1;
 
+    /**
+     * If set, do not delete but only rename file that has been processed.
+     * This config only work when 'keepFile' property is false.
+     */
+    private String processedFileSuffix;
+
     public static FileSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), FileSourceConfig.class);
@@ -119,7 +123,7 @@ public class FileSourceConfig implements Serializable {
 
     public static FileSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), FileSourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), FileSourceConfig.class);
     }
 
     public void validate() {
@@ -129,7 +133,7 @@ public class FileSourceConfig implements Serializable {
             throw new IllegalArgumentException("Specified input directory does not exist");
         } else if (!Files.isReadable(Paths.get(inputDirectory))) {
             throw new IllegalArgumentException("Specified input directory is not readable");
-        } else if (Optional.ofNullable(keepFile).orElse(false) && !Files.isWritable(Paths.get(inputDirectory))) {
+        } else if (!Optional.ofNullable(keepFile).orElse(false) && !Files.isWritable(Paths.get(inputDirectory))) {
             throw new IllegalArgumentException("You have requested the consumed files to be deleted, but the "
                     + "source directory is not writeable.");
         }
@@ -164,6 +168,11 @@ public class FileSourceConfig implements Serializable {
 
         if (numWorkers != null && numWorkers <= 0) {
             throw new IllegalArgumentException("The property numWorkers must be greater than zero");
+        }
+
+        if (processedFileSuffix != null && keepFile) {
+            throw new IllegalArgumentException(
+                    "The property keepFile must be false if the property processedFileSuffix is set");
         }
     }
 }

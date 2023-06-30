@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -38,18 +39,37 @@ type instanceConf struct {
 	port                        int
 	clusterName                 string
 	pulsarServiceURL            string
+	stateServiceURL             string
+	pulsarWebServiceURL         string
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
 	metricsPort                 int
+	authPlugin                  string
+	authParams                  string
+	tlsTrustCertsPath           string
+	tlsAllowInsecure            bool
+	tlsHostnameVerification     bool
 }
 
-func newInstanceConf() *instanceConf {
-	config := &conf.Conf{}
-	cfg := config.GetConf()
-	if cfg == nil {
-		panic("config file is nil.")
+func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
+	inputSpecs := make(map[string]*pb.ConsumerSpec)
+	// for backward compatibility
+	if cfg.SourceSpecTopic != "" {
+		inputSpecs[cfg.SourceSpecTopic] = &pb.ConsumerSpec{
+			SchemaType:     cfg.SourceSchemaType,
+			IsRegexPattern: cfg.IsRegexPatternSubscription,
+			ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
+				Value: cfg.ReceiverQueueSize,
+			},
+		}
 	}
-
+	for topic, value := range cfg.SourceInputSpecs {
+		spec := &pb.ConsumerSpec{}
+		if err := json.Unmarshal([]byte(value), spec); err != nil {
+			panic(fmt.Sprintf("Failed to unmarshal consume specs: %v", err))
+		}
+		inputSpecs[topic] = spec
+	}
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -58,6 +78,8 @@ func newInstanceConf() *instanceConf {
 		port:                        cfg.Port,
 		clusterName:                 cfg.ClusterName,
 		pulsarServiceURL:            cfg.PulsarServiceURL,
+		stateServiceURL:             cfg.StateStorageServiceURL,
+		pulsarWebServiceURL:         cfg.PulsarWebServiceURL,
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
 		metricsPort:                 cfg.MetricsPort,
@@ -72,16 +94,8 @@ func newInstanceConf() *instanceConf {
 			AutoAck:              cfg.AutoACK,
 			Parallelism:          cfg.Parallelism,
 			Source: &pb.SourceSpec{
-				SubscriptionType: pb.SubscriptionType(cfg.SubscriptionType),
-				InputSpecs: map[string]*pb.ConsumerSpec{
-					cfg.SourceSpecTopic: {
-						SchemaType:     cfg.SourceSchemaType,
-						IsRegexPattern: cfg.IsRegexPatternSubscription,
-						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-							Value: cfg.ReceiverQueueSize,
-						},
-					},
-				},
+				SubscriptionType:     pb.SubscriptionType(cfg.SubscriptionType),
+				InputSpecs:           inputSpecs,
 				TimeoutMs:            cfg.TimeoutMs,
 				SubscriptionName:     cfg.SubscriptionName,
 				CleanupSubscription:  cfg.CleanupSubscription,
@@ -102,8 +116,37 @@ func newInstanceConf() *instanceConf {
 			},
 			UserConfig: cfg.UserConfig,
 		},
+		authPlugin:              cfg.ClientAuthenticationPlugin,
+		authParams:              cfg.ClientAuthenticationParameters,
+		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
+		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
+		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
 	}
+
+	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {
+		panic("Go instance current not support EFFECTIVELY_ONCE processing guarantees.")
+	}
+
+	if !instanceConf.funcDetails.AutoAck &&
+		(instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE ||
+			instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE) {
+		panic("When Guarantees == " + instanceConf.funcDetails.ProcessingGuarantees.String() +
+			", autoAck must be equal to true. If you want not to automatically ack, " +
+			"please configure the processing guarantees as MANUAL." +
+			" This is a contradictory configuration, autoAck will be removed later." +
+			" Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
+	}
+
 	return instanceConf
+}
+
+func newInstanceConf() *instanceConf {
+	config := &conf.Conf{}
+	cfg := config.GetConf()
+	if cfg == nil {
+		panic("config file is nil.")
+	}
+	return newInstanceConfWithConf(cfg)
 }
 
 func (ic *instanceConf) getInstanceName() string {

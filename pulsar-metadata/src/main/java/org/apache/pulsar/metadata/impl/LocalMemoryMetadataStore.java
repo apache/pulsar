@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,9 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.collect.MapMaker;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -35,11 +34,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -48,6 +51,9 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 @Slf4j
 public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
+
+    static final String MEMORY_SCHEME = "memory";
+    static final String MEMORY_SCHEME_IDENTIFIER = "memory:";
 
     @Data
     private static class Value {
@@ -60,41 +66,49 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
+    private MetadataEventSynchronizer synchronizer;
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
+            .weakValues().makeMap();
+    // Manage all instances to facilitate registration to the same listener
+    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
             .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
             .weakValues().makeMap();
 
     public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
-        URI uri;
-        try {
-            uri = new URI(metadataURL);
-        } catch (URISyntaxException e) {
-            throw new MetadataStoreException(e);
-        }
-
+        super(metadataStoreConfig.getMetadataStoreName());
+        String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
         // Local means a private data set
-        if ("local".equals(uri.getHost())) {
+        // update synchronizer and register sync listener
+        synchronizer = metadataStoreConfig.getSynchronizer();
+        registerSyncLister(Optional.ofNullable(synchronizer));
+        if ("local".equals(name)) {
             map = new TreeMap<>();
             sequentialIdGenerator = new AtomicLong();
         } else {
             // Use a reference from a shared data set
-            String name = uri.getHost();
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
+            STATIC_INSTANCE.compute(name, (key, value) -> {
+                if (value == null) {
+                    value = new HashSet<>();
+                }
+                value.forEach(v -> {
+                    registerListener(v);
+                    v.registerListener(this);
+                });
+                value.add(this);
+                return value;
+            });
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
             log.info("Created LocalMemoryDataStore for '{}'", name);
         }
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             Value v = map.get(path);
             if (v != null) {
                 return FutureUtils.value(
@@ -109,17 +123,16 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             String firstKey = path.equals("/") ? path : path + "/";
             String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
             Set<String> children = new TreeSet<>();
             map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-                String relativePath = key.replace(firstKey, "");
+                String relativePath = key.replaceFirst(firstKey, "");
 
                 // Only return first-level children
                 String child = relativePath.split("/", 2)[0];
@@ -132,29 +145,22 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Boolean> existsFromStore(String path) {
-        synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
-            Value v = map.get(path);
-            return FutureUtils.value(v != null ? true : false);
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-    }
-
-    @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
+        synchronized (map) {
+            Value v = map.get(path);
+            return FutureUtils.value(v != null);
+        }
     }
 
     @Override
     public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
                                             EnumSet<CreateOption> options) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             boolean hasVersion = optExpectedVersion.isPresent();
             int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
@@ -203,11 +209,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             Value value = map.get(path);
             if (value == null) {
                 return FutureUtils.exception(new NotFoundException(""));
@@ -223,19 +228,29 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         }
     }
 
-    private void notifyParentChildrenChanged(String path) {
-        String parent = parent(path);
-        while (parent != null) {
-            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-            parent = parent(parent);
-        }
+    @Override
+    public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
+        return Optional.ofNullable(synchronizer);
     }
 
-    private static boolean isValidPath(String path) {
-        if (path == null || !path.startsWith("/")) {
-            return false;
+    @Override
+    public void close() throws Exception {
+        if (isClosed.compareAndSet(false, true)) {
+            super.close();
         }
+    }
+}
 
-        return !path.equals("/") || !path.endsWith("/");
+class MemoryMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return LocalMemoryMetadataStore.MEMORY_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
     }
 }

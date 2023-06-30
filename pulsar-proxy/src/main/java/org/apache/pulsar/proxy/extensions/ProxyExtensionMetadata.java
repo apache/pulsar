@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
+import java.nio.file.Path;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.nio.file.Path;
 
 /**
  * The metadata of Proxy Extension.

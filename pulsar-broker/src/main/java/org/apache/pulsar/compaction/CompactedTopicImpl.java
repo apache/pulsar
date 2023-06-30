@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
@@ -43,6 +44,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
@@ -91,13 +93,16 @@ public class CompactedTopicImpl implements CompactedTopic {
         synchronized (this) {
             PositionImpl cursorPosition;
             if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
-                cursorPosition = PositionImpl.earliest;
+                cursorPosition = PositionImpl.EARLIEST;
             } else {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
             }
+
+            // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
+            ReadEntriesCtx readEntriesCtx = ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer, PositionImpl.latest);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -106,19 +111,19 @@ public class CompactedTopicImpl implements CompactedTopic {
                             // the cursor just needs to be set to the compaction horizon
                             if (startPoint == COMPACT_LEDGER_EMPTY) {
                                 cursor.seek(compactionHorizon.getNext());
-                                callback.readEntriesComplete(Collections.emptyList(), consumer);
+                                callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
                                 return CompletableFuture.completedFuture(null);
                             }
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
-                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer,
-                                        PositionImpl.latest);
+                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx,
+                                        PositionImpl.LATEST);
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
                                                          startPoint + numberOfEntriesToRead);
                                 if (startPoint == NEWER_THAN_COMPACTED) {
                                     cursor.seek(compactionHorizon.getNext());
-                                    callback.readEntriesComplete(Collections.emptyList(), consumer);
+                                    callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 return readEntries(context.ledger, startPoint, endPoint)
@@ -130,16 +135,16 @@ public class CompactedTopicImpl implements CompactedTopic {
                                         // the complete last snapshot because of the compactor will read the data
                                         // before the compaction cursor mark delete position
                                         cursor.seek(lastEntry.getPosition().getNext(), true);
-                                        callback.readEntriesComplete(entries, consumer);
+                                        callback.readEntriesComplete(entries, readEntriesCtx);
                                     });
                             }
                         }))
                     .exceptionally((exception) -> {
                         if (exception.getCause() instanceof NoSuchElementException) {
                             cursor.seek(compactionHorizon.getNext());
-                            callback.readEntriesComplete(Collections.emptyList(), consumer);
+                            callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
                         } else {
-                            callback.readEntriesFailed(new ManagedLedgerException(exception), consumer);
+                            callback.readEntriesFailed(new ManagedLedgerException(exception), readEntriesCtx);
                         }
                         return null;
                     });
@@ -160,7 +165,8 @@ public class CompactedTopicImpl implements CompactedTopic {
         return promise;
     }
 
-    private static void findStartPointLoop(PositionImpl p, long start, long end,
+    @VisibleForTesting
+    static void findStartPointLoop(PositionImpl p, long start, long end,
                                            CompletableFuture<Long> promise,
                                            AsyncLoadingCache<Long, MessageIdData> cache) {
         long midpoint = start + ((end - start) / 2);
@@ -174,7 +180,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                     if (comparePositionAndMessageId(p, startEntry.join()) <= 0) {
                         promise.complete(start);
                     } else if (comparePositionAndMessageId(p, middleEntry.join()) <= 0) {
-                        findStartPointLoop(p, start, midpoint, promise, cache);
+                        findStartPointLoop(p, start + 1, midpoint, promise, cache);
                     } else if (comparePositionAndMessageId(p, endEntry.join()) <= 0) {
                         findStartPointLoop(p, midpoint + 1, end, promise, cache);
                     } else {
@@ -293,11 +299,16 @@ public class CompactedTopicImpl implements CompactedTopic {
         if (compactionHorizon == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return compactedTopicContext.thenCompose(context ->
-                readEntries(context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
-                        .thenCompose(entries -> entries.size() > 0
-                                ? CompletableFuture.completedFuture(entries.get(0))
-                                : CompletableFuture.completedFuture(null)));
+        return compactedTopicContext.thenCompose(context -> {
+            if (context.ledger.getLastAddConfirmed() == -1) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return readEntries(
+                    context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
+                    .thenCompose(entries -> entries.size() > 0
+                            ? CompletableFuture.completedFuture(entries.get(0))
+                            : CompletableFuture.completedFuture(null));
+        });
     }
 
     private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {
@@ -306,9 +317,8 @@ public class CompactedTopicImpl implements CompactedTopic {
             .compare(p.getEntryId(), m.getEntryId()).result();
     }
 
-    @VisibleForTesting
-    PositionImpl getCompactionHorizon() {
-        return this.compactionHorizon;
+    public synchronized Optional<Position> getCompactionHorizon() {
+        return Optional.ofNullable(this.compactionHorizon);
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }

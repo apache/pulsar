@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,18 +22,18 @@ import io.prometheus.client.Counter;
 
 public class AuthenticationMetrics {
     private static final Counter authSuccessMetrics = Counter.build()
-            .name("pulsar_authentication_success_count")
+            .name("pulsar_authentication_success_total")
             .help("Pulsar authentication success")
             .labelNames("provider_name", "auth_method")
             .register();
     private static final Counter authFailuresMetrics = Counter.build()
-            .name("pulsar_authentication_failures_count")
+            .name("pulsar_authentication_failures_total")
             .help("Pulsar authentication failures")
             .labelNames("provider_name", "auth_method", "reason")
             .register();
 
     /**
-     * Log authenticate success event to the authentication metrics
+     * Log authenticate success event to the authentication metrics.
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name
      */
@@ -43,11 +43,27 @@ public class AuthenticationMetrics {
 
     /**
      * Log authenticate failure event to the authentication metrics.
+     *
+     * This method is deprecated due to the label "reason" is a potential infinite value.
+     * @deprecated See {@link #authenticateFailure(String, String, Enum)} ()}
+     *
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
      * @param reason Failure reason.
      */
+    @Deprecated
     public static void authenticateFailure(String providerName, String authMethod, String reason) {
         authFailuresMetrics.labels(providerName, authMethod, reason).inc();
     }
+
+    /**
+     * Log authenticate failure event to the authentication metrics.
+     * @param providerName The short class name of the provider
+     * @param authMethod Authentication method name.
+     * @param errorCode Error code.
+     */
+    public static void authenticateFailure(String providerName, String authMethod, Enum<?> errorCode) {
+        authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
+    }
+
 }

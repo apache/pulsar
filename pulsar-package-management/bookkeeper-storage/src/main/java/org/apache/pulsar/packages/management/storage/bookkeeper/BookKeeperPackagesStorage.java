@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.DistributedLogConstants;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -36,6 +37,7 @@ import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.distributedlog.namespace.NamespaceDriver;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 import org.apache.zookeeper.KeeperException;
@@ -48,6 +50,7 @@ import org.apache.zookeeper.KeeperException;
 public class BookKeeperPackagesStorage implements PackagesStorage {
 
     private static final String NS_CLIENT_ID = "packages-management";
+    public static final String ZK_SCHEME_IDENTIFIER = "zk:";
     final BookKeeperPackagesStorageConfiguration configuration;
     private Namespace namespace;
 
@@ -72,6 +75,13 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
                     configuration.getBookkeeperClientAuthenticationParameters());
             }
         }
+        // Map arbitrary bookkeeper client configuration into DLog Config. Note that this only configures the
+        // bookie client.
+        PropertiesUtils.filterAndMapProperties(configuration.getProperties(), "bookkeeper_", "bkc.")
+                .forEach((key, value) -> {
+                    log.info("Applying DLog BookKeeper client configuration setting {}={}", key, value);
+                    conf.setProperty(key, value);
+                });
         try {
             this.namespace = NamespaceBuilder.newBuilder()
                 .conf(conf).clientId(NS_CLIENT_ID).uri(initializeDlogNamespace()).build();
@@ -82,11 +92,27 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
     }
 
     private URI initializeDlogNamespace() throws IOException {
-        BKDLConfig bkdlConfig = new BKDLConfig(configuration.getZookeeperServers(),
-            configuration.getPackagesManagementLedgerRootPath());
+        String bookkeeperMetadataServiceUri = configuration.getProperty("bookkeeperMetadataServiceUri");
+        String ledgersRootPath;
+        String ledgersStoreServers;
+        if (StringUtils.isNotBlank(bookkeeperMetadataServiceUri)) {
+            URI metadataServiceUri = URI.create(bookkeeperMetadataServiceUri);
+            ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
+            ledgersRootPath = metadataServiceUri.getPath();
+        } else {
+            ledgersRootPath = configuration.getPackagesManagementLedgerRootPath();
+            if (StringUtils.isNotBlank(configuration.getMetadataStoreUrl())) {
+                ledgersStoreServers = configuration.getMetadataStoreUrl();
+                if (ledgersStoreServers.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                    ledgersStoreServers = ledgersStoreServers.substring(ZK_SCHEME_IDENTIFIER.length());
+                }
+            } else {
+                ledgersStoreServers = configuration.getZookeeperServers();
+            }
+        }
+        BKDLConfig bkdlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
-        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages",
-            configuration.getZookeeperServers()));
+        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", ledgersStoreServers));
         try {
             dlMetadata.create(dlogURI);
         } catch (ZKException e) {

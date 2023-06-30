@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.EventLoopGroup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.awaitility.Awaitility;
-import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.Map;
-
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,7 +32,26 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
+import java.lang.reflect.Field;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.service.BacklogQuotaManager;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
@@ -71,7 +72,7 @@ public class MessageDuplicationTest {
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, persistentTopic, managedLedger));
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         String producerName1 = "producer1";
@@ -164,14 +165,17 @@ public class MessageDuplicationTest {
         serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, topic, managedLedger));
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
+
+        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        doReturn(managedCursor).when(messageDeduplication).getManagedCursor();
 
         Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
 
         Field field = MessageDeduplication.class.getDeclaredField("inactiveProducers");
         field.setAccessible(true);
-        Map<String, Long> map = (Map<String, Long>) field.get(messageDeduplication);
+        Map<String, Long> inactiveProducers = (ConcurrentHashMap<String, Long>) field.get(messageDeduplication);
 
         String producerName1 = "test1";
         when(publishContext.getHighestSequenceId()).thenReturn(2L);
@@ -187,18 +191,30 @@ public class MessageDuplicationTest {
         when(publishContext.getProducerName()).thenReturn(producerName3);
         messageDeduplication.isDuplicate(publishContext, null);
 
+        // All 3 are added to the inactiveProducers list
         messageDeduplication.producerRemoved(producerName1);
-        assertTrue(map.containsKey(producerName1));
-        messageDeduplication.producerAdded(producerName1);
-        assertFalse(map.containsKey(producerName1));
-        messageDeduplication.purgeInactiveProducers();
-        // messageDeduplication.purgeInactiveProducers() will remove producer2 and producer3
-        map.put(producerName2, System.currentTimeMillis() - 70000);
-        map.put(producerName3, System.currentTimeMillis() - 70000);
-        messageDeduplication.purgeInactiveProducers();
-        assertFalse(map.containsKey(producerName2));
-        assertFalse(map.containsKey(producerName3));
+        messageDeduplication.producerRemoved(producerName2);
+        messageDeduplication.producerRemoved(producerName3);
 
+        // Try first purgeInactive, all producer not inactive.
+        messageDeduplication.purgeInactiveProducers();
+        assertEquals(inactiveProducers.size(), 3);
+
+        doReturn(false).when(messageDeduplication).isEnabled();
+        inactiveProducers.put(producerName2, System.currentTimeMillis() - 80000);
+        inactiveProducers.put(producerName3, System.currentTimeMillis() - 80000);
+        messageDeduplication.purgeInactiveProducers();
+        assertFalse(inactiveProducers.containsKey(producerName2));
+        assertFalse(inactiveProducers.containsKey(producerName3));
+        doReturn(true).when(messageDeduplication).isEnabled();
+        // Modify the inactive time of produce2 and produce3
+        // messageDeduplication.purgeInactiveProducers() will remove producer2 and producer3
+        inactiveProducers.put(producerName2, System.currentTimeMillis() - 70000);
+        inactiveProducers.put(producerName3, System.currentTimeMillis() - 70000);
+        // Try second purgeInactive, produce2 and produce3 is inactive.
+        messageDeduplication.purgeInactiveProducers();
+        assertFalse(inactiveProducers.containsKey(producerName2));
+        assertFalse(inactiveProducers.containsKey(producerName3));
         field = MessageDeduplication.class.getDeclaredField("highestSequencedPushed");
         field.setAccessible(true);
         ConcurrentOpenHashMap<String, Long> highestSequencedPushed = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
@@ -206,7 +222,6 @@ public class MessageDuplicationTest {
         assertEquals((long) highestSequencedPushed.get(producerName1), 2L);
         assertFalse(highestSequencedPushed.containsKey(producerName2));
         assertFalse(highestSequencedPushed.containsKey(producerName3));
-
     }
 
     @Test
@@ -219,6 +234,7 @@ public class MessageDuplicationTest {
         serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        doReturn(mock(PulsarResources.class)).when(pulsarService).getPulsarResources();
 
         ManagedLedger managedLedger = mock(ManagedLedger.class);
         MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
@@ -237,8 +253,9 @@ public class MessageDuplicationTest {
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(eventLoopGroup).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
+        doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
 
-        PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService, managedLedger, messageDeduplication));
+        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,7 +39,7 @@ public class HashTest {
 
     @Test
     public void murmur3_32HashTest() {
-        Hash h = Murmur3_32Hash.getInstance();
+        Hash h = Murmur3Hash32.getInstance();
 
         // Same value as C++ client
         assertEquals(2110152746, h.makeHash("k1"));

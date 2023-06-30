@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,21 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.io.core.SourceContext;
-
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Slf4j
 public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements MessageListener<T> {
@@ -68,6 +67,11 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
             cb.messageListener(this);
 
             Consumer<T> consumer = cb.subscribeAsync().join();
+
+            if (pulsarSourceConfig.getSkipToLatest() != null && pulsarSourceConfig.getSkipToLatest()) {
+                consumer.seek(MessageId.latest);
+            }
+
             inputConsumers.add(consumer);
         }
     }
@@ -79,7 +83,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
 
     @Override
     public void close() throws Exception {
-        if (inputConsumers != null ) {
+        if (inputConsumers != null) {
             inputConsumers.forEach(consumer -> {
                 try {
                     consumer.close();

@@ -27,6 +27,7 @@ enum ProcessingGuarantees {
     ATLEAST_ONCE = 0; // [default value]
     ATMOST_ONCE = 1;
     EFFECTIVELY_ONCE = 2;
+    MANUAL = 3;
 }
 
 enum SubscriptionType {
@@ -38,6 +39,14 @@ enum SubscriptionType {
 enum SubscriptionPosition {
     LATEST = 0;
     EARLIEST = 1;
+}
+
+enum CompressionType {
+    LZ4 = 0;
+    NONE = 1;
+    ZLIB = 2;
+    ZSTD = 3;
+    SNAPPY = 4;
 }
 
 message Resources {
@@ -72,7 +81,8 @@ message FunctionDetails {
     string userConfig = 7;
     string secretsMap = 16;
     Runtime runtime = 8;
-    bool autoAck = 9;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    bool autoAck = 9 [deprecated = true];
     int32 parallelism = 10;
     SourceSpec source = 11;
     SinkSpec sink = 12;
@@ -110,6 +120,7 @@ message ProducerSpec {
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
+    CompressionType compressionType = 6;
 }
 
 message CryptoSpec {
@@ -163,6 +174,7 @@ message SourceSpec {
     bool cleanupSubscription = 11;
     SubscriptionPosition subscriptionPosition = 12;
     uint64 negativeAckRedeliveryDelayMs = 13;
+    bool skipToLatest = 14;
 }
 
 message SinkSpec {
@@ -209,6 +221,7 @@ message FunctionMetaData {
     uint64 createTime = 4;
     map<int32, FunctionState> instanceStates = 5;
     FunctionAuthenticationSpec functionAuthSpec = 6;
+    PackageLocationMetaData transformFunctionPackageLocation = 7;
 }
 
 message FunctionAuthenticationSpec {

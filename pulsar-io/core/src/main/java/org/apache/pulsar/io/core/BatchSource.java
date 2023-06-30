@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,7 +59,7 @@ public interface BatchSource<T> extends AutoCloseable {
      * @param context environment where the source connector is running
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config, SourceContext context) throws Exception;
+    void open(Map<String, Object> config, SourceContext context) throws Exception;
 
     /**
      * Discovery phase of a connector.  This phase will only be run on one instance, i.e. instance 0, of the connector.
@@ -78,7 +78,7 @@ public interface BatchSource<T> extends AutoCloseable {
     void prepare(byte[] task) throws Exception;
 
     /**
-     * Read data and return a record
+     * Read data and return a record.
      * Return null if no more records are present for this task
      * @return a record
      */

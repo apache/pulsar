@@ -35,14 +35,10 @@ popd
 cp $PULSAR_PATH/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/offloaders/target/apache-pulsar-offloaders-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/shell/target/apache-pulsar-shell-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/shell/target/apache-pulsar-shell-$VERSION-bin.zip $DEST_PATH
 
 cp -r $PULSAR_PATH/distribution/io/target/apache-pulsar-io-connectors-$VERSION-bin $DEST_PATH/connectors
-
-mkdir $DEST_PATH/RPMS
-cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/rpm/RPMS/x86_64/* $DEST_PATH/RPMS
-
-mkdir $DEST_PATH/DEB
-cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/deb/BUILD/DEB/* $DEST_PATH/DEB
 
 # Sign all files
 cd $DEST_PATH

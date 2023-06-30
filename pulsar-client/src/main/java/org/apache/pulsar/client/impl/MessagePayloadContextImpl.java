@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
+import java.util.BitSet;
 import java.util.List;
 import lombok.NonNull;
-import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -49,8 +51,9 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     private MessageIdImpl messageId;
     private ConsumerImpl<?> consumer;
     private int redeliveryCount;
-    private BatchMessageAcker acker;
+    private BitSet ackSetInMessageId;
     private BitSetRecyclable ackBitSet;
+    private long consumerEpoch;
 
     private MessagePayloadContextImpl(final Recycler.Handle<MessagePayloadContextImpl> handle) {
         this.recyclerHandle = handle;
@@ -61,15 +64,17 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                                                 @NonNull final MessageIdImpl messageId,
                                                 @NonNull final ConsumerImpl<?> consumer,
                                                 final int redeliveryCount,
-                                                final List<Long> ackSet) {
+                                                final List<Long> ackSet,
+                                                final long consumerEpoch) {
         final MessagePayloadContextImpl context = RECYCLER.get();
+        context.consumerEpoch = consumerEpoch;
         context.brokerEntryMetadata = brokerEntryMetadata;
         context.messageMetadata = messageMetadata;
         context.singleMessageMetadata = new SingleMessageMetadata();
         context.messageId = messageId;
         context.consumer = consumer;
         context.redeliveryCount = redeliveryCount;
-        context.acker = BatchMessageAcker.newAcker(context.getNumMessages());
+        context.ackSetInMessageId = BatchMessageIdImpl.newAckSet(context.getNumMessages());
         context.ackBitSet = (ackSet != null && ackSet.size() > 0)
                 ? BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet))
                 : null;
@@ -83,11 +88,13 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         messageId = null;
         consumer = null;
         redeliveryCount = 0;
-        acker = null;
+        consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+        ackSetInMessageId = null;
         if (ackBitSet != null) {
             ackBitSet.recycle();
             ackBitSet = null;
         }
+        recyclerHandle.recycle(this);
     }
 
     @Override
@@ -128,8 +135,9 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                     schema,
                     containMetadata,
                     ackBitSet,
-                    acker,
-                    redeliveryCount);
+                    ackSetInMessageId,
+                    redeliveryCount,
+                    consumerEpoch);
         } finally {
             payloadBuffer.release();
         }
@@ -139,8 +147,8 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     public <T> Message<T> asSingleMessage(MessagePayload payload, Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
-            return consumer.newMessage(
-                    messageId, brokerEntryMetadata, messageMetadata, payloadBuffer, schema, redeliveryCount);
+            return consumer.newMessage(messageId, brokerEntryMetadata,
+                    messageMetadata, payloadBuffer, schema, redeliveryCount, consumerEpoch);
         } finally {
             payloadBuffer.release();
         }

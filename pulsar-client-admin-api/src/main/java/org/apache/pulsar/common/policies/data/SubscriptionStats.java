@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,16 +40,24 @@ public interface SubscriptionStats {
     /** Total rate of messages redelivered on this subscription (msg/s). */
     double getMsgRateRedeliver();
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    double getMessageAckRate();
+
     /** Chunked message dispatch rate. */
     int getChunkedMessageRate();
 
-    /** Number of messages in the subscription backlog. */
+    /** Number of entries in the subscription backlog. */
     long getMsgBacklog();
 
     /** Size of backlog in byte. **/
     long getBacklogSize();
 
-    /** Number of messages in the subscription backlog that do not contain the delay messages. */
+    /** Get the publish time of the earliest message in the backlog. */
+    long getEarliestMsgPublishTimeInBacklog();
+
+    /** Number of entries in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
@@ -58,10 +66,14 @@ public interface SubscriptionStats {
     /** Number of delayed messages currently being tracked. */
     long getMsgDelayed();
 
-    /** Number of unacknowledged messages for the subscription. */
+    /**
+     * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
+     * sent to a consumer but not yet acknowledged. Calculated by summing all {@link ConsumerStats#getUnackedMessages()}
+     * for this subscription. See {@link ConsumerStats#getUnackedMessages()} for additional details.
+     */
     long getUnackedMessages();
 
-    /** Whether this subscription is Exclusive or Shared or Failover. */
+    /** The subscription type as defined by {@link org.apache.pulsar.client.api.SubscriptionType}. */
     String getType();
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */
@@ -106,9 +118,22 @@ public interface SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
 
+    /** SubscriptionProperties (key/value strings) associated with this subscribe. */
+    Map<String, String> getSubscriptionProperties();
+
     /** The number of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRanges();
 
     /** The serialized size of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRangesSerializedSize();
+
+    long getFilterProcessedMsgCount();
+
+    long getFilterAcceptedMsgCount();
+
+    long getFilterRejectedMsgCount();
+
+    long getFilterRescheduledMsgCount();
+
+    long getDelayedMessageIndexSizeInBytes();
 }

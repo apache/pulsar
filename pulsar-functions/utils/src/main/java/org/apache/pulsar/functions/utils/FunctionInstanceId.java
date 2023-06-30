@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,8 @@ public class FunctionInstanceId {
         String[] t1 = fullyQualifiedInstanceName.split("/");
 
         if (t1.length != 3) {
-            throw new IllegalArgumentException("Invalid format for fully qualified instance name: " + fullyQualifiedInstanceName);
+            throw new IllegalArgumentException(
+                    "Invalid format for fully qualified instance name: " + fullyQualifiedInstanceName);
         }
 
         this.tenant = t1[0];
@@ -41,9 +42,10 @@ public class FunctionInstanceId {
         int instanceIdDelimiterIndex = t1[2].lastIndexOf(':');
 
         if (instanceIdDelimiterIndex < 0) {
-            throw new IllegalArgumentException("Invalid format for fully qualified instance name: " + fullyQualifiedInstanceName);            
+            throw new IllegalArgumentException(
+                    "Invalid format for fully qualified instance name: " + fullyQualifiedInstanceName);
         }
-        
+
         this.name = t1[2].substring(0, instanceIdDelimiterIndex);
         this.instanceId = Integer.parseInt(t1[2].substring(instanceIdDelimiterIndex + 1));
     }

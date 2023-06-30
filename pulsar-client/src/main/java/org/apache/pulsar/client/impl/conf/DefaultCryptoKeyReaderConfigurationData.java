@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -36,7 +35,8 @@ public class DefaultCryptoKeyReaderConfigurationData implements Serializable, Cl
 
     private static final long serialVersionUID = 1L;
 
-    private static final String TO_STRING_FORMAT = "%s(defaultPublicKey=%s, defaultPrivateKey=%s, publicKeys=%s, privateKeys=%s)";
+    private static final String TO_STRING_FORMAT =
+            "%s(defaultPublicKey=%s, defaultPrivateKey=%s, publicKeys=%s, privateKeys=%s)";
 
     @NonNull
     private String defaultPublicKey;

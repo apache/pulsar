@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,38 +19,44 @@
 package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +69,11 @@ public class NamespaceBundleFactory {
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
 
     private final PulsarService pulsar;
-    private final MetadataCache<Policies> policiesCache;
+
+    @Getter
+    private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
+
+    private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
@@ -77,7 +87,8 @@ public class NamespaceBundleFactory {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
-        this.policiesCache = pulsar.getConfigurationMetadataStore().getMetadataCache(Policies.class);
+
+        topicBundleAssignmentStrategy = TopicBundleAssignmentFactory.create(pulsar);
     }
 
     private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
@@ -90,22 +101,27 @@ public class NamespaceBundleFactory {
         }
 
         CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
+        doLoadBundles(namespace, future, createBackoff(), System.nanoTime() + maxRetryDuration.toNanos());
+        return future;
+    }
+
+    private void doLoadBundles(NamespaceName namespace, CompletableFuture<NamespaceBundles> future,
+                               Backoff backoff, long retryDeadline) {
         // Read the static bundle data from the policies
         pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesWithVersion(namespace).thenAccept(result -> {
-
             if (result.isPresent()) {
                 try {
                     future.complete(readBundles(namespace,
                             result.get().getValue(), result.get().getStat().getVersion()));
                 } catch (IOException e) {
-                    future.completeExceptionally(e);
+                    handleLoadBundlesRetry(namespace, future, backoff, retryDeadline, e);
                 }
             } else {
                 // If no local policies defined for namespace, copy from global config
                 copyToLocalPolicies(namespace)
                         .thenAccept(b -> future.complete(b))
                         .exceptionally(ex -> {
-                            future.completeExceptionally(ex);
+                            handleLoadBundlesRetry(namespace, future, backoff, retryDeadline, ex);
                             return null;
                         });
             }
@@ -113,7 +129,23 @@ public class NamespaceBundleFactory {
             future.completeExceptionally(ex);
             return null;
         });
-        return future;
+    }
+
+    private void handleLoadBundlesRetry(NamespaceName namespace,
+                                        CompletableFuture<NamespaceBundles> future,
+                                        Backoff backoff, long retryDeadline, Throwable e) {
+        if (e instanceof Error || System.nanoTime() > retryDeadline) {
+            future.completeExceptionally(e);
+        } else {
+            LOG.warn("Error loading bundle for {}. Retrying exception", namespace, e);
+            long retryDelay = backoff.next();
+            pulsar.getExecutor().schedule(() ->
+                    doLoadBundles(namespace, future, backoff, retryDeadline), retryDelay, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static Backoff createBackoff() {
+        return new Backoff(100, TimeUnit.MILLISECONDS, 5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
     }
 
     private NamespaceBundles readBundles(NamespaceName namespace, LocalPolicies localPolicies, long version)
@@ -173,9 +205,9 @@ public class NamespaceBundleFactory {
         return bundlesCache.get(nsname);
     }
 
-    public NamespaceBundle getBundlesWithHighestTopics(NamespaceName nsname) {
+    public NamespaceBundle getBundleWithHighestTopics(NamespaceName nsname) {
         try {
-            return getBundlesWithHighestTopicsAsync(nsname).get(PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC,
+            return getBundleWithHighestTopicsAsync(nsname).get(PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC,
                     TimeUnit.SECONDS);
         } catch (Exception e) {
             LOG.info("failed to derive bundle for {}", nsname, e);
@@ -183,7 +215,7 @@ public class NamespaceBundleFactory {
         }
     }
 
-    public CompletableFuture<NamespaceBundle> getBundlesWithHighestTopicsAsync(NamespaceName nsname) {
+    public CompletableFuture<NamespaceBundle> getBundleWithHighestTopicsAsync(NamespaceName nsname) {
         return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(nsname).thenCompose(topics -> {
             return bundlesCache.get(nsname).handle((bundles, e) -> {
                 Map<String, Integer> countMap = new HashMap<>();
@@ -191,7 +223,7 @@ public class NamespaceBundleFactory {
                 int maxCount = 0;
                 for (String topic : topics) {
                     NamespaceBundle bundle = bundles.findBundle(TopicName.get(topic));
-                    String bundleRange = bundles.findBundle(TopicName.get(topic)).getBundleRange();
+                    String bundleRange = bundle.getBundleRange();
                     int count = countMap.getOrDefault(bundleRange, 0) + 1;
                     countMap.put(bundleRange, count);
                     if (count > maxCount) {
@@ -202,6 +234,32 @@ public class NamespaceBundleFactory {
                 return resultBundle;
             });
         });
+    }
+
+    public NamespaceBundle getBundle(TopicName topic) {
+        NamespaceBundles bundles = bundlesCache.synchronous().get(topic.getNamespaceObject());
+        return bundles != null ? bundles.findBundle(topic) : null;
+    }
+
+    public CompletableFuture<NamespaceBundle> getBundleWithHighestThroughputAsync(NamespaceName nsName) {
+        LoadManager loadManager = pulsar.getLoadManager().get();
+        if (loadManager instanceof ModularLoadManagerWrapper) {
+            return getBundlesAsync(nsName).thenApply(bundles -> {
+                double maxMsgThroughput = -1;
+                NamespaceBundle bundleWithHighestThroughput = null;
+                for (NamespaceBundle bundle : bundles.getBundles()) {
+                    BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                            .getBundleDataOrDefault(bundle.toString());
+                    if (bundleData.getTopics() > 0
+                            && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                        maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
+                        bundleWithHighestThroughput = bundle;
+                    }
+                }
+                return bundleWithHighestThroughput;
+            });
+        }
+        return getBundleWithHighestTopicsAsync(nsName);
     }
 
     public NamespaceBundles getBundles(NamespaceName nsname) {
@@ -221,8 +279,7 @@ public class NamespaceBundleFactory {
         String[] boundaries = bundleRange.split("_");
         Long lowerEndpoint = Long.decode(boundaries[0]);
         Long upperEndpoint = Long.decode(boundaries[1]);
-        Range<Long> hashRange = Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
-                (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
+        Range<Long> hashRange = getRange(lowerEndpoint, upperEndpoint);
         return getBundle(NamespaceName.get(namespace), hashRange);
     }
 
@@ -235,7 +292,7 @@ public class NamespaceBundleFactory {
     }
 
     public long getLongHashCode(String name) {
-        return this.hashFunc.hashString(name, Charsets.UTF_8).padToLong();
+        return this.hashFunc.hashString(name, StandardCharsets.UTF_8).padToLong();
     }
 
     public NamespaceBundles getBundles(NamespaceName nsname, BundlesData bundleData) {
@@ -254,23 +311,25 @@ public class NamespaceBundleFactory {
      *            {@link NamespaceBundle} needs to be split
      * @param argNumBundles
      *            split into numBundles
-     * @param splitBoundary
-     *            split into 2 numBundles by the given split key. The given split key must between the key range of the
-     *            given split bundle.
+     * @param splitBoundaries
+     *            split into multi numBundles by the given split boundaries. All these given split boundaries must
+     *            between the key range of the given split bundle.
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
     public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> splitBundles(
-            NamespaceBundle targetBundle, int argNumBundles, Long splitBoundary) {
-        checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
-        if (splitBoundary != null) {
-            checkArgument(splitBoundary > targetBundle.getLowerEndpoint()
-                            && splitBoundary < targetBundle.getUpperEndpoint(),
-                    "The given fixed key must between the key range of the %s bundle", targetBundle);
-            argNumBundles = 2;
+            NamespaceBundle targetBundle, int argNumBundles, List<Long> splitBoundaries) {
+        checkArgument(canSplitBundle(targetBundle),
+                "%s bundle can't be split further since range not larger than 1", targetBundle);
+        if (splitBoundaries != null && splitBoundaries.size() > 0) {
+            Collections.sort(splitBoundaries);
+            checkArgument(splitBoundaries.get(0) > targetBundle.getLowerEndpoint()
+                            && splitBoundaries.get(splitBoundaries.size() - 1) < targetBundle.getUpperEndpoint(),
+                    "The given fixed keys must between the key range of the %s bundle", targetBundle);
+            argNumBundles = splitBoundaries.size() + 1;
         }
-        checkNotNull(targetBundle, "can't split null bundle");
-        checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
+        Objects.requireNonNull(targetBundle, "can't split null bundle");
+        Objects.requireNonNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
 
         final int numBundles = argNumBundles;
@@ -286,15 +345,22 @@ public class NamespaceBundleFactory {
                 if (sourceBundle.partitions[i] == range.lowerEndpoint()
                         && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
                     splitPartition = i;
-                    long maxVal = sourceBundle.partitions[i + 1];
                     long minVal = sourceBundle.partitions[i];
-                    long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
                     partitions[pos++] = minVal;
-                    long curPartition = minVal + segSize;
-                    for (int j = 0; j < numBundles - 1; j++) {
-                        partitions[pos++] = curPartition;
-                        curPartition += segSize;
+                    if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                        long maxVal = sourceBundle.partitions[i + 1];
+                        long segSize = (maxVal - minVal) / numBundles;
+                        long curPartition = minVal + segSize;
+                        for (int j = 0; j < numBundles - 1; j++) {
+                            partitions[pos++] = curPartition;
+                            curPartition += segSize;
+                        }
+                    } else {
+                        for (long splitBoundary : splitBoundaries) {
+                            partitions[pos++] = splitBoundary;
+                        }
                     }
+
                 } else {
                     partitions[pos++] = sourceBundle.partitions[i];
                 }
@@ -352,6 +418,11 @@ public class NamespaceBundleFactory {
         i.next();
         // prop, cluster, namespace
         return Joiner.on("/").join(i);
+    }
+
+    public static Range<Long> getRange(Long lowerEndpoint, Long upperEndpoint) {
+        return Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
+                (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
     }
 
 }

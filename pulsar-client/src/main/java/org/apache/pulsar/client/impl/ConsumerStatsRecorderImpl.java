@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -26,20 +30,13 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 
 public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
@@ -109,13 +106,12 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     private void init(ConsumerConfigurationData<?> conf) {
-        ObjectMapper m = new ObjectMapper();
-        m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writer();
+        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways().writer()
+                .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
             log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
+            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
             log.error("Failed to dump config info", e);
         }
@@ -242,7 +238,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     @Override
     public Integer getMsgNumInReceiverQueue() {
         if (consumer instanceof ConsumerBase) {
-            return ((ConsumerBase<?>) consumer).incomingMessages.size();
+            ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
+            if (consumerBase.listener != null){
+                return ConsumerBase.MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.get(consumerBase);
+            }
+            return consumerBase.incomingMessages.size();
         }
         return null;
     }

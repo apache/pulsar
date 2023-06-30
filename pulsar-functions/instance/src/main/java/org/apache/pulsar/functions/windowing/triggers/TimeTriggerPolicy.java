@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.functions.windowing.triggers;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.functions.api.Context;
@@ -28,13 +35,6 @@ import org.apache.pulsar.functions.windowing.EvictionPolicy;
 import org.apache.pulsar.functions.windowing.TriggerHandler;
 import org.apache.pulsar.functions.windowing.TriggerPolicy;
 import org.apache.pulsar.functions.windowing.WindowUtils;
-
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Invokes {@link TriggerHandler#onTrigger()} after the duration.
@@ -75,7 +75,9 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
 
     @Override
     public void start() {
-        executorFuture = executor.scheduleAtFixedRate(newTriggerTask(), duration, duration, TimeUnit.MILLISECONDS);
+        executorFuture =
+                executor.scheduleAtFixedRate(catchingAndLoggingThrowables(newTriggerTask()), duration, duration,
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override

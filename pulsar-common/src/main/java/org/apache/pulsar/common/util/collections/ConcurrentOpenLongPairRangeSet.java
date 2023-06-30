@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -29,7 +28,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang.mutable.MutableInt;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -87,7 +86,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
                 // if lower and upper has different key/ledger then set ranges for lower-key only if
                 // a. bitSet already exist and given value is not the last value in the bitset.
                 // it will prevent setting up values which are not actually expected to set
-                // eg: (2:10..4:10] in this case , don't set any value for 2:10 and set [4:0..4:10]
+                // eg: (2:10..4:10] in this case, don't set any value for 2:10 and set [4:0..4:10]
                 if (rangeBitSet != null && (rangeBitSet.previousSetBit(rangeBitSet.size()) > lowerValueOpen)) {
                     int lastValue = rangeBitSet.previousSetBit(rangeBitSet.size());
                     rangeBitSet.set((int) lowerValue, (int) Math.max(lastValue, lowerValue) + 1);
@@ -153,14 +152,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return true;
         }
-        AtomicBoolean isEmpty = new AtomicBoolean(false);
-        rangeBitSetMap.forEach((key, val) -> {
-            if (!isEmpty.get()) {
-                return;
+        for (BitSet rangeBitSet : rangeBitSetMap.values()) {
+            if (!rangeBitSet.isEmpty()) {
+                return false;
             }
-            isEmpty.set(val.isEmpty());
-        });
-        return isEmpty.get();
+        }
+        return true;
     }
 
     @Override
@@ -172,7 +169,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> span() {
-        if (rangeBitSetMap.size() == 0) {
+        if (rangeBitSetMap.isEmpty()) {
             return null;
         }
         Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
@@ -198,7 +195,18 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
-    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
+    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumerParam) {
+        forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            Range<T> range = Range.openClosed(
+                    consumerParam.apply(lowerKey, lowerValue),
+                    consumerParam.apply(upperKey, upperValue)
+            );
+            return action.process(range);
+        });
+    }
+
+    @Override
+    public void forEachRawRange(RawRangeProcessor processor) {
         AtomicBoolean completed = new AtomicBoolean(false);
         rangeBitSetMap.forEach((key, set) -> {
             if (completed.get()) {
@@ -212,9 +220,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 int nextOpenMark = set.nextClearBit(currentClosedMark);
-                Range<T> range = Range.openClosed(consumer.apply(key, currentClosedMark - 1),
-                        consumer.apply(key, nextOpenMark - 1));
-                if (!action.process(range)) {
+                if (!processor.processRawRange(key, currentClosedMark - 1,
+                        key, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
@@ -222,6 +229,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
         });
     }
+
 
     @Override
     public Range<T> firstRange() {
@@ -246,14 +254,40 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        MutableInt v = new MutableInt(0);
+        subMap.forEach((key, bitset) -> {
+            if (key == lowerKey || key == upperKey) {
+                BitSet temp = (BitSet) bitset.clone();
+                // Trim the bitset index which < lowerValue
+                if (key == lowerKey) {
+                    temp.clear(0, (int) Math.max(0, lowerValue));
+                }
+                // Trim the bitset index which > upperValue
+                if (key == upperKey) {
+                    temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
+                }
+                v.add(temp.cardinality());
+            } else {
+                v.add(bitset.cardinality());
+            }
+        });
+        return v.intValue();
+    }
+
+    @Override
     public int size() {
         if (updatedAfterCachedForSize) {
-            AtomicInteger size = new AtomicInteger(0);
-            forEach((range) -> {
-                size.getAndIncrement();
+            MutableInt size = new MutableInt(0);
+
+            // ignore result because we just want to count
+            forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+                size.increment();
                 return true;
             });
-            cachedSize = size.get();
+
+            cachedSize = size.intValue();
             updatedAfterCachedForSize = false;
         }
         return cachedSize;

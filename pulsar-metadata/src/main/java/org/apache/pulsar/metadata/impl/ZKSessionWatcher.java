@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -28,9 +28,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -39,7 +37,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
 /**
- * Monitor the ZK session state every few seconds and send notifications
+ * Monitor the ZK session state every few seconds and send notifications.
  */
 @Slf4j
 public class ZKSessionWatcher implements AutoCloseable, Watcher {
@@ -67,8 +65,11 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
         this.scheduler = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
-        this.task = scheduler.scheduleAtFixedRate(this::checkConnectionStatus, tickTimeMillis, tickTimeMillis,
-                TimeUnit.MILLISECONDS);
+        this.task =
+                scheduler.scheduleWithFixedDelay(
+                        catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
+                        tickTimeMillis,
+                        TimeUnit.MILLISECONDS);
         this.currentStatus = SessionEvent.SessionReestablished;
     }
 
@@ -80,7 +81,11 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     }
 
     // task that runs every TICK_TIME to check zk connection
-    private synchronized void checkConnectionStatus() {
+    // NOT ThreadSafe:
+    // If zk client can't ensure the order, it may lead to problems.
+    // Currently,we only use it in single thread, it will be fine. but we shouldn't leave any potential problems
+    // in the future.
+    private void checkConnectionStatus() {
         try {
             CompletableFuture<Watcher.Event.KeeperState> future = new CompletableFuture<>();
             zk.exists("/", false, (StatCallback) (rc, path, ctx, stat) -> {
@@ -125,7 +130,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         currentStatus = SessionEvent.SessionLost;
     }
 
-    private void checkState(Watcher.Event.KeeperState zkClientState) {
+    private synchronized void checkState(Watcher.Event.KeeperState zkClientState) {
         switch (zkClientState) {
         case Expired:
             if (currentStatus != SessionEvent.SessionLost) {
@@ -149,8 +154,8 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
                 currentStatus = SessionEvent.SessionLost;
                 sessionListener.accept(currentStatus);
             } else if (currentStatus != SessionEvent.SessionLost) {
-                log.warn("ZooKeeper client is disconnected. Waiting to reconnect, time remaining = {} seconds",
-                        timeRemainingMillis / 1000.0);
+                log.warn("[{}] ZooKeeper client is disconnected. Waiting to reconnect, time remaining = {} seconds",
+                        zk.getSessionId(), timeRemainingMillis / 1000.0);
                 if (currentStatus == SessionEvent.SessionReestablished) {
                     currentStatus = SessionEvent.ConnectionLost;
                     sessionListener.accept(currentStatus);

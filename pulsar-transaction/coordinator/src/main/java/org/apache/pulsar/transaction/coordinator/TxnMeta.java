@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -107,4 +107,11 @@ public interface TxnMeta {
      * @return transaction timeout at.
      */
     long getTimeoutAt();
+
+    /**
+     * Return the transaction's owner.
+     *
+     * @return transaction's owner.
+     */
+    String getOwner();
 }

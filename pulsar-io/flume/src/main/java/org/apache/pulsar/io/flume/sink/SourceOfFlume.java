@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,18 @@
  */
 package org.apache.pulsar.io.flume.sink;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.conf.BatchSizeSupported;
 import org.apache.flume.event.EventBuilder;
 import org.apache.flume.instrumentation.SourceCounter;
 import org.apache.flume.source.AbstractPollableSource;
+import org.apache.flume.source.SpoolDirectorySourceConfigurationConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
-
-import static org.apache.flume.source.SpoolDirectorySourceConfigurationConstants.BATCH_SIZE;
-
 
 public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSupported {
 
@@ -64,7 +61,7 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
 
     @Override
     public void doConfigure(Context context) {
-        batchSize = context.getInteger(BATCH_SIZE, 1000);
+        batchSize = context.getInteger(SpoolDirectorySourceConfigurationConstants.BATCH_SIZE, 1000);
         maxBatchDurationMillis = context.getInteger(BATCH_DURATION_MS, 1000);
         log.info("context: {}", context);
     }
@@ -76,8 +73,8 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
         try {
             final long maxBatchEndTime = System.currentTimeMillis() + maxBatchDurationMillis;
 
-            while (eventList.size() < this.getBatchSize() &&
-                    System.currentTimeMillis() < maxBatchEndTime) {
+            while (eventList.size() < this.getBatchSize()
+                    && System.currentTimeMillis() < maxBatchEndTime) {
                 BlockingQueue<Object> blockingQueue = StringSink.getQueue();
                 while (blockingQueue != null && !blockingQueue.isEmpty()) {
                     Object message = blockingQueue.take();

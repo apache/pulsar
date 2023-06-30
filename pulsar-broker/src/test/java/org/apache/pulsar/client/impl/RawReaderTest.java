@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,18 +39,18 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-impl")
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "foobar-sub";
@@ -59,6 +58,11 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setBrokerEntryMetadataInterceptors(org.assertj.core.util.Sets.newTreeSet(
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
+        ));
+        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         super.internalSetup();
 
         admin.clusters().createCluster("test",
@@ -85,6 +89,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             .enableBatching(batching)
             // easier to create enough batches with a small batch size
             .batchingMaxMessages(10)
+            .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .maxPendingMessages(count)
             .topic(topic)
@@ -96,6 +101,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
             }
+            producer.flushAsync();
             lastFuture.get();
         }
         return keys;
@@ -105,6 +111,58 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         return msgMetadata.getPartitionKey();
+    }
+
+    @Test
+    public void testHasMessageAvailableWithoutBatch() throws Exception {
+        int numKeys = 10;
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        Set<String> keys = publishMessages(topic, numKeys);
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        while (true) {
+            boolean hasMsg = reader.hasMessageAvailableAsync().get();
+            if (hasMsg && keys.isEmpty()) {
+                Assert.fail("HasMessageAvailable shows still has message when there is no message");
+            }
+            if (hasMsg) {
+                try (RawMessage m = reader.readNextAsync().get()) {
+                    Assert.assertTrue(keys.remove(extractKey(m)));
+                }
+            } else {
+                break;
+            }
+        }
+        Assert.assertTrue(keys.isEmpty());
+    }
+
+    @Test
+    public void testHasMessageAvailableWithBatch() throws Exception {
+        int numKeys = 20;
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        Set<String> keys = publishMessages(topic, numKeys, true);
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        int messageCount = 0;
+        while (true) {
+            boolean hasMsg = reader.hasMessageAvailableAsync().get();
+            if (hasMsg && (messageCount == numKeys)) {
+                Assert.fail("HasMessageAvailable shows still has message when there is no message");
+            }
+            if (hasMsg) {
+                try (RawMessage m = reader.readNextAsync().get()) {
+                    MessageMetadata meta = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                    messageCount += meta.getNumMessagesInBatch();
+                    RawBatchConverter.extractIdsAndKeysAndSize(m).forEach(batchInfo -> {
+                        String key = batchInfo.getMiddle();
+                        Assert.assertTrue(keys.remove(key));
+                    });
+
+                }
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(messageCount, numKeys);
+        Assert.assertTrue(keys.isEmpty());
     }
 
     @Test
@@ -322,6 +380,40 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try (RawMessage m1 = reader.readNextAsync().get()) {
             RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
+            List<ImmutableTriple<MessageId, String, Integer>> idsAndKeys = RawBatchConverter.extractIdsAndKeysAndSize(m2);
+            Assert.assertEquals(idsAndKeys.size(), 1);
+            Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key2");
+            m2.close();
+            Assert.assertEquals(m1.getHeadersAndPayload().refCnt(), 1);
+        } finally {
+            reader.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void testBatchingRebatchWithBrokerEntryMetadata() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .maxPendingMessages(3)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create()) {
+            producer.newMessage().key("key1").value("my-content-1".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-content-2".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-content-3".getBytes()).send();
+        }
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        try (RawMessage m1 = reader.readNextAsync().get()) {
+            RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
+            BrokerEntryMetadata brokerEntryMetadata =
+                    Commands.parseBrokerEntryMetadataIfExist(m2.getHeadersAndPayload());
+            Assert.assertNotNull(brokerEntryMetadata);
+            Assert.assertEquals(brokerEntryMetadata.getIndex(), 2);
+            Assert.assertTrue(brokerEntryMetadata.getBrokerTimestamp() < System.currentTimeMillis());
             List<ImmutableTriple<MessageId, String, Integer>> idsAndKeys = RawBatchConverter.extractIdsAndKeysAndSize(m2);
             Assert.assertEquals(idsAndKeys.size(), 1);
             Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key2");

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,22 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Implements the jitter backoff retry,
+ * Implements the jitter backoff retry.
  * see https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
  */
 @Slf4j
 public class RandomExponentialRetry {
 
     /**
-     * Singleton instance
+     * Singleton instance.
      */
-    public static final RandomExponentialRetry instance = new RandomExponentialRetry();
+    public static final RandomExponentialRetry INSTANCE = new RandomExponentialRetry();
 
     /**
      * Maximum time in seconds between two retries.
@@ -58,19 +58,21 @@ public class RandomExponentialRetry {
         return ThreadLocalRandom.current().nextLong(0, waitInMs(attempt, backoffInMs));
     }
 
-    protected <T> T retry(Callable<T> function, int maxAttempts, long initialBackoff, String source) throws Exception {
+    public <T> T retry(Callable<T> function, int maxAttempts, long initialBackoff, String source) throws Exception {
         return retry(function, maxAttempts, initialBackoff, source, new Time());
     }
 
-    protected <T> T retry(Callable<T> function, int maxAttempts, long initialBackoff, String source, Time clock) throws Exception {
+    protected <T> T retry(Callable<T> function, int maxAttempts, long initialBackoff, String source, Time clock)
+            throws Exception {
         Exception lastException = null;
-        for(int i = 0; i < maxAttempts || maxAttempts == -1; i++) {
+        for (int i = 0; i < maxAttempts || maxAttempts == -1; i++) {
             try {
                 return function.call();
             } catch (Exception e) {
                 lastException = e;
                 long backoff = randomWaitInMs(i, initialBackoff);
-                log.info("Trying source={} attempt {}/{} failed, waiting {}ms", source, i, maxAttempts, backoff);
+                log.info("Executing '{}', attempt {}/{}, next retry in {} ms, caused by: {}", source, i,
+                        maxAttempts, backoff, e.getMessage());
                 clock.sleep(backoff);
             }
         }

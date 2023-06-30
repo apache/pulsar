@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.broker.validator;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 /**
  * Validates multiple listener address configurations.
@@ -52,34 +51,36 @@ public final class MultipleListenerValidator {
             return Collections.emptyMap();
         }
         Optional<String> firstListenerName = Optional.empty();
-        Map<String, List<String>> listeners = Maps.newLinkedHashMap();
+        Map<String, List<String>> listeners = new LinkedHashMap<>();
         for (final String str : StringUtils.split(config.getAdvertisedListeners(), ",")) {
             int index = str.indexOf(":");
             if (index <= 0) {
-                throw new IllegalArgumentException("the configure entry `advertisedListeners` is invalid. because " +
-                        str + " do not contain listener name");
+                throw new IllegalArgumentException("the configure entry `advertisedListeners` is invalid. because "
+                        + str + " do not contain listener name");
             }
             String listenerName = StringUtils.trim(str.substring(0, index));
             if (!firstListenerName.isPresent()) {
                 firstListenerName = Optional.of(listenerName);
             }
             String value = StringUtils.trim(str.substring(index + 1));
-            listeners.computeIfAbsent(listenerName, k -> Lists.newArrayListWithCapacity(2));
+            listeners.computeIfAbsent(listenerName, k -> new ArrayList<>(2));
             listeners.get(listenerName).add(value);
         }
         if (StringUtils.isBlank(config.getInternalListenerName())) {
             config.setInternalListenerName(firstListenerName.get());
         }
         if (!listeners.containsKey(config.getInternalListenerName())) {
-            throw new IllegalArgumentException("the `advertisedListeners` configure do not contain `internalListenerName` entry");
+            throw new IllegalArgumentException("the `advertisedListeners` configure do not contain "
+                    + "`internalListenerName` entry");
         }
-        final Map<String, AdvertisedListener> result = Maps.newLinkedHashMap();
-        final Map<String, Set<String>> reverseMappings = Maps.newLinkedHashMap();
+        final Map<String, AdvertisedListener> result = new LinkedHashMap<>();
+        final Map<String, Set<String>> reverseMappings = new LinkedHashMap<>();
         for (final Map.Entry<String, List<String>> entry : listeners.entrySet()) {
             if (entry.getValue().size() > 2) {
-                throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey() + "`");
+                throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey()
+                        + "`");
             }
-            URI pulsarAddress = null, pulsarSslAddress = null;
+            URI pulsarAddress = null, pulsarSslAddress = null, pulsarHttpAddress = null, pulsarHttpsAddress = null;
             for (final String strUri : entry.getValue()) {
                 try {
                     URI uri = URI.create(strUri);
@@ -87,26 +88,50 @@ public final class MultipleListenerValidator {
                         if (pulsarAddress == null) {
                             pulsarAddress = uri;
                         } else {
-                            throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey() + "`");
+                            throw new IllegalArgumentException("there are redundant configure for listener `"
+                                    + entry.getKey() + "`");
                         }
                     } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "pulsar+ssl")) {
                         if (pulsarSslAddress == null) {
                             pulsarSslAddress = uri;
                         } else {
-                            throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey() + "`");
+                            throw new IllegalArgumentException("there are redundant configure for listener `"
+                                    + entry.getKey() + "`");
+                        }
+                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "http")) {
+                        if (pulsarHttpAddress == null) {
+                            pulsarHttpAddress = uri;
+                        } else {
+                            throw new IllegalArgumentException("there are redundant configure for listener `"
+                                    + entry.getKey() + "`");
+                        }
+                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "https")) {
+                        if (pulsarHttpsAddress == null) {
+                            pulsarHttpsAddress = uri;
+                        } else {
+                            throw new IllegalArgumentException("there are redundant configure for listener `"
+                                    + entry.getKey() + "`");
                         }
                     }
+
                     String hostPort = String.format("%s:%d", uri.getHost(), uri.getPort());
-                    Set<String> sets = reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
+                    Set<String> sets = reverseMappings.computeIfAbsent(hostPort, k -> new TreeSet<>());
                     sets.add(entry.getKey());
                     if (sets.size() > 1) {
-                        throw new IllegalArgumentException("must not specify `" + hostPort + "` to different listener.");
+                        throw new IllegalArgumentException("must not specify `" + hostPort
+                                + "` to different listener.");
                     }
                 } catch (Throwable cause) {
-                    throw new IllegalArgumentException("the value " + strUri + " in the `advertisedListeners` configure is invalid");
+                    throw new IllegalArgumentException("the value " + strUri + " in the `advertisedListeners` "
+                            + "configure is invalid", cause);
                 }
             }
-            result.put(entry.getKey(), AdvertisedListener.builder().brokerServiceUrl(pulsarAddress).brokerServiceUrlTls(pulsarSslAddress).build());
+            result.put(entry.getKey(), AdvertisedListener.builder()
+                    .brokerServiceUrl(pulsarAddress)
+                    .brokerServiceUrlTls(pulsarSslAddress)
+                    .brokerHttpUrl(pulsarHttpAddress)
+                    .brokerHttpsUrl(pulsarHttpsAddress)
+                    .build());
         }
         return result;
     }

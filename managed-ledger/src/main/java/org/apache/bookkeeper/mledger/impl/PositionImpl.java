@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.base.Objects;
-import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
@@ -31,8 +28,8 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     protected long entryId;
     protected long[] ackSet;
 
-    public static final PositionImpl earliest = new PositionImpl(-1, -1);
-    public static final PositionImpl latest = new PositionImpl(Long.MAX_VALUE, Long.MAX_VALUE);
+    public static final PositionImpl EARLIEST = new PositionImpl(-1, -1);
+    public static final PositionImpl LATEST = new PositionImpl(Long.MAX_VALUE, Long.MAX_VALUE);
 
     public PositionImpl(PositionInfo pi) {
         this.ledgerId = pi.getLedgerId();
@@ -98,24 +95,58 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     }
 
     /**
+     * Position after moving entryNum messages,
+     * if entryNum < 1, then return the current position.
+     * */
+    public PositionImpl getPositionAfterEntries(int entryNum) {
+        if (entryNum < 1) {
+            return this;
+        }
+        if (entryId < 0) {
+            return PositionImpl.get(ledgerId, entryNum - 1);
+        } else {
+            return PositionImpl.get(ledgerId, entryId + entryNum);
+        }
+    }
+
+    /**
      * String representation of virtual cursor - LedgerId:EntryId.
      */
     @Override
     public String toString() {
-        return String.format("%d:%d", ledgerId, entryId);
+        return ledgerId + ":" + entryId;
     }
 
     @Override
-    public int compareTo(PositionImpl other) {
-        checkNotNull(other);
+    public int compareTo(PositionImpl that) {
+        if (this.ledgerId != that.ledgerId) {
+            return (this.ledgerId < that.ledgerId ? -1 : 1);
+        }
 
-        return ComparisonChain.start().compare(this.ledgerId, other.ledgerId).compare(this.entryId, other.entryId)
-                .result();
+        if (this.entryId != that.entryId) {
+            return (this.entryId < that.entryId ? -1 : 1);
+        }
+
+        return 0;
+    }
+
+    public int compareTo(long ledgerId, long entryId) {
+        if (this.ledgerId != ledgerId) {
+            return (this.ledgerId < ledgerId ? -1 : 1);
+        }
+
+        if (this.entryId != entryId) {
+            return (this.entryId < entryId ? -1 : 1);
+        }
+
+        return 0;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(ledgerId, entryId);
+        int result = (int) (ledgerId ^ (ledgerId >>> 32));
+        result = 31 * result + (int) (entryId ^ (entryId >>> 32));
+        return result;
     }
 
     @Override

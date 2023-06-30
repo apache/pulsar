@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,50 +22,32 @@ import com.google.gson.Gson;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
-import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarUnpacker;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.nio.file.Files;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
-import static org.mockito.ArgumentMatchers.any;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
 /**
- * Unit test of {@link Reflections}.
+ * Unit test of {@link SourceConfigUtilsTest}.
  */
-@PrepareForTest({ConnectorUtils.class, NarUnpacker.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
-public class SourceConfigUtilsTest extends PowerMockTestCase {
-
-    private ConnectorDefinition defn;
+public class SourceConfigUtilsTest {
 
     @Data
     @Accessors(chain = true)
@@ -94,7 +76,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testConvertBackFidelity() throws IOException  {
+    public void testConvertBackFidelity() {
         SourceConfig sourceConfig = createSourceConfig();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
@@ -108,7 +90,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testConvertBackFidelityWithBatch() throws IOException  {
+    public void testConvertBackFidelityWithBatch() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
@@ -230,7 +212,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
                 mergedConfig.getParallelism(),
-                new Integer(101)
+                Integer.valueOf(101)
         );
         mergedConfig.setParallelism(sourceConfig.getParallelism());
         assertEquals(
@@ -244,8 +226,8 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         SourceConfig sourceConfig = createSourceConfig();
         Resources resources = new Resources();
         resources.setCpu(0.3);
-        resources.setRam(1232l);
-        resources.setDisk(123456l);
+        resources.setRam(1232L);
+        resources.setDisk(123456L);
         SourceConfig newSourceConfig = createUpdatedSourceConfig("resources", resources);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
@@ -304,30 +286,17 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testValidateConfig() throws IOException {
-        mockStatic(ConnectorUtils.class);
-        mockStatic(NarUnpacker.class);
-        defn = new ConnectorDefinition();
-        defn.setSourceConfigClass(SourceConfigUtilsTest.TestSourceConfig.class.getName());
-        PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
-
-        File tmpdir = Files.createTempDirectory("test").toFile();
-        PowerMockito.when(NarUnpacker.unpackNar(any(), any())).thenReturn(tmpdir);
-
+    public void testValidateConfig() {
         SourceConfig sourceConfig = createSourceConfig();
-
-        NarClassLoader narClassLoader = NarClassLoader.getFromArchive(
-                tmpdir, Collections.emptySet(),
-                Thread.currentThread().getContextClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
 
         // Good config
         sourceConfig.getConfigs().put("configParameter", "Test");
-        SourceConfigUtils.validateSourceConfig(sourceConfig, narClassLoader);
+        SourceConfigUtils.validateSourceConfig(sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class);
 
         // Bad config
         sourceConfig.getConfigs().put("configParameter", null);
         Exception e = expectThrows(IllegalArgumentException.class,
-                () -> SourceConfigUtils.validateSourceConfig(sourceConfig, narClassLoader));
+                () -> SourceConfigUtils.validateSourceConfig(sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class));
         assertTrue(e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
     }
 
@@ -402,6 +371,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZSTD);
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);

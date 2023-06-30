@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,47 +19,45 @@
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.pulsar.functions.utils.FunctionCommon.mergeJson;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
+import java.util.function.Consumer;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -76,6 +74,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -87,27 +86,17 @@ import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
 import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionsApiV2Resource}.
  */
-@PrepareForTest({WorkerUtils.class, InstanceUtils.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.functions.api.*" })
 public class FunctionApiV2ResourceTest {
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     private static final class TestFunction implements Function<String, String> {
 
@@ -126,7 +115,7 @@ public class FunctionApiV2ResourceTest {
     private SubscriptionType subscriptionType = SubscriptionType.FAILOVER;
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", TopicSchema.DEFAULT_SERDE);
+        topicsToSerDeClassName.put("persistent://public/default/test_src", TopicSchema.DEFAULT_SERDE);
     }
     private static final int parallelism = 1;
 
@@ -147,6 +136,7 @@ public class FunctionApiV2ResourceTest {
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
+    private static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -196,9 +186,6 @@ public class FunctionApiV2ResourceTest {
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
 
-        mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
-
         this.resource = spy(new FunctionsImplV2(functions));
 
     }
@@ -208,6 +195,36 @@ public class FunctionApiV2ResourceTest {
         if (tempDirectory != null) {
             tempDirectory.delete();
         }
+        mockStaticContexts.values().forEach(MockedStatic::close);
+        mockStaticContexts.clear();
+    }
+
+    private <T> void mockStatic(Class<T> classStatic, Consumer<MockedStatic<T>> consumer) {
+        final MockedStatic<T> mockedStatic =
+                mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
+        consumer.accept(mockedStatic);
+    }
+
+    private void mockWorkerUtils() {
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+        });
+    }
+
+    private void mockWorkerUtils(Consumer<MockedStatic<WorkerUtils>> consumer) {
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            if (consumer != null) {
+                consumer.accept(ctx);
+            }
+        });
+    }
+
+    private void mockInstanceUtils() {
+        mockStatic(InstanceUtils.class, ctx -> {
+            ctx.when(() -> InstanceUtils.calculateSubjectType(any()))
+                    .thenReturn(FunctionDetails.ComponentType.FUNCTION);
+        });
     }
 
     //
@@ -229,7 +246,7 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -250,7 +267,7 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -271,13 +288,13 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function package is not provided")
     public void testRegisterFunctionMissingPackage() {
         try {
             testRegisterFunctionMissingArguments(
@@ -292,7 +309,7 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -313,7 +330,7 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -334,13 +351,15 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function package does not have"
+            + " the correct format. Pulsar cannot determine if the package is a NAR package or JAR package. Function "
+            + "classname is not provided and attempts to load it as a NAR package produced the following error.*")
     public void testRegisterFunctionMissingClassName() {
         try {
             testRegisterFunctionMissingArguments(
@@ -355,7 +374,7 @@ public class FunctionApiV2ResourceTest {
                     null,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -376,7 +395,7 @@ public class FunctionApiV2ResourceTest {
                     "UnknownClass",
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -397,14 +416,14 @@ public class FunctionApiV2ResourceTest {
                     className,
                     -2,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
     }
 
     @Test(expectedExceptions = RestException.class,
-            expectedExceptionsMessageRegExp = "Output topic persistent://sample/standalone/ns1/test_src is also being used as an input topic \\(topics must be one or the other\\)")
+            expectedExceptionsMessageRegExp = "Output topic persistent://public/default/test_src is also being used as an input topic \\(topics must be one or the other\\)")
     public void testRegisterFunctionSameInputOutput() {
         try {
             testRegisterFunctionMissingArguments(
@@ -419,13 +438,14 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + function + "-output-topic/test:" + " is invalid")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + function +
+            "-output-topic/test:" + " is invalid")
     public void testRegisterFunctionWrongOutputTopic() {
         try {
             testRegisterFunctionMissingArguments(
@@ -440,7 +460,7 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     null);
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -461,7 +481,7 @@ public class FunctionApiV2ResourceTest {
                     className,
                     parallelism,
                     "http://localhost:1234/test");
-        } catch (RestException re){
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -506,17 +526,13 @@ public class FunctionApiV2ResourceTest {
         }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
-        mockStatic(WorkerUtils.class);
-
-        try {
-            WorkerUtils.uploadFileToBookkeeper(
+        mockWorkerUtils(ctx -> {
+            ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+                    any(Namespace.class)))
+                    .thenCallRealMethod();
+        });
 
         try {
             resource.registerFunction(
@@ -526,8 +542,8 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     functionPkgUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -544,8 +560,8 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -567,14 +583,13 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
-
-            WorkerUtils.uploadFileToBookkeeper(
-                    anyString(),
-                    any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils(ctx -> {
+                ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                                anyString(),
+                                any(File.class),
+                                any(Namespace.class)))
+                        .thenThrow(new IOException("upload failure"));
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -588,17 +603,29 @@ public class FunctionApiV2ResourceTest {
     @Test
     public void testRegisterFunctionSuccess() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            try (MockedStatic mocked = Mockito.mockStatic(WorkerUtils.class)) {
+                mocked.when(() -> WorkerUtils.uploadToBookKeeper(
+                        any(Namespace.class),
+                        any(InputStream.class),
+                        anyString())).thenAnswer((i) -> null);
+                mocked.when(() -> WorkerUtils.dumpToTmpFile(any())).thenAnswer(i ->
+                        {
+                            try {
+                                File tmpFile = FunctionCommon.createPkgTempFile();
+                                tmpFile.deleteOnExit();
+                                Files.copy((InputStream) i.getArguments()[0], tmpFile.toPath(), REPLACE_EXISTING);
+                                return tmpFile;
+                            } catch (IOException e) {
+                                throw new RuntimeException("Cannot create a temporary file", e);
+                            }
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+                        }
+                );
+                WorkerUtils.uploadToBookKeeper(null, null, null);
+                when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            registerDefaultFunction();
+                registerDefaultFunction();
+            }
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -630,13 +657,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testRegisterFunctionFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
             doThrow(new IllegalArgumentException("function failed to register"))
@@ -649,16 +670,12 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
+
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -741,10 +758,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingPackage() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
             testUpdateFunctionMissingArguments(
                     tenant,
                     namespace,
@@ -766,10 +780,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingInputTopic() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -792,10 +803,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingClassName() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -818,10 +826,7 @@ public class FunctionApiV2ResourceTest {
     @Test
     public void testUpdateFunctionChangedParallelism() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -843,10 +848,7 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testUpdateFunctionChangedInputs() throws Exception {
-        mockStatic(WorkerUtils.class);
-        doNothing().when(WorkerUtils.class);
-        WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+        mockWorkerUtils();
 
         testUpdateFunctionMissingArguments(
                 tenant,
@@ -865,10 +867,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateFunctionChangedOutput() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             Map<String, String> someOtherInput = new HashMap<>();
             someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
@@ -944,8 +943,8 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -972,8 +971,8 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -993,13 +992,13 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
-            WorkerUtils.uploadFileToBookkeeper(
-                    anyString(),
-                    any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils(ctx -> {
+                ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                        anyString(),
+                        any(File.class),
+                        any(Namespace.class)))
+                        .thenThrow(new IOException("upload failure"));
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1012,13 +1011,7 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testUpdateFunctionSuccess() throws Exception {
-        mockStatic(WorkerUtils.class);
-        doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadToBookeeper(
-                any(Namespace.class),
-                any(InputStream.class),
-                anyString());
-        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+        mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1055,8 +1048,8 @@ public class FunctionApiV2ResourceTest {
                     null,
                     null,
                     filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -1066,13 +1059,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1089,16 +1076,7 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
-
-
+            mockWorkerUtils();
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
             doThrow(new IllegalStateException("Function registeration interrupted"))
@@ -1167,7 +1145,7 @@ public class FunctionApiV2ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null);
+                AuthenticationParameters.builder().build());
     }
 
     private void deregisterDefaultFunction() {
@@ -1175,7 +1153,7 @@ public class FunctionApiV2ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null);
+                AuthenticationParameters.builder().build());
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1220,8 +1198,7 @@ public class FunctionApiV2ResourceTest {
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), anyBoolean());
 
             deregisterDefaultFunction();
-        }
-        catch (RestException re) {
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
         }
@@ -1239,8 +1216,7 @@ public class FunctionApiV2ResourceTest {
                     namespace,
                     function
             );
-        }
-        catch (RestException re) {
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -1254,8 +1230,7 @@ public class FunctionApiV2ResourceTest {
                     null,
                     function
             );
-        }
-        catch (RestException re) {
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -1269,8 +1244,7 @@ public class FunctionApiV2ResourceTest {
                     namespace,
                     null
             );
-        }
-        catch (RestException re) {
+        } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
         }
@@ -1284,7 +1258,8 @@ public class FunctionApiV2ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                function, null
+                function,
+                AuthenticationParameters.builder().build()
         );
 
     }
@@ -1293,7 +1268,8 @@ public class FunctionApiV2ResourceTest {
         String json = (String) resource.getFunctionInfo(
                 tenant,
                 namespace,
-                function, null
+                function,
+                AuthenticationParameters.builder().build()
         ).getEntity();
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         mergeJson(json, functionDetailsBuilder);
@@ -1313,6 +1289,7 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testGetFunctionSuccess() throws IOException {
+        mockInstanceUtils();
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SinkSpec sinkSpec = SinkSpec.newBuilder()
@@ -1324,6 +1301,7 @@ public class FunctionApiV2ResourceTest {
                 .setName(function)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .setAutoAck(true)
                 .setTenant(tenant)
                 .setParallelism(parallelism)
                 .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
@@ -1378,7 +1356,8 @@ public class FunctionApiV2ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null
+                namespace,
+                AuthenticationParameters.builder().build()
         );
 
     }
@@ -1386,12 +1365,14 @@ public class FunctionApiV2ResourceTest {
     private List<String> listDefaultFunctions() {
         return new Gson().fromJson((String) resource.listFunctions(
                 tenant,
-                namespace, null
+                namespace,
+                AuthenticationParameters.builder().build()
         ).getEntity(), List.class);
     }
 
     @Test
     public void testListFunctionsSuccess() {
+        mockInstanceUtils();
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> metaDataList = new LinkedList<>();
         FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1410,10 +1391,12 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testDownloadFunctionHttpUrl() throws Exception {
-        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
+        String jarHttpUrl =
+                "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
-        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction(jarHttpUrl, null).getEntity();
+        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction(jarHttpUrl,
+                AuthenticationParameters.builder().build()).getEntity();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1430,7 +1413,8 @@ public class FunctionApiV2ResourceTest {
         String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
-        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file:///" + fileLocation, null).getEntity();
+        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file:///" + fileLocation,
+                        AuthenticationParameters.builder().build()).getEntity();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1462,7 +1446,8 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         try {
             resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
            throw new RuntimeException(e);
         }
@@ -1496,7 +1481,8 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         try {
             resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -1518,6 +1504,6 @@ public class FunctionApiV2ResourceTest {
 
     public static FunctionDetails createDefaultFunctionDetails() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        return FunctionConfigUtils.convert(functionConfig, null);
+        return FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
     }
 }

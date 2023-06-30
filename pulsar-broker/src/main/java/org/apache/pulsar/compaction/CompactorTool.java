@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,25 +25,27 @@ import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +53,7 @@ public class CompactorTool {
 
     private static class Arguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
-        private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
+        private String brokerConfigFile = "conf/broker.conf";
 
         @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
@@ -63,6 +65,46 @@ public class CompactorTool {
         private boolean generateDocs = false;
     }
 
+    public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .memoryLimit(0, SizeUnit.BYTES);
+
+        // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+        // @Secret on the ClientConfigurationData object because of the way they are serialized.
+        // See https://github.com/apache/pulsar/issues/8509 for more information.
+        clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(brokerConfig.getProperties(), "brokerClient_"));
+
+        if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
+            clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
+                    brokerConfig.getBrokerClientAuthenticationParameters());
+        }
+
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
+        if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
+            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
+                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
+            if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
+                clientBuilder.useKeyStoreTls(true)
+                        .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
+                        .tlsKeyStorePath(brokerConfig.getBrokerClientTlsKeyStore())
+                        .tlsKeyStorePassword(brokerConfig.getBrokerClientTlsKeyStorePassword())
+                        .tlsTrustStoreType(brokerConfig.getBrokerClientTlsTrustStoreType())
+                        .tlsTrustStorePath(brokerConfig.getBrokerClientTlsTrustStore())
+                        .tlsTrustStorePassword(brokerConfig.getBrokerClientTlsTrustStorePassword());
+            } else {
+                clientBuilder.tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
+                        .tlsKeyFilePath(brokerConfig.getBrokerClientKeyFilePath())
+                        .tlsCertificateFilePath(brokerConfig.getBrokerClientCertificateFilePath());
+            }
+        } else {
+            internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
+            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
+        }
+
+        return clientBuilder.build();
+    }
+
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander(arguments);
@@ -72,83 +114,64 @@ public class CompactorTool {
         jcommander.parse(args);
         if (arguments.help) {
             jcommander.usage();
-            System.exit(-1);
+            System.exit(0);
         }
 
         if (arguments.generateDocs) {
             CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
             cmd.addCommand("compact-topic", arguments);
             cmd.run(null);
-            System.exit(-1);
+            System.exit(0);
         }
 
         // init broker config
-        ServiceConfiguration brokerConfig;
         if (isBlank(arguments.brokerConfigFile)) {
             jcommander.usage();
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
-        } else {
-            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
-            brokerConfig = PulsarConfigurationLoader.create(
-                    arguments.brokerConfigFile, ServiceConfiguration.class);
         }
 
+        final String filepath = Path.of(arguments.brokerConfigFile).toAbsolutePath().normalize().toString();
+        log.info(String.format("read configuration file %s", filepath));
+        final ServiceConfiguration brokerConfig =
+                PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
 
-        if (isBlank(brokerConfig.getZookeeperServers())) {
-            throw new IllegalArgumentException(
-                    String.format("Need to specify `zookeeperServers` in configuration file \n"
-                                    + "or specify configuration file path from command line.\n"
-                                    + "now configuration file path is=[%s]\n",
-                            arguments.brokerConfigFile)
-            );
+
+        if (isBlank(brokerConfig.getMetadataStoreUrl())) {
+            final String message = String.format("""
+                    Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file
+                    or specify configuration file path from command line.
+                    now configuration file path is=[%s]
+                    """, filepath);
+            throw new IllegalArgumentException(message);
         }
 
-        ClientBuilder clientBuilder = PulsarClient.builder();
-
-        if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
-            clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
-                    brokerConfig.getBrokerClientAuthenticationParameters());
-        }
-
-        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig);
-        if (internalListener.getBrokerServiceUrlTls() != null) {
-            log.info("Found a TLS-based advertised listener in configuration file. \n"
-                    + "Will connect pulsar use TLS.");
-            clientBuilder
-                    .serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
-                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
-
-        } else {
-            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
-        }
-
+        @Cleanup(value = "shutdownNow")
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
 
-        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
-        ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl(executor);
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis((int) brokerConfig.getMetadataStoreSessionTimeoutMillis())
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .build());
 
-        ZooKeeper zk = zkClientFactory.create(brokerConfig.getZookeeperServers(),
-                ZooKeeperClientFactory.SessionType.ReadWrite,
-                (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
+        @Cleanup
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
 
+        @Cleanup(value = "shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
                 new DefaultThreadFactory("compactor-io"));
-        BookKeeper bk = bkClientFactory.create(brokerConfig, zk, eventLoopGroup, Optional.empty(), null);
-        try (PulsarClient pulsar = clientBuilder.build()) {
-            Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
-            long ledgerId = compactor.compact(arguments.topic).get();
-            log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
-        } finally {
-            bk.close();
-            bkClientFactory.close();
-            zk.close();
-            scheduler.shutdownNow();
-            executor.shutdown();
-            eventLoopGroup.shutdownGracefully();
-        }
+
+        @Cleanup
+        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+
+        @Cleanup
+        PulsarClient pulsar = createClient(brokerConfig);
+
+        Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        long ledgerId = compactor.compact(arguments.topic).get();
+        log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
     }
 
     private static final Logger log = LoggerFactory.getLogger(CompactorTool.class);

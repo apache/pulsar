@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,24 +30,32 @@ import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
+import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +64,17 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarClusterMetadataSetup {
 
+    private static final int DEFAULT_BUNDLE_NUMBER = 16;
+
     private static class Arguments {
         @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
         private String cluster;
+
+        @Parameter(names = {"-bn",
+                "--default-namespace-bundle-number"},
+                description = "The bundle numbers for the default namespaces(public/default), default is 16",
+                required = false)
+        private int numberOfDefaultNamespaceBundles;
 
         @Parameter(names = { "-uw",
                 "--web-service-url" }, description = "Web-service URL for new cluster", required = true)
@@ -79,8 +95,15 @@ public class PulsarClusterMetadataSetup {
         private String clusterBrokerServiceUrlTls;
 
         @Parameter(names = { "-zk",
-                "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
+                "--zookeeper" }, description = "Local ZooKeeper quorum connection string",
+                required = false,
+                hidden = true
+                )
         private String zookeeper;
+
+        @Parameter(names = { "-md",
+                "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181", required = false)
+        private String metadataStoreUrl;
 
         @Parameter(names = {
             "--zookeeper-session-timeout-ms"
@@ -92,9 +115,14 @@ public class PulsarClusterMetadataSetup {
                 description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
 
-        @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = true)
+        @Parameter(names = {"-cs",
+                "--configuration-store"}, description = "Configuration Store connection string", hidden = true)
         private String configurationStore;
+
+        @Parameter(names = {"-cms",
+                "--configuration-metadata-store"}, description = "Configuration Metadata Store connection string",
+                hidden = false)
+        private String configurationMetadataStore;
 
         @Parameter(names = {
             "--initial-num-stream-storage-containers"
@@ -119,6 +147,16 @@ public class PulsarClusterMetadataSetup {
             description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
             hidden = true)
         private String bookieMetadataServiceUri;
+
+        @Parameter(names = { "-pp",
+                "--proxy-protocol" },
+                description = "Proxy protocol to select type of routing at proxy. Possible Values: [SNI]",
+                required = false)
+        private ProxyProtocol clusterProxyProtocol;
+
+        @Parameter(names = { "-pu",
+                "--proxy-url" }, description = "Proxy-server URL to which to connect.", required = false)
+        private String clusterProxyUrl;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -155,6 +193,9 @@ public class PulsarClusterMetadataSetup {
     }
 
     public static void main(String[] args) throws Exception {
+        System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
+        System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
+
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander();
         try {
@@ -175,66 +216,101 @@ public class PulsarClusterMetadataSetup {
             throw e;
         }
 
-        if (arguments.configurationStore == null && arguments.globalZookeeper == null) {
-            System.err.println("Configuration store address argument is required (--configuration-store)");
+        if (arguments.metadataStoreUrl == null && arguments.zookeeper == null) {
+            System.err.println("Metadata store address argument is required (--metadata-store)");
             jcommander.usage();
             System.exit(1);
         }
 
-        if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
-            System.err.println("Configuration store argument (--configuration-store) "
-                    + "supersedes the deprecated (--global-zookeeper) argument");
+        if (arguments.configurationMetadataStore == null && arguments.configurationStore == null
+                && arguments.globalZookeeper == null) {
+            System.err.println(
+                    "Configuration metadata store address argument is required (--configuration-metadata-store)");
             jcommander.usage();
             System.exit(1);
         }
 
-        if (arguments.configurationStore == null) {
-            arguments.configurationStore = arguments.globalZookeeper;
+        if (arguments.configurationMetadataStore != null && (arguments.configurationStore != null
+                || arguments.globalZookeeper != null)) {
+            System.err.println("Configuration metadata store argument (--configuration-metadata-store) "
+                    + "supersedes the deprecated (--global-zookeeper and --configuration-store) argument");
+            jcommander.usage();
+            System.exit(1);
+        }
+
+        if (arguments.configurationMetadataStore == null) {
+            arguments.configurationMetadataStore = arguments.configurationStore == null ? arguments.globalZookeeper :
+                    arguments.configurationStore;
+        }
+
+        if (arguments.metadataStoreUrl == null) {
+            arguments.metadataStoreUrl = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + arguments.zookeeper;
         }
 
         if (arguments.numTransactionCoordinators <= 0) {
             System.err.println("Number of transaction coordinators must greater than 0");
             System.exit(1);
         }
+        int bundleNumberForDefaultNamespace =
+                arguments.numberOfDefaultNamespaceBundles > 0 ? arguments.numberOfDefaultNamespaceBundles
+                        : DEFAULT_BUNDLE_NUMBER;
+        try {
+            initializeCluster(arguments, bundleNumberForDefaultNamespace);
+        } catch (Exception e) {
+            System.err.println("Unexpected error occured.");
+            e.printStackTrace(System.err);
+            System.err.println("Terminating JVM...");
+            ShutdownUtil.triggerImmediateForcefulShutdown();
+        }
+    }
 
-        log.info("Setting up cluster {} with zk={} configuration-store={}", arguments.cluster, arguments.zookeeper,
-                arguments.configurationStore);
+    private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace) throws Exception {
+        log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
+                arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
-        MetadataStoreExtended localStore = initMetadataStore(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
-        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationStore,
+        MetadataStoreExtended localStore =
+                initLocalMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
                 arguments.zkSessionTimeoutMillis);
 
+        final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
+                .removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
         // Format BookKeeper ledger storage metadata
-        ServerConfiguration bkConf = new ServerConfiguration();
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
-            bkConf.setZkServers(arguments.zookeeper);
+            ServerConfiguration bkConf = new ServerConfiguration();
+            bkConf.setDelimiterParsingDisabled(true);
+            bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-            if (!localStore.exists("/ledgers").get() // only format if /ledgers doesn't exist
+            // only format if /ledgers doesn't exist
+            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get()
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
         }
 
+        if (localStore instanceof ZKMetadataStore && configStore instanceof ZKMetadataStore) {
+            String uriStr;
+            if (arguments.existingBkMetadataServiceUri != null) {
+                uriStr = arguments.existingBkMetadataServiceUri;
+            } else if (arguments.bookieMetadataServiceUri != null) {
+                uriStr = arguments.bookieMetadataServiceUri;
+            } else {
+                uriStr = "zk+null://" + metadataStoreUrlNoIdentifer + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+            }
 
-        String uriStr = bkConf.getMetadataServiceUri();
-        if (arguments.existingBkMetadataServiceUri != null) {
-            uriStr = arguments.existingBkMetadataServiceUri;
-        } else if (arguments.bookieMetadataServiceUri != null) {
-            uriStr = arguments.bookieMetadataServiceUri;
+            // initial distributed log metadata
+            initialDlogNamespaceMetadata(arguments.configurationMetadataStore, uriStr);
+
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
+            // Format BookKeeper stream storage metadata
+            if (arguments.numStreamStorageContainers > 0) {
+                ClusterInitializer initializer = new ZkClusterInitializer(metadataStoreUrlNoIdentifer);
+                initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
+            }
         }
-        ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
 
-        // initial distributed log metadata
-        initialDlogNamespaceMetadata(arguments.configurationStore, uriStr);
-
-        // Format BookKeeper stream storage metadata
-        if (arguments.numStreamStorageContainers > 0) {
-            ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
-            initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
-        }
-
-        if (!localStore.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get()) {
-            createMetadataNode(localStore, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes());
+        if (!localStore.exists(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get()) {
+            createMetadataNode(localStore, BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes());
         }
 
         PulsarResources resources = new PulsarResources(localStore, configStore);
@@ -244,6 +320,8 @@ public class PulsarClusterMetadataSetup {
                 .serviceUrlTls(arguments.clusterWebServiceUrlTls)
                 .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
                 .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
+                .proxyServiceUrl(arguments.clusterProxyUrl)
+                .proxyProtocol(arguments.clusterProxyProtocol)
                 .build();
         if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
@@ -255,7 +333,7 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster("global", globalClusterData);
         }
 
-        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
         // Create system tenant
@@ -263,13 +341,13 @@ public class PulsarClusterMetadataSetup {
 
         // Create default namespace
         createNamespaceIfAbsent(resources, NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
-                arguments.cluster);
+                arguments.cluster, bundleNumberForDefaultNamespace);
 
         // Create system namespace
         createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
 
         // Create transaction coordinator assign partitioned topic
-        createPartitionedTopic(configStore, TopicName.TRANSACTION_COORDINATOR_ASSIGN,
+        createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
 
         localStore.close();
@@ -295,22 +373,37 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName, String cluster)
-            throws IOException {
+    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+            String cluster, int bundleNumber) throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 
         if (!namespaceResources.namespaceExists(namespaceName)) {
             Policies policies = new Policies();
-            policies.bundles = getBundles(16);
+            policies.bundles = getBundles(bundleNumber);
             policies.replication_clusters = Collections.singleton(cluster);
 
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
-            namespaceResources.setPolicies(namespaceName, policies -> {
-                policies.replication_clusters.add(cluster);
-                return policies;
-            });
+            log.info("Namespace {} already exists.", namespaceName);
+            var replicaClusterFound = false;
+            var policiesOptional = namespaceResources.getPolicies(namespaceName);
+            if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
+                replicaClusterFound = true;
+            }
+            if (!replicaClusterFound) {
+                namespaceResources.setPolicies(namespaceName, policies -> {
+                    policies.replication_clusters.add(cluster);
+                    return policies;
+                });
+                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
+                        namespaceName, cluster);
+            }
         }
+    }
+
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster) throws IOException {
+        createNamespaceIfAbsent(resources, namespaceName, cluster, DEFAULT_BUNDLE_NUMBER);
     }
 
     static void createPartitionedTopic(MetadataStore configStore, TopicName topicName, int numPartitions)
@@ -334,9 +427,22 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    public static MetadataStoreExtended initMetadataStore(String connection, int sessionTimeout) throws Exception {
+    public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                .build());
+        if (store instanceof MetadataStoreLifecycle) {
+            ((MetadataStoreLifecycle) store).initializeCluster().get();
+        }
+        return store;
+    }
+
+    public static MetadataStoreExtended initConfigMetadataStore(String connection, int sessionTimeout)
+            throws Exception {
+        MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(sessionTimeout)
+                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
             ((MetadataStoreLifecycle) store).initializeCluster().get();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ public class WebSocketProducerServlet extends WebSocketServlet {
         if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
             factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
         }
-        factory.setCreator((request, response) -> new ProducerHandler(service, request.getHttpServletRequest(), response));
+        factory.setCreator((request, response) ->
+                new ProducerHandler(service, request.getHttpServletRequest(), response));
     }
 }

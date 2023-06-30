@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,11 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,11 +38,17 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     public void baseSetup() throws Exception {
         super.internalSetup();
         baseSetupCommon();
+        afterSetup();
     }
 
     public void baseSetup(ServiceConfiguration serviceConfiguration) throws Exception {
         super.internalSetup(serviceConfiguration);
         baseSetupCommon();
+        afterSetup();
+    }
+
+    protected void afterSetup() throws Exception {
+        // NOP
     }
 
     private void baseSetupCommon() throws Exception {
@@ -51,6 +59,18 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
     }
 
+    protected void createTransactionCoordinatorAssign() throws MetadataStoreException {
+        createTransactionCoordinatorAssign(1);
+    }
+
+    protected void createTransactionCoordinatorAssign(int partitions) throws MetadataStoreException {
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(partitions));
+    }
+
     void rolloverPerIntervalStats() {
         try {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
@@ -59,7 +79,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         }
     }
 
-    void runGC() {
+    protected void runGC() {
         try {
             pulsar.getBrokerService().forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ public interface Source<T> extends AutoCloseable {
      * @param sourceContext environment where the source connector is running
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
+    void open(Map<String, Object> config, SourceContext sourceContext) throws Exception;
 
     /**
      * Reads the next message from source.

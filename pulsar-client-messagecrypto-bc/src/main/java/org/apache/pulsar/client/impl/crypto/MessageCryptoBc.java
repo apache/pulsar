@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.crypto;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -36,6 +35,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +44,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -54,9 +53,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -77,6 +74,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
+import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -108,7 +106,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // Map of key name and encrypted gcm key, metadata pair which is sent with encrypted message
     private ConcurrentHashMap<String, EncryptionKeyInfo> encryptedDataKeyMap;
 
-    static final SecureRandom secureRandom;
+
+    private static final SecureRandom secureRandom;
     static {
         SecureRandom rand = null;
         try {
@@ -156,8 +155,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             keyGenerator = KeyGenerator.getInstance("AES");
             int aesKeyLength = Cipher.getMaxAllowedKeyLength("AES");
             if (aesKeyLength <= 128) {
-                log.warn(
-                        "{} AES Cryptographic strength is limited to {} bits. Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
+                log.warn("{} AES Cryptographic strength is limited to {} bits. "
+                        + "Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
                         logCtx, aesKeyLength);
                 keyGenerator.init(aesKeyLength, secureRandom);
             } else {
@@ -175,6 +174,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         dataKey = keyGenerator.generateKey();
 
         iv = new byte[IV_LEN];
+
     }
 
     private PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
@@ -325,27 +325,39 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         byte[] encryptedKey;
 
         try {
-
+            AlgorithmParameterSpec params = null;
             // Encrypt data key using public key
             if (RSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
             } else if (ECDSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                params = createIESParameterSpec();
             } else {
                 String msg = logCtx + "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
                 log.error(msg);
                 throw new PulsarClientException.CryptoException(msg);
             }
-            dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
+            if (params != null) {
+                dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey, params);
+            } else {
+                dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
+            }
             encryptedKey = dataKeyCipher.doFinal(dataKey.getEncoded());
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException e) {
+                 | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
         encryptedDataKeyMap.put(keyName, eki);
+    }
+
+    // required since Bouncycastle 1.72 when using ECIES, it is required to pass in an IESParameterSpec
+    private IESParameterSpec createIESParameterSpec() {
+        // the IESParameterSpec to use was discovered by debugging BouncyCastle 1.69 and running the
+        // test org.apache.pulsar.client.api.SimpleProducerConsumerTest#testCryptoWithChunking
+        return new IESParameterSpec(null, null, 128);
     }
 
     /*
@@ -389,6 +401,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             return;
         }
 
+        msgMetadata.clearEncryptionKeys();
         // Update message metadata with encrypted data key
         for (String keyName : encKeys) {
             if (encryptedDataKeyMap.get(keyName) == null) {
@@ -476,23 +489,28 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         byte[] keyDigest = null;
 
         try {
-
+            AlgorithmParameterSpec params = null;
             // Decrypt data key using private key
             if (RSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
             } else if (ECDSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                params = createIESParameterSpec();
             } else {
                 log.error("Unsupported key type {} for key {}.", privateKey.getAlgorithm(), keyName);
                 return false;
             }
-            dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            if (params != null) {
+                dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey, params);
+            } else {
+                dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            }
             dataKeyValue = dataKeyCipher.doFinal(encryptedDataKey);
 
             keyDigest = digest.digest(encryptedDataKey);
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException e) {
+                | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return false;
         }

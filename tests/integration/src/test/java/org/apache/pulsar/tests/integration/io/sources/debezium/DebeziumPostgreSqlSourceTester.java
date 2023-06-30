@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,16 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
-
-import java.io.Closeable;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A tester for testing Debezium Postgresql source.
@@ -45,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * which is a Postgresql database server preconfigured with an inventory database.
  */
 @Slf4j
-public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgreSqlContainer> implements Closeable {
+public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgreSqlContainer> {
 
     private static final String NAME = "debezium-postgres";
 
@@ -143,7 +137,7 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
             String lastConfirmedFlushLsn = res.getStdout();
             log.info("Current confirmedFlushLsn: \n{} \nLast confirmedFlushLsn: \n{}",
                     confirmedFlushLsn.get(), lastConfirmedFlushLsn);
-            org.junit.Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
+            Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
             confirmedFlushLsn.set(lastConfirmedFlushLsn);
         } catch (Exception e) {
             Assert.fail("failed to get flush lsn", e);
@@ -159,7 +153,10 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            PulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
+            if (debeziumPostgresqlContainer != null) {
+                PulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
+                debeziumPostgresqlContainer = null;
+            }
         }
     }
 

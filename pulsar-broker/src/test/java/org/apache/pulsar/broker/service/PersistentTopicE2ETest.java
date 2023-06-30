@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -25,6 +26,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.socket.SocketChannel;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -39,14 +43,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -74,6 +82,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -93,10 +102,28 @@ import org.testng.annotations.Test;
 public class PersistentTopicE2ETest extends BrokerTestBase {
     private final List<AutoCloseable> closeables = new ArrayList<>();
 
+    private AtomicInteger activeCount;
+
+    private AtomicInteger inactiveCount;
+
+    @DataProvider(name = "topic")
+    public Object[][] isPersistent() {
+        return new Object[][] { { true }, { false } };
+    }
+
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        this.activeCount = new AtomicInteger();
+        this.inactiveCount = new AtomicInteger();
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         super.baseSetup();
+    }
+
+    @Override
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory(PulsarChannelInitializerForTest::new);
+        return brokerService;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -111,6 +138,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
         closeables.clear();
         super.internalCleanup();
+        this.activeCount = null;
+        this.inactiveCount = null;
     }
 
     @Test
@@ -309,7 +338,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
         Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
         cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = (EntryCache) cacheField.get(ledger);
 
         /************* Validation on non-empty active-cursor **************/
         // (4) Get ActiveCursor : which is list of active subscription
@@ -354,7 +383,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
                     Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                             .receiverQueueSize(recvQueueSize).subscribe();
-                    for (int i = 0; i < recvQueueSize / numConsumersThreads; i++) {
+                    for (int j = 0; j < recvQueueSize / numConsumersThreads; j++) {
                         Message<byte[]> msg = consumer.receive();
                         consumer.acknowledge(msg);
                     }
@@ -617,8 +646,27 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
-    }
 
+        // write again, the topic will be available
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName).create();
+        producer2.close();
+
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        // 6. Test for partitioned topic to delete the partitioned metadata
+        String topicGc = "persistent://prop/ns-abc/topic-gc";
+        int partitions = 5;
+        admin.topics().createPartitionedTopic(topicGc, partitions);
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicGc).create();
+        producer3.close();
+        assertEquals(partitions, pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
+                TopicName.get(topicGc)).join().partitions);
+        runGC();
+        Awaitility.await().untilAsserted(()-> {
+            assertEquals(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
+                    TopicName.get(topicGc)).join().partitions, 0);
+        });
+    }
     @Data
     @ToString
     @EqualsAndHashCode
@@ -937,7 +985,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         admin.topics().deleteSubscription(topicName, subName);
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceWithRetry(namespaceName, false);
     }
 
     @Test
@@ -947,8 +995,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String namespaceName = "prop/expiry-check-2";
 
         cleanup();
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setForceDeleteNamespaceAllowed(true);
         setup();
 
@@ -1031,7 +1077,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.close();
             admin.topics().deleteSubscription(topicName, subName);
             admin.topics().delete(topicName);
-            admin.namespaces().deleteNamespace(namespaceName, true);
+            deleteNamespaceWithRetry(namespaceName, true);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 500);
         }
@@ -1268,7 +1314,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             .create();
 
         // 2. Stop broker
-        super.internalCleanup();
+        cleanup();
 
         // 2. producer publish messages
         long startTime = System.nanoTime();
@@ -1315,7 +1361,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             .create();
 
         // 2. Stop broker
-        super.internalCleanup();
+        cleanup();
 
         // 2. producer publish messages
         long startTime = System.nanoTime();
@@ -1469,9 +1515,17 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(msgInRate > 0);
     }
 
-    @Test(groups = "quarantine")
+    /**
+     * There is detailed info about this test.
+     * see: https://github.com/apache/pulsar/issues/10150#issuecomment-1112380074
+     */
+    @Test
     public void testBrokerConnectionStats() throws Exception {
 
+        cleanup();
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
+        setup();
         BrokerService brokerService = this.pulsar.getBrokerService();
 
         final String namespace = "prop/ns-abc";
@@ -1479,6 +1533,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .topic("persistent://" + namespace + "/topic0")
                 .create();
         Map<String, Object> map = null;
+
+        Awaitility.await().until(() -> this.activeCount.get() == 1);
 
         brokerService.updateRates();
         List<Metrics> metrics = brokerService.getTopicMetrics();
@@ -1498,27 +1554,23 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         producer.close();
         pulsarClient.close();
 
-        Awaitility.await().until(() -> {
-            brokerService.updateRates();
-            List<Metrics> closeMetrics = brokerService.getTopicMetrics();
-            Map<String, Object> closeMap = null;
-            for (int i = 0; i < closeMetrics.size(); i++) {
-                if (closeMetrics.get(i).getDimensions().containsValue("broker_connection")) {
-                    closeMap = closeMetrics.get(i).getMetrics();
-                    break;
-                }
-            }
+        Awaitility.await().until(() -> this.inactiveCount.get() == 1);
 
-            if (closeMap != null && (long) closeMap.get("brk_connection_created_total_count") == 1
-                    && (long) closeMap.get("brk_active_connections") == 0
-                    && (long) closeMap.get("brk_connection_closed_total_count") == 1
-                    && (long) closeMap.get("brk_connection_create_fail_count") == 0
-                    && (long) closeMap.get("brk_connection_create_success_count") == 1) {
-                return true;
-            } else {
-                return false;
+        map = null;
+        brokerService.updateRates();
+        metrics = brokerService.getTopicMetrics();
+        for (int i = 0; i < metrics.size(); i++) {
+            if (metrics.get(i).getDimensions().containsValue("broker_connection")) {
+                map = metrics.get(i).getMetrics();
+                break;
             }
-        });
+        }
+        assertNotNull(map);
+        assertEquals((long) map.get("brk_connection_created_total_count"), 1);
+        assertEquals((long) map.get("brk_active_connections"), 0);
+        assertEquals((long) map.get("brk_connection_closed_total_count"), 1);
+        assertEquals((long) map.get("brk_connection_create_success_count"), 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count"), 0);
 
         pulsar.getConfiguration().setAuthenticationEnabled(true);
         if (pulsarClient != null) {
@@ -1536,6 +1588,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             assertTrue(e instanceof PulsarClientException.AuthenticationException);
         }
 
+        Awaitility.await().until(() -> this.inactiveCount.get() == 2);
+
+        map = null;
         brokerService.updateRates();
         metrics = brokerService.getTopicMetrics();
         for (int i = 0; i < metrics.size(); i++) {
@@ -1547,9 +1602,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(map);
         assertEquals((long) map.get("brk_connection_created_total_count"), 2);
         assertEquals((long) map.get("brk_active_connections"), 0);
-        assertEquals((long) map.get("brk_connection_closed_total_count") , 2);
+        assertEquals((long) map.get("brk_connection_closed_total_count"), 2);
         assertEquals((long) map.get("brk_connection_create_success_count"), 1);
-        assertEquals((long) map.get("brk_connection_create_fail_count") , 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count"), 1);
     }
 
     @Test
@@ -1728,7 +1783,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         redeliveryMessagesField.set(dispatcher, redeliveryMessages);
         // (a) redelivery with all acked-message should clear messageReply bucket
-        dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0));
+        dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0), DEFAULT_CONSUMER_EPOCH);
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
             return redeliveryMessages.isEmpty();
         });
@@ -1858,5 +1913,105 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         assertEquals(admin.topics().getStats(topicName).getPublishers().size(), 1);
+    }
+
+    @Test
+    public void testHttpLookupWithNotFoundError() throws Exception {
+        cleanup();
+        isTcpLookup = false;
+        setup();
+        try {
+            pulsarClient.newProducer().topic("unknownTenant/unknownNamespace/testNamespaceNotFound").create();
+        } catch (Exception ex) {
+            assertTrue(ex instanceof PulsarClientException.NotFoundException);
+            assertTrue(ex.getMessage().contains("Namespace not found"));
+        }
+    }
+
+    private class PulsarChannelInitializerForTest extends PulsarChannelInitializer {
+
+        private final PulsarService pulsar;
+
+        private final PulsarChannelOptions opts;
+
+        public PulsarChannelInitializerForTest(PulsarService pulsar, PulsarChannelOptions opts)
+                throws Exception {
+            super(pulsar, opts);
+            this.pulsar = pulsar;
+            this.opts = opts;
+        }
+
+        @Override
+        protected void initChannel(SocketChannel ch) throws Exception {
+            super.initChannel(ch);
+            //remove parent
+            ch.pipeline().remove("handler");
+            PersistentTopicE2ETest.ServerCnxForTest serverCnxForTest = new PersistentTopicE2ETest.ServerCnxForTest(this.pulsar, this.opts.getListenerName());
+            ch.pipeline().addAfter("flowController", "testHandler", serverCnxForTest);
+        }
+
+    }
+
+    private class ServerCnxForTest extends ServerCnx {
+
+        public ServerCnxForTest(PulsarService pulsar, String listenerName) {
+            super(pulsar, listenerName);
+        }
+
+        @Override
+        protected void handleConnect(CommandConnect connect) {
+            //metrics `brk_connection_create_success_count` increase in handleConnect.
+            super.handleConnect(connect);
+            PersistentTopicE2ETest.this.activeCount.incrementAndGet();
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            super.channelInactive(ctx);
+            PersistentTopicE2ETest.this.inactiveCount.incrementAndGet();
+        }
+    }
+
+    @Test(dataProvider = "topic")
+    public void testPersistentTopicFactory(boolean isPersistent) throws Exception {
+        conf.setTopicFactoryClassName(MyTopicFactory.class.getName());
+        restartBroker();
+
+        final String topicName = (isPersistent ? "persistent" : "non-persistent") + "://prop/ns-abc/factoryTopic"
+                + isPersistent;
+        MyTopicFactory.count.set(0);
+
+        // 1. producer connect
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
+
+        assertTrue(MyTopicFactory.count.get() > 0);
+        producer.close();
+        consumer.close();
+    }
+
+    public static class MyTopicFactory implements TopicFactory {
+        private static AtomicInteger count = new AtomicInteger(0);
+
+        @Override
+        public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
+                Class<T> topicClazz) {
+            try {
+                count.incrementAndGet();
+                if(topicClazz == NonPersistentTopic.class) {
+                    return (T) new NonPersistentTopic(topic, brokerService);
+                }else {
+                    return (T) new PersistentTopic(topic, ledger, brokerService);
+                }
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            // No-op
+        }
     }
 }

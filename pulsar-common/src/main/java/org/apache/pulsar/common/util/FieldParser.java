@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.util.EnumResolver;
@@ -32,7 +31,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -142,7 +141,7 @@ public final class FieldParser {
                     f.setAccessible(true);
                     String v = properties.get(f.getName());
                     if (!StringUtils.isBlank(v)) {
-                        f.set(obj, value(v, f));
+                        f.set(obj, value(trim(v), f));
                     } else {
                         setEmptyValue(v, f, obj);
                     }
@@ -213,7 +212,7 @@ public final class FieldParser {
             if (field.getType().equals(List.class)) {
                 field.set(obj, new ArrayList<>());
             } else if (field.getType().equals(Set.class)) {
-                field.set(obj, new HashSet<>());
+                field.set(obj, new LinkedHashSet<>());
             } else if (field.getType().equals(Optional.class)) {
                 field.set(obj, Optional.empty());
             } else {
@@ -317,7 +316,7 @@ public final class FieldParser {
     public static <T> List<T> stringToList(String val, Class<T> type) {
         String[] tokens = trim(val).split(",");
         return Arrays.stream(tokens).map(t -> {
-            return convert(t, type);
+            return convert(trim(t), type);
         }).collect(Collectors.toList());
     }
 
@@ -333,8 +332,8 @@ public final class FieldParser {
     public static <T> Set<T> stringToSet(String val, Class<T> type) {
         String[] tokens = trim(val).split(",");
         return Arrays.stream(tokens).map(t -> {
-            return convert(t, type);
-        }).collect(Collectors.toSet());
+            return convert(trim(t), type);
+        }).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {
@@ -344,7 +343,7 @@ public final class FieldParser {
             String[] keyValue = trim(token).split("=");
             checkArgument(keyValue.length == 2,
                     strValue + " map-value is not in correct format key1=value,key2=value2");
-            map.put(convert(keyValue[0], keyType), convert(keyValue[1], valueType));
+            map.put(convert(trim(keyValue[0]), keyType), convert(trim(keyValue[1]), valueType));
         }
         return map;
     }

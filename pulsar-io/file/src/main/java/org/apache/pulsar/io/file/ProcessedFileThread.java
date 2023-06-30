@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,10 @@ package org.apache.pulsar.io.file;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Worker thread that cleans up all the files that have been processed.
@@ -31,9 +33,11 @@ public class ProcessedFileThread extends Thread {
 
     private final BlockingQueue<File> recentlyProcessed;
     private final boolean keepOriginal;
+    private final String processedFileSuffix;
 
     public ProcessedFileThread(FileSourceConfig fileConfig, BlockingQueue<File> recentlyProcessed) {
         keepOriginal = Optional.ofNullable(fileConfig.getKeepFile()).orElse(false);
+        processedFileSuffix = fileConfig.getProcessedFileSuffix();
         this.recentlyProcessed = recentlyProcessed;
     }
 
@@ -51,7 +55,12 @@ public class ProcessedFileThread extends Thread {
     private void handle(File f) {
         if (!keepOriginal) {
             try {
-                Files.deleteIfExists(f.toPath());
+                if (StringUtils.isBlank(processedFileSuffix)) {
+                    Files.deleteIfExists(f.toPath());
+                } else {
+                    File targetFile = new File(f.getParentFile(), f.getName() + processedFileSuffix);
+                    Files.move(f.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

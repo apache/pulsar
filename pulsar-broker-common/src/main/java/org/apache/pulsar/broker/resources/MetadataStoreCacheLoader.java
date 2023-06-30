@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -57,15 +56,13 @@ public class MetadataStoreCacheLoader implements Closeable {
     }
 
     /**
-     * Initialize ZooKeeper session and creates broker cache list
+     * Initialize ZooKeeper session and creates broker cache list.
      *
-     * @param zookeeperServers
      * @throws Exception
      */
     public void init() throws Exception {
-       
         loadReportResources.getStore().registerListener((n) -> {
-            if(LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
+            if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
                 loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT).thenApplyAsync((brokerNodes)->{
                     updateBrokerList(brokerNodes).thenRun(() -> {
                         log.info("Successfully updated broker info {}", brokerNodes);

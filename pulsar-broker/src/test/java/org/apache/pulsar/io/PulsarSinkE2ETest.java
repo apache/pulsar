@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -50,7 +49,6 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.api.Record;
@@ -120,9 +118,9 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         consumerProperties.put("readCompacted","true");
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().consumerProperties(consumerProperties).build()));
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
-        admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
+        admin.sinks().createSinkWithUrl(sinkConfig, jarFilePathUrl);
 
-        // 5 Sink should only read compacted value，so we will only receive compacted messages
+        // 5 Sink should only read compacted value, so we will only receive compacted messages
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
             Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
@@ -144,13 +142,15 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-        // 1 create producer、DLQ consumer
+        // 1. create producer and DLQ consumer
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(dlqTopic).subscriptionName(subscriptionName).subscribe();
 
-        // 2 setup sink
+        // 2. setup sink
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
-        sinkConfig.setNegativeAckRedeliveryDelayMs(1001L);
+        sinkConfig.setNegativeAckRedeliveryDelayMs(1L);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setMaxMessageRetries(2);
         sinkConfig.setDeadLetterTopic(dlqTopic);
@@ -182,7 +182,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             }
         }, 50, 150);
 
-        // 3 send message
+        // 3. send message
         int totalMsgs = 10;
         Set<String> remainingMessagesToReceive = new HashSet<>();
         for (int i = 0; i < totalMsgs; i++) {
@@ -191,7 +191,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             remainingMessagesToReceive.add(messageBody);
         }
 
-        //4 All messages should enter DLQ
+        // 4. All messages should enter DLQ
         for (int i = 0; i < totalMsgs; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(message);
@@ -199,10 +199,6 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }
 
         assertEquals(remainingMessagesToReceive, Collections.emptySet());
-
-        //clean up
-        producer.close();
-        consumer.close();
     }
 
     private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
@@ -286,7 +282,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_received_total_1min");
+        m = metrics.get("pulsar_sink_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -300,7 +296,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_written_total_1min");
+        m = metrics.get("pulsar_sink_written_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -314,7 +310,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+        m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -328,7 +324,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_system_exceptions_total_1min");
+        m = metrics.get("pulsar_sink_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -379,7 +375,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_sink_received_total_1min");
+        m = metrics.get("pulsar_sink_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -393,7 +389,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_sink_written_total_1min");
+        m = metrics.get("pulsar_sink_written_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -407,7 +403,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+        m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -421,7 +417,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_system_exceptions_total_1min");
+        m = metrics.get("pulsar_sink_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);

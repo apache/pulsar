@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,7 +49,7 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
     private static final int INDEX_MAGIC_WORD = 0x3D1FB0BC;
 
     private Map<Long, LedgerInfo> segmentMetadata;
-    final private Map<Long, LedgerMetadata> compatibleMetadata = Maps.newTreeMap();
+    private final Map<Long, LedgerMetadata> compatibleMetadata = Maps.newTreeMap();
     private long dataObjectLength;
     private long dataHeaderLength;
     //    private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
@@ -173,7 +173,7 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
         int indexBlockLength = 4 /* magic header */
                 + 4 /* index block length */
                 + 8 /* data object length */
-                + 8;/* data header length */
+                + 8; /* data header length */
 
         Map<Long, byte[]> metaBytesMap = new HashMap<>();
         for (Map.Entry<Long, TreeMap<Long, OffloadIndexEntryImpl>> e : this.indexEntries.entrySet()) {

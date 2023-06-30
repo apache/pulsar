@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,8 +30,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceStability.Stable
 public class EncryptionKeyInfo {
 
-    private Map<String, String> metadata = null;
-    private byte[] key = null;
+    private Map<String, String> metadata;
+    private byte[] key;
 
     public EncryptionKeyInfo() {
         this.key = null;

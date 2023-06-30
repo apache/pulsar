@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,12 @@ package org.apache.pulsar.client.impl.schema.reader;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Parser;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaReader<T> {
     private Parser<T> tParser;

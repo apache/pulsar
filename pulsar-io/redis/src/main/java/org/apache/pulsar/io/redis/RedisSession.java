@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,13 +33,12 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.RedisCodec;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode;
-import org.apache.pulsar.io.redis.sink.RedisSinkConfig;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode;
+import org.apache.pulsar.io.redis.sink.RedisSinkConfig;
 
 public class RedisSession {
 
@@ -47,7 +46,8 @@ public class RedisSession {
     private final StatefulConnection connection;
     private final RedisClusterAsyncCommands<byte[], byte[]> asyncCommands;
 
-    public RedisSession(AbstractRedisClient client, StatefulConnection connection, RedisClusterAsyncCommands<byte[], byte[]> asyncCommands) {
+    public RedisSession(AbstractRedisClient client, StatefulConnection connection,
+                        RedisClusterAsyncCommands<byte[], byte[]> asyncCommands) {
         this.client = client;
         this.connection = connection;
         this.asyncCommands = asyncCommands;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
-
-import io.netty.util.internal.PlatformDependent;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -54,16 +52,15 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (list.size() == 1) {
             return list.get(0);
         } else {
-            CURRENT_INDEX_UPDATER.getAndUpdate(this, last -> (last + 1) % list.size());
-            return list.get(currentIndex);
-
+            int originalIndex = CURRENT_INDEX_UPDATER.getAndUpdate(this, last -> (last + 1) % list.size());
+            return list.get((originalIndex + 1) % list.size());
         }
     }
 
     @Override
     public URI resolveHostUri() {
         InetSocketAddress host = resolveHost();
-        String hostUrl = serviceUri.getServiceScheme() + "://" + host.getHostName() + ":" + host.getPort();
+        String hostUrl = serviceUri.getServiceScheme() + "://" + host.getHostString() + ":" + host.getPort();
         return URI.create(hostUrl);
     }
 
@@ -106,6 +103,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     }
 
     private static int randomIndex(int numAddresses) {
-        return numAddresses == 1 ? 0 : PlatformDependent.threadLocalRandom().nextInt(numAddresses);
+        return numAddresses == 1
+                ?
+                0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
 }

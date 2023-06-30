@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -84,6 +84,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         this.rgservice = new ResourceGroupService(pulsar, TimeUnit.SECONDS, transportMgr, dummyQuotaCalc);
 
         this.prepareRGs();
+        Thread.sleep(2000);
     }
 
     @AfterClass(alwaysRun = true)
@@ -164,22 +165,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                     sentNumBytes += mesg.length;
                     sentNumMsgs++;
                     log.debug("Producer={}, sent msg-ix={}, msgId={}", producerId, ix, msgId);
-                } catch (PulsarClientException p) {
+                } catch (PulsarClientException e) {
                     numExceptions++;
-                    log.info("Producer={} got exception while sending {}-th time: ex={}",
-                            producerId, ix, p.getMessage());
+                    log.error("Producer={} got exception while sending {}-th time: ex={}",
+                            producerId, ix, e.getMessage());
                 }
             }
             try {
                 producer.flush();
                 producer.close();
-            } catch (PulsarClientException p) {
+            } catch (PulsarClientException e) {
                 numExceptions++;
-                log.info("Producer={} got exception while closing producer: ex={}",
-                        producerId, p.getMessage());
+                log.error("Producer={} got exception while closing producer: ex={}",
+                        producerId, e.getMessage());
             }
 
-            log.debug("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
+            log.info("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
         }
     }
 
@@ -517,11 +518,18 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         Assert.assertEquals(recvdNumMsgs, TotalExpectedMessagesToReceive);
         Assert.assertEquals(numConsumerExceptions, 0);
 
+        boolean tenantRGEqualsNsRG = tenantRGEqualsNamespaceRG(topicStrings);
+        // If the tenant and NS are on different RGs, the bytes/messages get counted once on the
+        // tenant RG, and again on the namespace RG. This double-counting is avoided if tenant-RG == NS-RG.
+        // This is a known (and discussed) artifact in the implementation.
+        // 'ScaleFactor' is a way to incorporate that effect in the verification.
+        final int scaleFactor = tenantRGEqualsNsRG ? 1 : 2;
+
         // Verify producer and consumer side stats.
-        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
+        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
 
         // Verify the metrics corresponding to the operations in this test.
-        this.verifyRGMetrics(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
+        this.verifyRGMetrics(sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
 
         unRegisterTenantsAndNamespaces(topicStrings);
         // destroyTopics can be called after createTopics() is added back
@@ -535,15 +543,15 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private void verifyRGProdConsStats(String[] topicStrings,
                                        int sentNumBytes, int sentNumMsgs,
                                        int recvdNumBytes, int recvdNumMsgs,
-                                       boolean checkProduce, boolean checkConsume) throws Exception {
+                                       int scaleFactor, boolean checkProduce,
+                                       boolean checkConsume) throws Exception {
 
-        boolean tenantRGEqualsNsRG = tenantRGEqualsNamespaceRG(topicStrings);
         BrokerService bs = pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
         log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
 
-        // Pulsar runtime adds some additional bytes in the exchanges: a 45-byte per-message
+        // Pulsar runtime adds some additional bytes in the exchanges: a 42-byte per-message
         // metadata of some kind, plus more as the number of messages increases.
         // Hence the ">=" assertion with ExpectedNumBytesSent/Received in the following checks.
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
@@ -556,12 +564,6 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         BytesAndMessagesCount totalNsRGProdCounts = new BytesAndMessagesCount();
         BytesAndMessagesCount totalNsRGConsCounts = new BytesAndMessagesCount();
         BytesAndMessagesCount prodCounts, consCounts;
-
-        // If the tenant and NS are on different RGs, the bytes/messages get counted once on the
-        // tenant RG, and again on the namespace RG. This double-counting is avoided if tenant-RG == NS-RG.
-        // This is a known (and discussed) artifact in the implementation.
-        // 'ScaleFactor' is a way to incorporate that effect in the verification.
-        final int scaleFactor = tenantRGEqualsNsRG ? 1 : 2;
 
         // Since the following walk is on topics, keep track of the RGs for which we have already gathered stats,
         // so that we do not double-accumulate stats if multiple topics refer to the same RG.
@@ -643,24 +645,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         if (checkProduce) {
             prodCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, totalNsRGProdCounts);
-            Assert.assertEquals(prodCounts.messages, sentNumMsgs);
+            Assert.assertEquals(prodCounts.messages, sentNumMsgs * scaleFactor);
             Assert.assertTrue(prodCounts.bytes >= ExpectedNumBytesSent);
         }
 
         if (checkConsume) {
             consCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, totalNsRGConsCounts);
-            Assert.assertEquals(consCounts.messages, recvdNumMsgs);
+            Assert.assertEquals(consCounts.messages, recvdNumMsgs * scaleFactor);
             Assert.assertTrue(consCounts.bytes >= ExpectedNumBytesReceived);
         }
     }
 
     // Check the metrics for the RGs involved
-    private void verifyRGMetrics(String[] topicStrings,
-                                 int sentNumBytes, int sentNumMsgs,
+    private void verifyRGMetrics(int sentNumBytes, int sentNumMsgs,
                                  int recvdNumBytes, int recvdNumMsgs,
-                                 boolean checkProduce, boolean checkConsume) throws Exception {
-
-        tenantRGEqualsNamespaceRG(topicStrings);
+                                 int scaleFactor, boolean checkProduce,
+                                 boolean checkConsume) throws Exception {
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
         final int ExpectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
         long totalTenantRegisters = 0;
@@ -729,12 +729,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             // So, we take the residuals into account when comparing against the expected.
             if (checkProduce && mc == ResourceGroupMonitoringClass.Publish) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages,
-                        sentNumMsgs);
+                        sentNumMsgs * scaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes
                         >= ExpectedNumBytesSent);
             } else if (checkConsume && mc == ResourceGroupMonitoringClass.Dispatch) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages,
-                        recvdNumMsgs);
+                        recvdNumMsgs * scaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes
                         >= ExpectedNumBytesReceived);
             }
@@ -745,9 +745,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         // Update the residuals for next round of tests.
         residualSentNumBytes += sentNumBytes;
-        residualSentNumMessages += sentNumMsgs;
+        residualSentNumMessages += sentNumMsgs * scaleFactor;
         residualRecvdNumBytes += recvdNumBytes;
-        residualRecvdNumMessages += recvdNumMsgs;
+        residualRecvdNumMessages += recvdNumMsgs * scaleFactor;
 
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 
@@ -769,8 +769,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         Assert.assertNotEquals(ninthPercentileValue, 0);
     }
 
-    // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
-    private static final int PER_MESSAGE_METADATA_OHEAD = 45;
+    // Empirically, there appears to be a 31-byte overhead for metadata, imposed by Pulsar runtime.
+    private static final int PER_MESSAGE_METADATA_OHEAD = 31;
 
     private static final int PUBLISH_INTERVAL_SECS = 10;
     private static final int NUM_PRODUCERS = 4;
@@ -902,9 +902,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         final int NumProducerMessages = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
         Assert.assertTrue(NUM_MESSAGES_PER_CONSUMER > 0 && NumConsumerMessages == NumProducerMessages);
 
-        rgConfig.setPublishRateInBytes(1500);
+        rgConfig.setPublishRateInBytes(1500L);
         rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(4000);
+        rgConfig.setDispatchRateInBytes(4000L);
         rgConfig.setDispatchRateInMsgs(500);
 
         // Set up the RG names; creation of RGs will be done elsewhere.

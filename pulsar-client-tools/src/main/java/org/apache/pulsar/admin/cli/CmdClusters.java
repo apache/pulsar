@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
@@ -70,16 +71,12 @@ public class CmdClusters extends CmdBase {
     protected void validateClusterData(ClusterData clusterData) {
         if (clusterData.isBrokerClientTlsEnabled()) {
             if (clusterData.isBrokerClientTlsEnabledWithKeyStore()) {
-                if (StringUtils.isAnyBlank(clusterData.getBrokerClientTlsTrustStoreType(), clusterData.getBrokerClientTlsTrustStore(),
+                if (StringUtils.isAnyBlank(clusterData.getBrokerClientTlsTrustStoreType(),
+                        clusterData.getBrokerClientTlsTrustStore(),
                         clusterData.getBrokerClientTlsTrustStorePassword())) {
                     throw new RuntimeException(
                             "You must specify tls-trust-store-type, tls-trust-store and tls-trust-store-pwd"
                                     + " when enable tls-enable-keystore");
-                }
-            } else {
-                if (StringUtils.isBlank(clusterData.getBrokerClientTrustCertsFilePath())) {
-                    throw new RuntimeException("You must specify tls-trust-certs-filepath"
-                            + " when tls-enable-keystore is not enable");
                 }
             }
         }
@@ -101,7 +98,8 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster", required = false)
+        @Parameter(names = { "-a", "--all" },
+                description = "Delete all data (tenants) of the cluster", required = false)
         private boolean deleteAll = false;
 
         void run() throws PulsarAdminException {
@@ -110,7 +108,8 @@ public class CmdClusters extends CmdBase {
             if (deleteAll) {
                 for (String tenant : getAdmin().tenants().getTenants()) {
                     for (String namespace : getAdmin().namespaces().getNamespaces(tenant)) {
-                        // Partitioned topic's schema must be deleted by deletePartitionedTopic() but not delete() for each partition
+                        // Partitioned topic's schema must be deleted by deletePartitionedTopic()
+                        // but not delete() for each partition
                         for (String topic : getAdmin().topics().getPartitionedTopicList(namespace)) {
                             getAdmin().topics().deletePartitionedTopic(topic, true, true);
                         }
@@ -132,7 +131,8 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names [Pass empty string \"\" to delete list]", required = true)
+        @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names "
+                + "[Pass empty string \"\" to delete list]", required = true)
         private String peerClusterNames;
 
         void run() throws PulsarAdminException {
@@ -140,6 +140,28 @@ public class CmdClusters extends CmdBase {
             java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
                     : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
             getAdmin().clusters().updatePeerClusterNames(cluster, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Update cluster migration")
+    private class UpdateClusterMigration extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--migrated", description = "Is cluster migrated", required = true)
+        private boolean migrated;
+
+        @Parameter(names = "--broker-url", description = "New migrated cluster broker service url", required = false)
+        private String brokerServiceUrl;
+
+        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure",
+                required = false)
+        private String brokerServiceUrlTls;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            ClusterUrl clusterUrl = new ClusterUrl(brokerServiceUrl, brokerServiceUrlTls);
+            getAdmin().clusters().updateClusterMigration(cluster, migrated, clusterUrl);
         }
     }
 
@@ -237,7 +259,7 @@ public class CmdClusters extends CmdBase {
     }
 
     /**
-     * Base command
+     * Base command.
      */
     @Getter
     abstract class BaseCommand extends CliCommand {
@@ -246,11 +268,9 @@ public class CmdClusters extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -274,10 +294,12 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
+        @Parameter(names = "--broker-url-secure",
+                description = "broker-service-url for secure connection", required = false)
         protected String brokerServiceUrlTls;
 
-        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
+        @Parameter(names = "--proxy-url",
+                description = "Proxy-service url when client would like to connect to broker via proxy.")
         protected String proxyServiceUrl;
 
         @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
@@ -286,7 +308,8 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
         protected String authenticationParameters;
 
-        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
+        @Parameter(names = "--proxy-protocol",
+                description = "protocol to decide type of proxy routing eg: SNI", required = false)
         protected ProxyProtocol proxyProtocol;
 
         @Parameter(names = "--tls-enable", description = "Enable tls connection", required = false)
@@ -295,22 +318,48 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection", required = false)
         protected Boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = "--tls-enable-keystore", description = "Whether use KeyStore type to authenticate", required = false)
+        @Parameter(names = "--tls-enable-keystore",
+                description = "Whether use KeyStore type to authenticate", required = false)
         protected Boolean brokerClientTlsEnabledWithKeyStore;
 
-        @Parameter(names = "--tls-trust-store-type", description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        @Parameter(names = "--tls-trust-store-type",
+                description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
         protected String brokerClientTlsTrustStoreType;
 
-        @Parameter(names = "--tls-trust-store", description = "TLS TrustStore path for internal client", required = false)
+        @Parameter(names = "--tls-trust-store",
+                description = "TLS TrustStore path for internal client", required = false)
         protected String brokerClientTlsTrustStore;
 
-        @Parameter(names = "--tls-trust-store-pwd", description = "TLS TrustStore password for internal client", required = false)
+        @Parameter(names = "--tls-trust-store-pwd",
+                description = "TLS TrustStore password for internal client", required = false)
         protected String brokerClientTlsTrustStorePassword;
 
-        @Parameter(names = "--tls-trust-certs-filepath", description = "path for the trusted TLS certificate file", required = false)
+        @Parameter(names = "--tls-key-store-type",
+                description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        protected String brokerClientTlsKeyStoreType;
+
+        @Parameter(names = "--tls-key-store",
+                description = "TLS KeyStore path for internal client", required = false)
+        protected String brokerClientTlsKeyStore;
+
+        @Parameter(names = "--tls-key-store-pwd",
+                description = "TLS KeyStore password for internal client", required = false)
+        protected String brokerClientTlsKeyStorePassword;
+
+        @Parameter(names = "--tls-trust-certs-filepath",
+                description = "path for the trusted TLS certificate file", required = false)
         protected String brokerClientTrustCertsFilePath;
 
-        @Parameter(names = "--listener-name", description = "listenerName when client would like to connect to cluster", required = false)
+        @Parameter(names = "--tls-key-filepath",
+                description = "path for the TLS private key file", required = false)
+        protected String brokerClientKeyFilePath;
+
+        @Parameter(names = "--tls-certs-filepath",
+                description = "path for the TLS certificate file", required = false)
+        protected String brokerClientCertificateFilePath;
+
+        @Parameter(names = "--listener-name",
+                description = "listenerName when client would like to connect to cluster", required = false)
         protected String listenerName;
 
         @Parameter(names = "--cluster-config-file", description = "The path to a YAML config file specifying the "
@@ -372,8 +421,23 @@ public class CmdClusters extends CmdBase {
             if (brokerClientTlsTrustStorePassword != null) {
                 builder.brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword);
             }
+            if (brokerClientTlsKeyStoreType != null) {
+                builder.brokerClientTlsKeyStoreType(brokerClientTlsKeyStoreType);
+            }
+            if (brokerClientTlsKeyStore != null) {
+                builder.brokerClientTlsKeyStore(brokerClientTlsKeyStore);
+            }
+            if (brokerClientTlsKeyStorePassword != null) {
+                builder.brokerClientTlsKeyStorePassword(brokerClientTlsKeyStorePassword);
+            }
             if (brokerClientTrustCertsFilePath != null) {
                 builder.brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath);
+            }
+            if (brokerClientKeyFilePath != null) {
+                builder.brokerClientKeyFilePath(brokerClientKeyFilePath);
+            }
+            if (brokerClientCertificateFilePath != null) {
+                builder.brokerClientCertificateFilePath(brokerClientCertificateFilePath);
             }
 
             if (listenerName != null) {
@@ -393,6 +457,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
         jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
+        jcommander.addCommand("update-cluster-migration", new UpdateClusterMigration());
         jcommander.addCommand("get-peer-clusters", new GetPeerClusters());
         jcommander.addCommand("get-failure-domain", new GetFailureDomain());
         jcommander.addCommand("create-failure-domain", new CreateFailureDomain());

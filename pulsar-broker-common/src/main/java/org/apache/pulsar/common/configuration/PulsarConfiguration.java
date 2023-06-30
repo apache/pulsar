@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import java.util.Properties;
 
 public interface PulsarConfiguration {
 
-    public Properties getProperties();
+    Properties getProperties();
 
-    public void setProperties(Properties properties);
+    void setProperties(Properties properties);
 }

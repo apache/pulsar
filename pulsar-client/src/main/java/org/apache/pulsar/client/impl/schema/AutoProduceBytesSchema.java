@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,14 +19,12 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkState;
-
+import java.util.Optional;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.Optional;
 
 /**
  * Auto detect schema.
@@ -107,7 +105,10 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        return Optional.ofNullable(schema);
+        return Optional
+                .ofNullable(schema)
+                .map(s->s.getNativeSchema())
+                .orElse(Optional.empty());
     }
 
     @Override

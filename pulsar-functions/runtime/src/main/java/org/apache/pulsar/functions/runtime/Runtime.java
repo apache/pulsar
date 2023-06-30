@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime;
-
-import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 /**
  * A function container is an environment for invoking functions.
@@ -50,9 +48,9 @@ public interface Runtime {
     CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus(int instanceId);
 
     CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
-    
+
     CompletableFuture<Void> resetMetrics();
-    
+
     CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId);
 
     String getPrometheusMetrics() throws IOException;

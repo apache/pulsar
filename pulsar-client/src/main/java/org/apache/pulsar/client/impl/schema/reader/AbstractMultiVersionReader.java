@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,9 @@ package org.apache.pulsar.client.impl.schema.reader;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import java.io.InputStream;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.avro.AvroTypeException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.SerializationException;
@@ -32,10 +35,6 @@ import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.InputStream;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The multi version reader abstract class, implement it will handle the multi version schema.
@@ -112,7 +111,7 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
     protected abstract SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion);
 
     /**
-     * TODO: think about how to make this async
+     * TODO: think about how to make this async.
      */
     protected SchemaInfo getSchemaInfoByVersion(byte[] schemaVersion) {
         try {

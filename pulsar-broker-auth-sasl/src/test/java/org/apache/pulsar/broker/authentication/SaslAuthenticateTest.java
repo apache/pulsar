@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertFalse;
@@ -28,6 +27,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -37,10 +38,8 @@ import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -54,6 +53,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -64,6 +64,7 @@ import org.testng.annotations.Test;
 public class SaslAuthenticateTest extends ProducerConsumerBase {
     public static File kdcDir;
     public static File kerberosWorkDir;
+    public static File secretKeyFile;
 
     private static MiniKdc kdc;
     private static Properties properties;
@@ -139,7 +140,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         Configuration.getConfiguration().refresh();
 
         // Client config
-        Map<String, String> clientSaslConfig = Maps.newHashMap();
+        Map<String, String> clientSaslConfig = new HashMap<>();
         clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
         clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
@@ -171,6 +172,9 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setSaslJaasClientAllowedIds(".*" + "client" + ".*");
         conf.setSaslJaasServerSectionName("PulsarBroker");
+        secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+        Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
+        conf.setSaslJaasServerRoleTokenSignerSecretPath(secretKeyFile.toString());
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderSasl.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -187,7 +191,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
-        Map<String, String> clientSaslConfig = Maps.newHashMap();
+        Map<String, String> clientSaslConfig = new HashMap<>();
         clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
         clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
@@ -203,6 +207,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        FileUtils.deleteQuietly(secretKeyFile);
+        Assert.assertFalse(secretKeyFile.exists());
         super.internalCleanup();
     }
 
@@ -228,7 +234,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -251,11 +257,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         // prepare client and server side resource
         AuthenticationDataProvider dataProvider =  authSasl.getAuthData(hostName);
-        AuthenticationProviderList providerList = (AuthenticationProviderList)
-            (pulsar.getBrokerService().getAuthenticationService()
-                .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME));
-        AuthenticationProviderSasl saslServer =
-            (AuthenticationProviderSasl) providerList.getProviders().get(0);
+        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
+                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
         AuthenticationState authState = saslServer.newAuthState(null, null, null);
 
         // auth between server and client.

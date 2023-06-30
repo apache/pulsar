@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
-import static javax.ws.rs.core.Response.Status.TEMPORARY_REDIRECT;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,19 +33,22 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -56,6 +56,8 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionLogStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -68,218 +70,127 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore
 @Slf4j
 public abstract class TransactionsBase extends AdminResource {
 
-    protected void internalGetCoordinatorStats(AsyncResponse asyncResponse, boolean authoritative,
-                                               Integer coordinatorId) {
-        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            if (coordinatorId != null) {
-                validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
-                        authoritative);
-                TransactionMetadataStore transactionMetadataStore =
-                        pulsar().getTransactionMetadataStoreService().getStores()
-                                .get(TransactionCoordinatorID.get(coordinatorId));
-                if (transactionMetadataStore == null) {
-                    asyncResponse.resume(new RestException(NOT_FOUND,
-                            "Transaction coordinator not found! coordinator id : " + coordinatorId));
-                    return;
-                }
-                asyncResponse.resume(transactionMetadataStore.getCoordinatorStats());
-            } else {
-                getPartitionedTopicMetadataAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN,
-                        false, false).thenAccept(partitionMetadata -> {
-                    if (partitionMetadata.partitions == 0) {
-                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
-                                "Transaction coordinator not found"));
-                        return;
-                    }
-                    List<CompletableFuture<TransactionCoordinatorStats>> transactionMetadataStoreInfoFutures =
-                            Lists.newArrayList();
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        try {
-                            transactionMetadataStoreInfoFutures
-                                    .add(pulsar().getAdminClient().transactions().getCoordinatorStatsByIdAsync(i));
-                        } catch (PulsarServerException e) {
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
-                    Map<Integer, TransactionCoordinatorStats> stats = new HashMap<>();
-                    FutureUtil.waitForAll(transactionMetadataStoreInfoFutures).whenComplete((result, e) -> {
-                        if (e != null) {
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-
-                        for (int i = 0; i < transactionMetadataStoreInfoFutures.size(); i++) {
-                            try {
-                                stats.put(i, transactionMetadataStoreInfoFutures.get(i).get());
-                            } catch (Exception exception) {
-                                asyncResponse.resume(new RestException(exception.getCause()));
-                                return;
-                            }
-                        }
-
-                        asyncResponse.resume(stats);
+    protected void internalListCoordinators(AsyncResponse asyncResponse) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException ex) {
+            asyncResponse.resume(new RestException(ex));
+            return;
+        }
+        Map<Integer, TransactionCoordinatorInfo> result = new HashMap<>();
+        admin.lookups()
+                .lookupPartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName())
+                .thenAccept(map -> {
+                    map.forEach((topicPartition, brokerServiceUrl) -> {
+                        final int coordinatorId = TopicName.getPartitionIndex(topicPartition);
+                        result.put(coordinatorId, new TransactionCoordinatorInfo(coordinatorId, brokerServiceUrl));
                     });
-                }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+
+                    asyncResponse.resume(result.values());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to list transaction coordinators: {}",
+                            clientAppId(), ex.getMessage(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
-            }
-        } else {
-            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
-        }
     }
 
-    protected void internalGetTransactionInPendingAckStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                           long mostSigBits, long leastSigBits, String subName) {
-        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(topicName, authoritative);
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture != null) {
-                topicFuture.whenComplete((optionalTopic, e) -> {
-                    if (e != null) {
+    protected void internalGetCoordinatorStats(AsyncResponse asyncResponse, boolean authoritative,
+                                               Integer coordinatorId) {
+        if (coordinatorId != null) {
+            validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                    authoritative);
+            TransactionMetadataStore transactionMetadataStore =
+                    pulsar().getTransactionMetadataStoreService().getStores()
+                            .get(TransactionCoordinatorID.get(coordinatorId));
+            if (transactionMetadataStore == null) {
+                asyncResponse.resume(new RestException(NOT_FOUND,
+                        "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                return;
+            }
+            asyncResponse.resume(transactionMetadataStore.getCoordinatorStats());
+        } else {
+            getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                    false, false).thenAccept(partitionMetadata -> {
+                if (partitionMetadata.partitions == 0) {
+                    asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                            "Transaction coordinator not found"));
+                    return;
+                }
+                List<CompletableFuture<TransactionCoordinatorStats>> transactionMetadataStoreInfoFutures =
+                        new ArrayList<>();
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    try {
+                        transactionMetadataStoreInfoFutures
+                                .add(pulsar().getAdminClient().transactions().getCoordinatorStatsByIdAsync(i));
+                    } catch (PulsarServerException e) {
                         asyncResponse.resume(new RestException(e));
                         return;
                     }
-                    if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
-                                "Topic is not owned by this broker!"));
-                        return;
-                    }
-                    Topic topicObject = optionalTopic.get();
-                    if (topicObject instanceof PersistentTopic) {
-                        asyncResponse.resume(((PersistentTopic) topicObject)
-                                .getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits), subName));
-                    } else {
-                        asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
-                    }
-                });
-            } else {
-                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
-            }
-        } else {
-            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
-        }
-    }
-
-    protected void internalGetTransactionInBufferStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                       long mostSigBits, long leastSigBits) {
-        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(topicName, authoritative);
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture != null) {
-                topicFuture.whenComplete((optionalTopic, e) -> {
-                    if (e != null) {
-                        asyncResponse.resume(new RestException(e));
-                        return;
-                    }
-                    if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
-                                "Topic is not owned by this broker!"));
-                        return;
-                    }
-                    Topic topicObject = optionalTopic.get();
-                    if (topicObject instanceof PersistentTopic) {
-                        TransactionInBufferStats transactionInBufferStats = ((PersistentTopic) topicObject)
-                                .getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits));
-                        asyncResponse.resume(transactionInBufferStats);
-                    } else {
-                        asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
-                    }
-                });
-            } else {
-                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
-            }
-        } else {
-            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
-        }
-    }
-
-    protected void internalGetTransactionBufferStats(AsyncResponse asyncResponse, boolean authoritative) {
-        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(topicName, authoritative);
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture != null) {
-                topicFuture.whenComplete((optionalTopic, e) -> {
+                }
+                Map<Integer, TransactionCoordinatorStats> stats = new HashMap<>();
+                FutureUtil.waitForAll(transactionMetadataStoreInfoFutures).whenComplete((result, e) -> {
                     if (e != null) {
                         asyncResponse.resume(new RestException(e));
                         return;
                     }
 
-                    if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
-                                "Topic is not owned by this broker!"));
-                        return;
+                    for (int i = 0; i < transactionMetadataStoreInfoFutures.size(); i++) {
+                        try {
+                            stats.put(i, transactionMetadataStoreInfoFutures.get(i).get());
+                        } catch (Exception exception) {
+                            asyncResponse.resume(new RestException(exception.getCause()));
+                            return;
+                        }
                     }
-                    Topic topicObject = optionalTopic.get();
-                    if (topicObject instanceof PersistentTopic) {
-                        asyncResponse.resume(((PersistentTopic) topicObject).getTransactionBufferStats());
-                    } else {
-                        asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
-                    }
+
+                    asyncResponse.resume(stats);
                 });
-            } else {
-                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
-            }
-        } else {
-            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
         }
     }
 
-    protected void internalGetPendingAckStats(AsyncResponse asyncResponse, boolean authoritative, String subName) {
-        if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            validateTopicOwnership(topicName, authoritative);
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture != null) {
-                topicFuture.whenComplete((optionalTopic, e) -> {
-                    if (e != null) {
-                        asyncResponse.resume(new RestException(e));
-                        return;
-                    }
+    protected CompletableFuture<TransactionInPendingAckStats> internalGetTransactionInPendingAckStats(
+            boolean authoritative, long mostSigBits, long leastSigBits, String subName) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
+                        subName));
+    }
 
-                    if (!optionalTopic.isPresent()) {
-                        asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
-                                "Topic is not owned by this broker!"));
-                        return;
-                    }
-                    Topic topicObject = optionalTopic.get();
-                    if (topicObject instanceof PersistentTopic) {
-                        asyncResponse.resume(((PersistentTopic) topicObject).getTransactionPendingAckStats(subName));
-                    } else {
-                        asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
-                    }
-                });
-            } else {
-                asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
-            }
-        } else {
-            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));
-        }
+    protected CompletableFuture<TransactionInBufferStats> internalGetTransactionInBufferStats(
+            boolean authoritative, long mostSigBits, long leastSigBits) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)));
+    }
+
+    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative,
+                                                                                          boolean lowWaterMarks) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks));
+    }
+
+    protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
+            boolean authoritative, String subName, boolean lowWaterMarks) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionPendingAckStats(subName, lowWaterMarks));
     }
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
                                                   boolean authoritative, int mostSigBits, long leastSigBits) {
         try {
-            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-                validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(mostSigBits),
-                        authoritative);
-                CompletableFuture<TransactionMetadata> transactionMetadataFuture = new CompletableFuture<>();
-                TxnMeta txnMeta = pulsar().getTransactionMetadataStoreService()
-                        .getTxnMeta(new TxnID(mostSigBits, leastSigBits)).get();
-                getTransactionMetadata(txnMeta, transactionMetadataFuture);
-                asyncResponse.resume(transactionMetadataFuture.get(10, TimeUnit.SECONDS));
-            } else {
-                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
-            }
+            validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(mostSigBits),
+                    authoritative);
+            CompletableFuture<TransactionMetadata> transactionMetadataFuture = new CompletableFuture<>();
+            TxnMeta txnMeta = pulsar().getTransactionMetadataStoreService()
+                    .getTxnMeta(new TxnID(mostSigBits, leastSigBits)).get();
+            getTransactionMetadata(txnMeta, transactionMetadataFuture);
+            asyncResponse.resume(transactionMetadataFuture.get(10, TimeUnit.SECONDS));
         } catch (Exception e) {
             if (e instanceof ExecutionException) {
                 if (e.getCause() instanceof CoordinatorNotFoundException
@@ -304,6 +215,7 @@ public abstract class TransactionsBase extends AdminResource {
         transactionMetadata.status = txnMeta.status().name();
         transactionMetadata.openTimestamp = txnMeta.getOpenTimestamp();
         transactionMetadata.timeoutAt = txnMeta.getTimeoutAt();
+        transactionMetadata.owner = txnMeta.getOwner();
 
         List<CompletableFuture<TransactionInPendingAckStats>> ackedPartitionsFutures = new ArrayList<>();
         Map<String, Map<String, CompletableFuture<TransactionInPendingAckStats>>> ackFutures = new HashMap<>();
@@ -381,91 +293,87 @@ public abstract class TransactionsBase extends AdminResource {
     protected void internalGetSlowTransactions(AsyncResponse asyncResponse,
                                                boolean authoritative, long timeout, Integer coordinatorId) {
         try {
-            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-                if (coordinatorId != null) {
-                    validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
-                            authoritative);
-                    TransactionMetadataStore transactionMetadataStore =
-                            pulsar().getTransactionMetadataStoreService().getStores()
-                                    .get(TransactionCoordinatorID.get(coordinatorId));
-                    if (transactionMetadataStore == null) {
-                        asyncResponse.resume(new RestException(NOT_FOUND,
-                                "Transaction coordinator not found! coordinator id : " + coordinatorId));
+            if (coordinatorId != null) {
+                validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                        authoritative);
+                TransactionMetadataStore transactionMetadataStore =
+                        pulsar().getTransactionMetadataStoreService().getStores()
+                                .get(TransactionCoordinatorID.get(coordinatorId));
+                if (transactionMetadataStore == null) {
+                    asyncResponse.resume(new RestException(NOT_FOUND,
+                            "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                    return;
+                }
+                List<TxnMeta> transactions = transactionMetadataStore.getSlowTransactions(timeout);
+                List<CompletableFuture<TransactionMetadata>> completableFutures = new ArrayList<>();
+                for (TxnMeta txnMeta : transactions) {
+                    CompletableFuture<TransactionMetadata> completableFuture = new CompletableFuture<>();
+                    getTransactionMetadata(txnMeta, completableFuture);
+                    completableFutures.add(completableFuture);
+                }
+
+                FutureUtil.waitForAll(completableFutures).whenComplete((v, e) -> {
+                    if (e != null) {
+                        asyncResponse.resume(new RestException(e.getCause()));
                         return;
                     }
-                    List<TxnMeta> transactions = transactionMetadataStore.getSlowTransactions(timeout);
-                    List<CompletableFuture<TransactionMetadata>> completableFutures = new ArrayList<>();
-                    for (TxnMeta txnMeta : transactions) {
-                        CompletableFuture<TransactionMetadata> completableFuture = new CompletableFuture<>();
-                        getTransactionMetadata(txnMeta, completableFuture);
-                        completableFutures.add(completableFuture);
-                    }
 
-                    FutureUtil.waitForAll(completableFutures).whenComplete((v, e) -> {
+                    Map<String, TransactionMetadata> transactionMetadata = new HashMap<>();
+                    for (CompletableFuture<TransactionMetadata> future : completableFutures) {
+                        try {
+                            transactionMetadata.put(future.get().txnId, future.get());
+                        } catch (Exception exception) {
+                            asyncResponse.resume(new RestException(exception.getCause()));
+                            return;
+                        }
+                    }
+                    asyncResponse.resume(transactionMetadata);
+                });
+            } else {
+                getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        false, false).thenAccept(partitionMetadata -> {
+                    if (partitionMetadata.partitions == 0) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                "Transaction coordinator not found"));
+                        return;
+                    }
+                    List<CompletableFuture<Map<String, TransactionMetadata>>> completableFutures =
+                            new ArrayList<>();
+                    for (int i = 0; i < partitionMetadata.partitions; i++) {
+                        try {
+                            completableFutures
+                                    .add(pulsar().getAdminClient().transactions()
+                                            .getSlowTransactionsByCoordinatorIdAsync(i, timeout,
+                                                    TimeUnit.MILLISECONDS));
+                        } catch (PulsarServerException e) {
+                            asyncResponse.resume(new RestException(e));
+                            return;
+                        }
+                    }
+                    Map<String, TransactionMetadata> transactionMetadataMaps = new HashMap<>();
+                    FutureUtil.waitForAll(completableFutures).whenComplete((result, e) -> {
                         if (e != null) {
-                            asyncResponse.resume(new RestException(e.getCause()));
+                            asyncResponse.resume(new RestException(e));
                             return;
                         }
 
-                        Map<String, TransactionMetadata> transactionMetadata = new HashMap<>();
-                        for (CompletableFuture<TransactionMetadata> future : completableFutures) {
+                        for (CompletableFuture<Map<String, TransactionMetadata>> transactionMetadataMap
+                                : completableFutures) {
                             try {
-                                transactionMetadata.put(future.get().txnId, future.get());
+                                transactionMetadataMaps.putAll(transactionMetadataMap.get());
                             } catch (Exception exception) {
                                 asyncResponse.resume(new RestException(exception.getCause()));
                                 return;
                             }
                         }
-                        asyncResponse.resume(transactionMetadata);
+                        asyncResponse.resume(transactionMetadataMaps);
                     });
-                } else {
-                    getPartitionedTopicMetadataAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN,
-                            false, false).thenAccept(partitionMetadata -> {
-                        if (partitionMetadata.partitions == 0) {
-                            asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
-                                    "Transaction coordinator not found"));
-                            return;
-                        }
-                        List<CompletableFuture<Map<String, TransactionMetadata>>> completableFutures =
-                                Lists.newArrayList();
-                        for (int i = 0; i < partitionMetadata.partitions; i++) {
-                            try {
-                                completableFutures
-                                        .add(pulsar().getAdminClient().transactions()
-                                                .getSlowTransactionsByCoordinatorIdAsync(i, timeout,
-                                                        TimeUnit.MILLISECONDS));
-                            } catch (PulsarServerException e) {
-                                asyncResponse.resume(new RestException(e));
-                                return;
-                            }
-                        }
-                        Map<String, TransactionMetadata> transactionMetadataMaps = new HashMap<>();
-                        FutureUtil.waitForAll(completableFutures).whenComplete((result, e) -> {
-                            if (e != null) {
-                                asyncResponse.resume(new RestException(e));
-                                return;
-                            }
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
 
-                            for (CompletableFuture<Map<String, TransactionMetadata>> transactionMetadataMap
-                                    : completableFutures) {
-                                try {
-                                    transactionMetadataMaps.putAll(transactionMetadataMap.get());
-                                } catch (Exception exception) {
-                                    asyncResponse.resume(new RestException(exception.getCause()));
-                                    return;
-                                }
-                            }
-                            asyncResponse.resume(transactionMetadataMaps);
-                        });
-                    }).exceptionally(ex -> {
-                        log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
-                        return null;
-                    });
-
-                }
-            } else {
-                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, "Broker don't support transaction!"));
             }
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
@@ -475,101 +383,74 @@ public abstract class TransactionsBase extends AdminResource {
     protected void internalGetCoordinatorInternalStats(AsyncResponse asyncResponse, boolean authoritative,
                                                        boolean metadata, int coordinatorId) {
         try {
-            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-                TopicName topicName = TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId);
-                validateTopicOwnership(topicName, authoritative);
-                TransactionMetadataStore metadataStore = pulsar().getTransactionMetadataStoreService()
-                        .getStores().get(TransactionCoordinatorID.get(coordinatorId));
-                if (metadataStore == null) {
-                    asyncResponse.resume(new RestException(NOT_FOUND,
-                            "Transaction coordinator not found! coordinator id : " + coordinatorId));
-                    return;
-                }
-                if (metadataStore instanceof MLTransactionMetadataStore) {
-                    ManagedLedger managedLedger = ((MLTransactionMetadataStore) metadataStore).getManagedLedger();
-                    TransactionCoordinatorInternalStats transactionCoordinatorInternalStats =
-                            new TransactionCoordinatorInternalStats();
-                    TransactionLogStats transactionLogStats = new TransactionLogStats();
-                    transactionLogStats.managedLedgerName = managedLedger.getName();
-                    transactionLogStats.managedLedgerInternalStats =
-                            managedLedger.getManagedLedgerInternalStats(metadata).get();
-                    transactionCoordinatorInternalStats.transactionLogStats = transactionLogStats;
-                    asyncResponse.resume(transactionCoordinatorInternalStats);
-                } else {
-                    asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
-                            "Broker don't use MLTransactionMetadataStore!"));
-                }
+            TopicName topicName = SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId);
+            validateTopicOwnership(topicName, authoritative);
+            TransactionMetadataStore metadataStore = pulsar().getTransactionMetadataStoreService()
+                    .getStores().get(TransactionCoordinatorID.get(coordinatorId));
+            if (metadataStore == null) {
+                asyncResponse.resume(new RestException(NOT_FOUND,
+                        "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                return;
+            }
+            if (metadataStore instanceof MLTransactionMetadataStore) {
+                ManagedLedger managedLedger = ((MLTransactionMetadataStore) metadataStore).getManagedLedger();
+                TransactionCoordinatorInternalStats transactionCoordinatorInternalStats =
+                        new TransactionCoordinatorInternalStats();
+                TransactionLogStats transactionLogStats = new TransactionLogStats();
+                transactionLogStats.managedLedgerName = managedLedger.getName();
+                transactionLogStats.managedLedgerInternalStats =
+                        managedLedger.getManagedLedgerInternalStats(metadata).get();
+                transactionCoordinatorInternalStats.transactionLogStats = transactionLogStats;
+                asyncResponse.resume(transactionCoordinatorInternalStats);
             } else {
-                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
+                asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
+                        "Broker don't use MLTransactionMetadataStore!"));
             }
         } catch (Exception e) {
-            asyncResponse.resume(new RestException(e.getCause()));
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
-    protected void internalGetPendingAckInternalStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                      TopicName topicName, String subName, boolean metadata) {
-        try {
-            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-                validateTopicOwnership(topicName, authoritative);
-                CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                        .getTopics().get(topicName.toString());
-                if (topicFuture != null) {
-                    topicFuture.whenComplete((optionalTopic, e) -> {
-
-                        if (e != null) {
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                        if (!optionalTopic.isPresent()) {
-                            asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
-                                    "Topic is not owned by this broker!"));
-                            return;
-                        }
-                        Topic topicObject = optionalTopic.get();
-                        if (topicObject instanceof PersistentTopic) {
-                            try {
-                                ManagedLedger managedLedger =
-                                        ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName).get();
-                                TransactionPendingAckInternalStats stats =
-                                        new TransactionPendingAckInternalStats();
+    protected CompletableFuture<TransactionPendingAckInternalStats> internalGetPendingAckInternalStats(
+            boolean authoritative, String subName, boolean metadata) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenCompose(topic -> topic.getPendingAckManagedLedger(subName))
+                .thenCompose(managedLedger ->
+                        managedLedger.getManagedLedgerInternalStats(metadata)
+                            .thenApply(internalStats -> {
                                 TransactionLogStats pendingAckLogStats = new TransactionLogStats();
                                 pendingAckLogStats.managedLedgerName = managedLedger.getName();
-                                pendingAckLogStats.managedLedgerInternalStats =
-                                        managedLedger.getManagedLedgerInternalStats(metadata).get();
+                                pendingAckLogStats.managedLedgerInternalStats = internalStats;
+                                return pendingAckLogStats;
+                            })
+                            .thenApply(pendingAckLogStats -> {
+                                TransactionPendingAckInternalStats stats = new TransactionPendingAckInternalStats();
                                 stats.pendingAckLogStats = pendingAckLogStats;
-                                asyncResponse.resume(stats);
-                            } catch (Exception exception) {
-                                if (exception instanceof ExecutionException) {
-                                    if (exception.getCause() instanceof ServiceUnitNotReadyException) {
-                                        asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                                                exception.getCause()));
-                                        return;
-                                    } else if (exception.getCause() instanceof NotAllowedException) {
-                                        asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
-                                                exception.getCause()));
-                                        return;
-                                    } else if (exception.getCause() instanceof SubscriptionNotFoundException) {
-                                        asyncResponse.resume(new RestException(NOT_FOUND, exception.getCause()));
-                                        return;
-                                    }
-                                }
-                                asyncResponse.resume(new RestException(exception));
-                            }
-                        } else {
-                            asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
-                        }
-                    });
-                } else {
-                    asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
-                }
-            } else {
-                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
+                                return stats;
+                            })
+                );
+    }
+
+    protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
+            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                    .getTopics().get(topicName.toString());
+            if (topicFuture == null) {
+                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
             }
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e.getCause()));
+            return topicFuture.thenCompose(optionalTopic -> {
+                if (!optionalTopic.isPresent()) {
+                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                }
+                return CompletableFuture.completedFuture((PersistentTopic) optionalTopic.get());
+            });
+        });
+    }
+
+    protected void checkTransactionCoordinatorEnabled() {
+        if (!pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+           throw new RestException(SERVICE_UNAVAILABLE,
+                    "This Broker is not configured with transactionCoordinatorEnabled=true.");
         }
     }
 
@@ -583,5 +464,33 @@ public abstract class TransactionsBase extends AdminResource {
                     topic, e);
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
+    }
+
+    protected CompletableFuture<Void> internalScaleTransactionCoordinators(int replicas) {
+        return validateSuperUserAccessAsync()
+                .thenCompose((ignore) -> namespaceResources().getPartitionedTopicResources()
+                        .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
+                            if (p.partitions >= replicas) {
+                                throw new RestException(Response.Status.NOT_ACCEPTABLE,
+                                        "Number of transaction coordinators should "
+                                                + "be more than the current number of transaction coordinator");
+                            }
+                            return new PartitionedTopicMetadata(replicas);
+                        }));
+    }
+
+    protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
+            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
+        CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
+        getExistingPersistentTopicAsync(authoritative)
+                .thenAccept(topic -> {
+                    PositionInPendingAckStats result = topic.getSubscription(subName)
+                    .checkPositionInPendingAckState(position, batchIndex);
+                    completableFuture.complete(result);
+                }).exceptionally(ex -> {
+                    completableFuture.completeExceptionally(ex);
+                    return null;
+        });
+        return completableFuture;
     }
 }

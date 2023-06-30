@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvid
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,27 +49,33 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final Map<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
+            bkEnsemblePolicyToBkClientMap = new ConcurrentHashMap<>();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                           ZooKeeper zkClient,
                            BookKeeperClientFactory bookkeeperProvider,
                            EventLoopGroup eventLoopGroup) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
         managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(conf.getManagedLedgerNumSchedulerThreads());
-        managedLedgerFactoryConfig.setCacheEvictionFrequency(conf.getManagedLedgerCacheEvictionFrequency());
+        managedLedgerFactoryConfig.setCacheEvictionIntervalMs(conf.getManagedLedgerCacheEvictionIntervalMs());
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(
+                conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(
                 conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
         managedLedgerFactoryConfig.setCursorPositionFlushSeconds(conf.getManagedLedgerCursorPositionFlushSeconds());
         managedLedgerFactoryConfig.setManagedLedgerInfoCompressionType(conf.getManagedLedgerInfoCompressionType());
+        managedLedgerFactoryConfig.setManagedLedgerInfoCompressionThresholdInBytes(
+                conf.getManagedLedgerInfoCompressionThresholdInBytes());
         managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
+        managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
+        managedLedgerFactoryConfig.setManagedCursorInfoCompressionThresholdInBytes(
+                conf.getManagedCursorInfoCompressionThresholdInBytes());
 
         Configuration configuration = new ClientConfiguration();
         if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
@@ -83,7 +88,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         statsProvider.start(configuration);
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
-        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, eventLoopGroup, Optional.empty(), null);
+        this.defaultBkClient =
+                bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger);
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
@@ -92,9 +98,9 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
                 bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
                     try {
-                        return bookkeeperProvider.create(conf, zkClient, eventLoopGroup,
+                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
                                 Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                                ensemblePlacementPolicyConfig.getProperties());
+                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
                     } catch (Exception e) {
                         log.error("Failed to initialize bk-client for policy {}, properties {}",
                                 ensemblePlacementPolicyConfig.getPolicyClass(),

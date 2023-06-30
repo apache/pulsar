@@ -17,7 +17,7 @@
 # under the License.
 #
 
-public_key_path     = "~/.ssh/id_rsa.pub"
+public_key_path     = "~/.ssh/pulsar_aws.pub"
 region              = "us-west-2"
 availability_zone   = "us-west-2a"
 aws_ami             = "ami-9fa343e7"
@@ -28,8 +28,8 @@ num_proxy_nodes     = 1
 base_cidr_block     = "10.0.0.0/16"
 
 instance_types      = {
-  "zookeeper"   = "t2.small"
-  "bookie"      = "i3.xlarge"
+  "zookeeper"   = "t3.small"
+  "bookie"      = "i3.4xlarge"
   "broker"      = "c5.2xlarge"
   "proxy"       = "c5.2xlarge"
 }

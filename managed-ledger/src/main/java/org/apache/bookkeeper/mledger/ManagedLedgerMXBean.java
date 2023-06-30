@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,6 +99,11 @@ public interface ManagedLedgerMXBean {
      * @return the number of readEntries requests that failed
      */
     long getReadEntriesErrors();
+
+    /**
+     * @return the number of readEntries requests that cache miss Rate
+     */
+    double getReadEntriesOpsCacheMissesRate();
 
     // Entry size statistics
 

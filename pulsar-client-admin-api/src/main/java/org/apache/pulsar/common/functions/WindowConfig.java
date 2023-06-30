@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,4 +47,16 @@ public class WindowConfig {
     private String timestampExtractorClassName;
 
     private String actualWindowFunctionClassName;
+
+    private ProcessingGuarantees processingGuarantees;
+
+    /**
+     * This is a semantic option that windows can provide,
+     * forcing the semantics of the {@link FunctionConfig.ProcessingGuarantees} to be equal to MANUAL,
+     * and then letting the windows function handle the semantic timing by itself.
+     */
+    public enum ProcessingGuarantees {
+        ATLEAST_ONCE,
+        ATMOST_ONCE
+    }
 }

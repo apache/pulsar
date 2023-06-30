@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,7 @@
 package org.apache.pulsar.metadata.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -64,8 +63,6 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Provide a zookeeper client to handle session expire.
@@ -108,12 +105,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     private final OpStatsLogger syncStats;
     private final OpStatsLogger createClientStats;
 
-    private final Callable<ZooKeeper> clientCreator = new Callable<ZooKeeper>() {
+    private final Runnable clientCreator = new Runnable() {
 
         @Override
-        public ZooKeeper call() throws Exception {
+        public void run() {
             try {
-                return ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
+                ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
 
                     @Override
                     public ZooKeeper call() throws KeeperException, InterruptedException {
@@ -142,8 +139,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                 }, connectRetryPolicy, rateLimiter, createClientStats);
             } catch (Exception e) {
                 log.error("Gave up reconnecting to ZooKeeper : ", e);
-                Runtime.getRuntime().exit(-1);
-                return null;
+                Runtime.getRuntime().exit(1);
             }
         }
 
@@ -224,9 +220,9 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         }
 
         public PulsarZooKeeperClient build() throws IOException, KeeperException, InterruptedException {
-            checkNotNull(connectString);
+            requireNonNull(connectString);
             checkArgument(sessionTimeoutMs > 0);
-            checkNotNull(statsLogger);
+            requireNonNull(statsLogger);
             checkArgument(retryExecThreadCount > 0);
 
             if (null == connectRetryPolicy) {
@@ -359,7 +355,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         log.info("ZooKeeper session {} is expired from {}.",
                 Long.toHexString(getSessionId()), connectString);
         try {
-            connectExecutor.submit(clientCreator);
+            connectExecutor.execute(clientCreator);
         } catch (RejectedExecutionException ree) {
             if (!closed.get()) {
                 log.error("ZooKeeper reconnect task is rejected : ", ree);
@@ -1442,9 +1438,11 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             elapsedTimeMs = MathUtils.elapsedMSec(startTimeNanos);
             if (!ZooWorker.isRecoverableException(rc)) {
                 if (KeeperException.Code.OK.intValue() == rc) {
-                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                            TimeUnit.MICROSECONDS);
                 } else {
-                    statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                    statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                            TimeUnit.MICROSECONDS);
                 }
                 return false;
             }
@@ -1528,7 +1526,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     }
                     result = proc.call();
                     isDone = true;
-                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                            TimeUnit.MICROSECONDS);
                 } catch (KeeperException e) {
                     ++attempts;
                     boolean rethrow = true;
@@ -1538,7 +1537,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         rethrow = false;
                     }
                     if (rethrow) {
-                        statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                        statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                                TimeUnit.MICROSECONDS);
                         log.debug("Stopped executing {} after {} attempts.", proc, attempts);
                         throw e;
                     }

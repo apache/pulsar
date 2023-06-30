@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,11 +25,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import com.google.common.collect.Sets;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -37,7 +38,7 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -64,8 +65,8 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         super.baseSetup(configuration);
         admin.tenants().createTenant("pulsar", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
-        admin.lookups().lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        createTransactionCoordinatorAssign(16);
+        admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -79,7 +80,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         Assert.assertNotNull(transactionMetadataStoreService);
 
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString());
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString());
         transactionMetadataStoreService.handleTcClientConnect(TransactionCoordinatorID.get(0));
         Awaitility.await().until(() ->
                 transactionMetadataStoreService.getStores().size() == 1);
@@ -103,9 +104,9 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 .getStores().get(TransactionCoordinatorID.get(1)));
         checkTransactionMetadataStoreReady((MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
                 .getStores().get(TransactionCoordinatorID.get(2)));
-        TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5).get();
-        TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(1), 5).get();
-        TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(2), 5).get();
+        TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5, null).get();
+        TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(1), 5, null).get();
+        TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(2), 5, null).get();
         Assert.assertEquals(txnID0.getMostSigBits(), 0);
         Assert.assertEquals(txnID1.getMostSigBits(), 1);
         Assert.assertEquals(txnID2.getMostSigBits(), 2);
@@ -127,7 +128,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                         .getStores().get(TransactionCoordinatorID.get(0));
 
         checkTransactionMetadataStoreReady(transactionMetadataStore);
-        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000).get();
+        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null).get();
         List<String> partitions = new ArrayList<>();
         partitions.add("ptn-0");
         partitions.add("ptn-1");
@@ -150,7 +151,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 (MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
                         .getStores().get(TransactionCoordinatorID.get(0));
         checkTransactionMetadataStoreReady(transactionMetadataStore);
-        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000).get();
+        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null).get();
         List<TransactionSubscription> partitions = new ArrayList<>();
         partitions.add(TransactionSubscription.builder().topic("ptn-1").subscription("sub-1").build());
         partitions.add(TransactionSubscription.builder().topic("ptn-2").subscription("sub-1").build());
@@ -179,7 +180,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         int i = -1;
         while (++i < 1000) {
             try {
-                transactionMetadataStore.newTransaction(2000).get();
+                newTransactionWithTimeoutOf(2000);
             } catch (Exception e) {
                 //no operation
             }
@@ -189,6 +190,14 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
         Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS)
                 .until(() -> txnMap.size() == 0);
+    }
+
+    private TxnID newTransactionWithTimeoutOf(long timeout)
+            throws InterruptedException, ExecutionException {
+        MLTransactionMetadataStore transactionMetadataStore =
+                (MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
+                        .getStores().get(TransactionCoordinatorID.get(0));
+        return transactionMetadataStore.newTransaction(timeout, null).get();
     }
 
     @Test
@@ -205,7 +214,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMap =
                 (ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
 
-        transactionMetadataStore.newTransaction(2000).get();
+        newTransactionWithTimeoutOf(2000);
 
         assertEquals(txnMap.size(), 1);
 
@@ -213,7 +222,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
         Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> txnMap.size() == 0);
 
-        transactionMetadataStore.newTransaction(2000).get();
+        newTransactionWithTimeoutOf(2000);
         assertEquals(txnMap.size(), 1);
 
         txnMap.forEach((txnID, txnMetaListPair) ->
@@ -240,7 +249,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
             int i = -1;
             while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(1000);
+                    newTransactionWithTimeoutOf(1000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -251,7 +260,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
             int i = -1;
             while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(2000);
+                    newTransactionWithTimeoutOf(2000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -262,7 +271,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
             int i = -1;
             while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(3000);
+                    newTransactionWithTimeoutOf(3000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -273,7 +282,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
             int i = -1;
             while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(4000);
+                    newTransactionWithTimeoutOf(4000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -303,7 +312,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                         .getStores().get(TransactionCoordinatorID.get(0));
         checkTransactionMetadataStoreReady(transactionMetadataStore);
 
-        transactionMetadataStore.newTransaction(timeout);
+        newTransactionWithTimeoutOf(2000);
 
         pulsar.getTransactionMetadataStoreService()
                 .removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
@@ -344,20 +353,22 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
         checkTransactionMetadataStoreReady(transactionMetadataStore);
 
-        TxnID txnID = transactionMetadataStore.newTransaction(timeOut - 2000).get();
+        TxnID txnID = newTransactionWithTimeoutOf(timeOut - 2000);
         TxnMeta txnMeta = transactionMetadataStore.getTxnMeta(txnID).get();
         txnMeta.updateTxnStatus(txnStatus, TxnStatus.OPEN);
 
         Field field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
-
+        CompletableFuture<Void> completableFuture = null;
         try {
-            pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(), false).get();
+            completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(),
+                    false);
+            completableFuture.get(5, TimeUnit.SECONDS);
             fail();
         } catch (Exception e) {
             if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
-                assertTrue(e.getCause() instanceof CoordinatorException.TransactionMetadataStoreStateException);
+                assertTrue(e instanceof TimeoutException);
             } else if (txnStatus == TxnStatus.ABORTING) {
                 assertTrue(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException);
             } else {
@@ -370,9 +381,9 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Ready);
-
         if (txnStatus == TxnStatus.ABORTING) {
-            pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.ABORT.getValue(), false).get();
+            pulsar.getTransactionMetadataStoreService()
+                    .endTransaction(txnID, TxnAction.ABORT.getValue(), false).get();
         }
         Awaitility.await().atMost(timeOut, TimeUnit.MILLISECONDS).until(() -> {
             try {

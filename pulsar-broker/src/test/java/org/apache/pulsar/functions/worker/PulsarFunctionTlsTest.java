@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,7 +34,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -42,15 +42,17 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -61,10 +63,16 @@ public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;
 
-    private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    private final String TLS_SERVER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private final String TLS_SERVER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private final String TLS_CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private final String TLS_CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
+    private final String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
@@ -72,12 +80,13 @@ public class PulsarFunctionTlsTest {
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
     protected PulsarService leaderPulsar;
     protected PulsarAdmin leaderAdmin;
+    protected WorkerService[] fnWorkerServices = new WorkerService[BROKER_COUNT];
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
     private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
@@ -86,18 +95,19 @@ public class PulsarFunctionTlsTest {
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            int brokerPort = PortManager.nextFreePort();
-            int webPort = PortManager.nextFreePort();
+            int brokerPort = nextLockedFreePort();
+            int webPort = nextLockedFreePort();
 
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setWebServicePort(Optional.empty());
             config.setWebServicePortTls(Optional.of(webPort));
             config.setBrokerServicePort(Optional.empty());
             config.setBrokerServicePortTls(Optional.of(brokerPort));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             Set<String> superUsers = Sets.newHashSet("superUser", "admin");
@@ -109,9 +119,9 @@ public class PulsarFunctionTlsTest {
             config.setAuthenticationProviders(providers);
             config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
             config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-            config.setTlsAllowInsecureConnection(true);
+            config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
             config.setBrokerClientTlsEnabled(true);
-            config.setBrokerClientTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+            config.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
             config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
             config.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
@@ -126,7 +136,7 @@ public class PulsarFunctionTlsTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                     new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
             workerConfig.setFailureCheckFreqMs(100);
             workerConfig.setNumFunctionPackageReplicas(1);
@@ -137,12 +147,14 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
-            WorkerService fnWorkerService = WorkerServiceLoader.load(workerConfig);
+            workerConfig.setTlsEnableHostnameVerification(true);
+            workerConfig.setTlsAllowInsecureConnection(false);
+            fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(
-                config, workerConfig, Optional.of(fnWorkerService), code -> {});
+                config, workerConfig, Optional.of(fnWorkerServices[i]), code -> {});
             pulsarServices[i].start();
 
             // Sleep until pulsarServices[0] becomes leader, this way we can spy namespace bundle assignment easily.
@@ -158,8 +170,7 @@ public class PulsarFunctionTlsTest {
 
             pulsarAdmins[i] = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsarServices[i].getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
-                .allowTlsInsecureConnection(true)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .authentication(authTls)
                 .build();
         }
@@ -178,11 +189,27 @@ public class PulsarFunctionTlsTest {
     void tearDown() throws Exception {
         try {
             for (int i = 0; i < BROKER_COUNT; i++) {
-                if (pulsarServices[i] != null) {
-                    pulsarServices[i].close();
-                }
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (fnWorkerServices[i] != null) {
+                    fnWorkerServices[i].stop();
+                }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (pulsarServices[i] != null) {
+                    pulsarServices[i].getLoadManager().get().stop();
+                }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (pulsarServices[i] != null) {
+                    pulsarServices[i].close();
+                    pulsarServices[i].getConfiguration().
+                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i].getConfiguration()
+                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
                 }
             }
             bkEnsemble.stop();
@@ -193,6 +220,13 @@ public class PulsarFunctionTlsTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testTLSTrustCertsConfigMapping() throws Exception {
+        WorkerConfig workerConfig = fnWorkerServices[0].getWorkerConfig();
+        assertEquals(workerConfig.getTlsTrustCertsFilePath(), CA_CERT_FILE_PATH);
+        assertEquals(workerConfig.getBrokerClientTrustCertsFilePath(), CA_CERT_FILE_PATH);
     }
 
     @Test
@@ -211,6 +245,12 @@ public class PulsarFunctionTlsTest {
             pulsarAdmins[i].functions().createFunctionWithUrl(
                 functionConfig, jarFilePathUrl
             );
+
+            // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
+            // does not have retries.
+            final PulsarAdmin admin = pulsarAdmins[i];
+            Awaitility.await().ignoreExceptions()
+                    .untilAsserted(() -> admin.functions().getFunction(testTenant, "my-ns", functionName));
 
             FunctionConfig config = pulsarAdmins[i].functions().getFunction(testTenant, "my-ns", functionName);
             assertEquals(config.getTenant(), testTenant);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,7 @@ import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
@@ -51,7 +52,7 @@ import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterI
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -66,7 +67,7 @@ public class PartitionedProducerImplTest {
     private ProducerInterceptors producerInterceptors;
     private CompletableFuture<Producer> producerCreatedFuture;
 
-    @BeforeTest
+    @BeforeMethod(alwaysRun = true)
     public void setup() {
         client = mock(PulsarClientImpl.class);
         schema = mock(Schema.class);
@@ -80,12 +81,12 @@ public class PartitionedProducerImplTest {
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
-        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any()))
+        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocationOnMock -> {
             return new ProducerImpl<>(client, invocationOnMock.getArgument(0),
                     invocationOnMock.getArgument(2), invocationOnMock.getArgument(5),
                     invocationOnMock.getArgument(1), invocationOnMock.getArgument(3),
-                    invocationOnMock.getArgument(4));
+                    invocationOnMock.getArgument(4), invocationOnMock.getArgument(6));
         });
     }
 
@@ -141,7 +142,7 @@ public class PartitionedProducerImplTest {
     @Test
     public void testPartialPartitionWithKey() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
-        final Hash hash = Murmur3_32Hash.getInstance();
+        final Hash hash = Murmur3Hash32.getInstance();
         final List<Integer> expectedHashList = Lists.newArrayList();
         final List<Integer> actualHashList = Lists.newArrayList();
 
@@ -233,6 +234,34 @@ public class PartitionedProducerImplTest {
         impl.close();
         stats = impl.getStats();
         assertEquals(stats.getTotalSendFailed(), 1);
+    }
+
+    @Test
+    public void testGetNumOfPartitions() throws Exception {
+        String topicName = "test-get-num-of-partitions";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+
+        PartitionedProducerImpl partitionedProducerImpl = new PartitionedProducerImpl(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+
+        assertEquals(partitionedProducerImpl.getNumOfPartitions(), 1);
+
+        String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
+        ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
+        ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
+                null, 0, null, null, Optional.empty());
+        assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
 
 }

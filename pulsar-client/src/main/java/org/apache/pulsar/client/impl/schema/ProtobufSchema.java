@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,29 +18,25 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.GeneratedMessageV3;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-import org.apache.avro.protobuf.ProtobufData;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
-import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.apache.avro.protobuf.ProtobufData;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
+import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * A schema implementation to deal with protobuf generated messages.
@@ -72,7 +68,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         // set protobuf parsing info
         Map<String, String> allProperties = new HashMap<>(schemaInfo.getProperties());
         allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
-        ((SchemaInfoImpl)schemaInfo).setProperties(allProperties);
+        ((SchemaInfoImpl) schemaInfo).setProperties(allProperties);
     }
 
     private String getParsingInfo(T protoMessageInstance) {
@@ -87,7 +83,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         });
 
         try {
-            return new ObjectMapper().writeValueAsString(protoBufParsingInfos);
+            return ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsString(protoBufParsingInfos);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -98,7 +94,8 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     public static <T> ProtobufSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
-        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
+                .withProperties(properties).build();
         return ProtobufSchema.of(schemaDefinition);
     }
 
@@ -120,7 +117,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         try {
             return new ProtobufSchema(schemaInfo,
                 (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
-        }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
     }

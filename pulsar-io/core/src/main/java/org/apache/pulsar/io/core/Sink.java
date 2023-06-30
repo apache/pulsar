@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ public interface Sink<T> extends AutoCloseable {
      * @param sinkContext environment where the sink connector is running
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
+    void open(Map<String, Object> config, SinkContext sinkContext) throws Exception;
 
     /**
      * Write a message to Sink.

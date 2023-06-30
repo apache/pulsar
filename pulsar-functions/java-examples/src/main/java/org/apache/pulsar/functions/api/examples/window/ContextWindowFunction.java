@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.functions.api.examples.window;
 
+import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
-
-import java.util.Collection;
 
 /**
  * Example Function that acts on a window of tuples at a time rather than per tuple basis.

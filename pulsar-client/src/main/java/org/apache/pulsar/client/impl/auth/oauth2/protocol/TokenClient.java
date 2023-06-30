@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -54,6 +53,7 @@ public class TokenClient implements ClientCredentialsExchanger {
     TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
         if (httpClient == null) {
             DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+            confBuilder.setUseProxyProperties(true);
             confBuilder.setFollowRedirect(true);
             confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
             confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
@@ -73,10 +73,21 @@ public class TokenClient implements ClientCredentialsExchanger {
 
     /**
      * Constructing http request parameters.
-     * @param bodyMap List of parameters to be requested.
+     * @param req object with relevant request parameters
      * @return Generate the final request body from a map.
      */
-    String buildClientCredentialsBody(Map<String, String> bodyMap) {
+    String buildClientCredentialsBody(ClientCredentialsExchangeRequest req) {
+        Map<String, String> bodyMap = new TreeMap<>();
+        bodyMap.put("grant_type", "client_credentials");
+        bodyMap.put("client_id", req.getClientId());
+        bodyMap.put("client_secret", req.getClientSecret());
+        // Only set audience and scope if they are non-empty.
+        if (!StringUtils.isBlank(req.getAudience())) {
+            bodyMap.put("audience", req.getAudience());
+        }
+        if (!StringUtils.isBlank(req.getScope())) {
+            bodyMap.put("scope", req.getScope());
+        }
         return bodyMap.entrySet().stream()
                 .map(e -> {
                     try {
@@ -96,15 +107,7 @@ public class TokenClient implements ClientCredentialsExchanger {
      */
     public TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException {
-        Map<String, String> bodyMap = new TreeMap<>();
-        bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", req.getClientId());
-        bodyMap.put("client_secret", req.getClientSecret());
-        bodyMap.put("audience", req.getAudience());
-        if (!StringUtils.isBlank(req.getScope())) {
-            bodyMap.put("scope", req.getScope());
-        }
-        String body = buildClientCredentialsBody(bodyMap);
+        String body = buildClientCredentialsBody(req);
 
         try {
 
@@ -117,13 +120,13 @@ public class TokenClient implements ClientCredentialsExchanger {
 
             switch (res.getStatusCode()) {
             case 200:
-                return ObjectMapperFactory.getThreadLocal().reader().readValue(res.getResponseBodyAsBytes(),
+                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
                         TokenResult.class);
 
             case 400: // Bad request
             case 401: // Unauthorized
                 throw new TokenExchangeException(
-                        ObjectMapperFactory.getThreadLocal().reader().readValue(res.getResponseBodyAsBytes(),
+                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
                                 TokenError.class));
 
             default:

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,16 +34,16 @@ public interface Reader extends Closeable {
     String getTopic();
 
     /**
-     * Read the next message in the topic
+     * Read the next message in the topic.
      *
-     * @return the next messasge
+     * @return the next message
      * @throws PulsarClientException
      */
     Message<byte[]> readNext() throws PulsarClientException;
 
     /**
      * Read the next message in the topic waiting for a maximum of timeout
-     * time units. Returns null if no message is recieved in that time.
+     * time units. Returns null if no message is received in that time.
      *
      * @return the next message(Could be null if none received in time)
      * @throws PulsarClientException
@@ -53,14 +53,14 @@ public interface Reader extends Closeable {
     CompletableFuture<Message<byte[]>> readNextAsync();
 
     /**
-     * Asynchronously close the reader and stop the broker to push more messages
+     * Asynchronously close the reader and stop the broker to push more messages.
      *
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
 
     /**
-     * Return true if the topic was terminated and this reader has reached the end of the topic
+     * Return true if the topic was terminated and this reader has reached the end of the topic.
      */
     boolean hasReachedEndOfTopic();
 

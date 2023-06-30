@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "quarantine")
+@Test(groups = "broker-impl")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;

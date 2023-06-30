@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
-
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import lombok.extern.slf4j.Slf4j;
@@ -30,22 +29,9 @@ public class AuthenticationDataCommand implements AuthenticationDataSource {
     protected final String authData;
     protected final SocketAddress remoteAddress;
     protected final SSLSession sslSession;
-    protected String subscription;
 
     public AuthenticationDataCommand(String authData) {
-        this(authData, null, null, null);
-    }
-
-    public AuthenticationDataCommand(String authData, String subscription) {
-        this(authData, null, null, subscription);
-    }
-
-    public AuthenticationDataCommand(String authData, SocketAddress remoteAddress, SSLSession sslSession,
-                                     String subscription) {
-        this.authData = authData;
-        this.remoteAddress = remoteAddress;
-        this.sslSession = sslSession;
-        this.subscription = subscription;
+        this(authData, null, null);
     }
 
     public AuthenticationDataCommand(String authData, SocketAddress remoteAddress, SSLSession sslSession) {
@@ -99,23 +85,5 @@ public class AuthenticationDataCommand implements AuthenticationDataSource {
             log.error("Failed to verify the peer's identity", e);
             return null;
         }
-    }
-
-    /*
-     * Subscription
-     */
-    @Override
-    public boolean hasSubscription() {
-        return this.subscription != null;
-    }
-
-    @Override
-    public void setSubscription(String subscription) {
-        this.subscription = subscription;
-    }
-
-    @Override
-    public String getSubscription() {
-        return subscription;
     }
 }

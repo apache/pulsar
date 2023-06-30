@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
@@ -213,4 +215,72 @@ func TestMetricsServer(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	resp.Body.Close()
+	gi.close()
+	metricsServicer.close()
+}
+
+// nolint
+func TestUserMetrics(t *testing.T) {
+	gi := newGoInstance()
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+	assert.NotContainsf(t, string(body), "pulsar_function_user_metric", "user metric should not appear yet")
+
+	testUserMetricValues := map[string]int{"test": 1, "test2": 2}
+
+	for labelname, value := range testUserMetricValues {
+		gi.context.RecordMetric(labelname, float64(value))
+	}
+
+	time.Sleep(time.Second * 1)
+	resp, err = http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err = ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+
+	for labelname, value := range testUserMetricValues {
+		for _, quantile := range []string{"0.5", "0.9", "0.99", "0.999"} {
+			assert.Containsf(t, string(body), fmt.Sprintf("\n"+`pulsar_function_user_metric{cluster="pulsar-function-go",fqfn="//go-function",instance_id="pulsar-function",metric="%s",name="go-function",namespace="/",tenant="",quantile="%s"} %d`+"\n", labelname, quantile, value), "user metric %q quantile %s not found with value %d", labelname, quantile, value)
+		}
+	}
+
+	resp.Body.Close()
+	gi.close()
+	metricsServicer.close()
+}
+
+func TestInstanceControlMetrics(t *testing.T) {
+	instance := newGoInstance()
+	t.Cleanup(instance.close)
+	instanceClient := instanceCommunicationClient(t, instance)
+	_, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	assert.NoError(t, err, "err communicating with instance control: %v", err)
+
+	testLabels := []string{"userMetricControlTest1", "userMetricControlTest2"}
+	for _, label := range testLabels {
+		assert.NotContainsf(t, label, "user metrics should not yet contain %s", label)
+	}
+
+	for value, label := range testLabels {
+		instance.context.RecordMetric(label, float64(value+1))
+	}
+	time.Sleep(time.Second)
+
+	metrics, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	assert.NoError(t, err, "err communicating with instance control: %v", err)
+	for value, label := range testLabels {
+		assert.Containsf(t, metrics.UserMetrics, label, "user metrics should contain metric %s", label)
+		assert.EqualValuesf(t, value+1, metrics.UserMetrics[label], "user metric %s != %d", label, value+1)
+	}
 }

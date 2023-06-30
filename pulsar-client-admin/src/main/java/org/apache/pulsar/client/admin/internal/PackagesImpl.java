@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,19 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static org.asynchttpclient.Dsl.get;
 import com.google.gson.Gson;
+import io.netty.handler.codec.http.HttpHeaders;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -41,8 +40,11 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageName;
+import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.Dsl;
+import org.asynchttpclient.HttpResponseBodyPart;
+import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
@@ -63,45 +65,18 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public PackageMetadata getMetadata(String packageName) throws PulsarAdminException {
-        try {
-            return getMetadataAsync(packageName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMetadataAsync(packageName));
     }
 
     @Override
     public CompletableFuture<PackageMetadata> getMetadataAsync(String packageName) {
         WebTarget path = packages.path(PackageName.get(packageName).toRestPath() + "/metadata");
-        final CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<PackageMetadata>() {
-            @Override
-            public void completed(PackageMetadata metadata) {
-                future.complete(metadata);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;    }
+        return asyncGetRequest(path, new FutureCallback<PackageMetadata>(){});
+    }
 
     @Override
     public void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException {
-        try {
-            updateMetadataAsync(packageName, metadata).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        sync(() -> updateMetadataAsync(packageName, metadata));
     }
 
     @Override
@@ -112,14 +87,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException {
-        try {
-            uploadAsync(metadata, packageName, path).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        sync(() -> uploadAsync(metadata, packageName, path));
     }
 
     @Override
@@ -154,62 +122,89 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public void download(String packageName, String path) throws PulsarAdminException {
-        try {
-            downloadAsync(packageName, path).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof PulsarAdminException) {
-                throw (PulsarAdminException) cause;
-            } else {
-                throw new PulsarAdminException(cause);
-            }
-        }
+        sync(() -> downloadAsync(packageName, path));
     }
 
     @Override
     public CompletableFuture<Void> downloadAsync(String packageName, String path) {
         WebTarget webTarget = packages.path(PackageName.get(packageName).toRestPath());
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        asyncGetRequest(webTarget, new InvocationCallback<Response>(){
-            @Override
-            public void completed(Response response) {
-                if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-                    try (InputStream inputStream = response.readEntity(InputStream.class)) {
-                        Path destinyPath = Paths.get(path);
-                        if (destinyPath.getParent() != null) {
-                            Files.createDirectories(destinyPath.getParent());
-                        }
-                        Files.copy(inputStream, destinyPath);
-                        future.complete(null);
-                    } catch (IOException e) {
-                        future.completeExceptionally(e);
-                    }
-                } else {
-                    future.completeExceptionally(getApiException(response));
-                }
+        try {
+            Path destinyPath = Paths.get(path);
+            if (destinyPath.getParent() != null) {
+                Files.createDirectories(destinyPath.getParent());
             }
 
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(throwable);
-            }
-        });
+            FileChannel os = new FileOutputStream(destinyPath.toFile()).getChannel();
+            RequestBuilder builder = get(webTarget.getUri().toASCIIString());
+
+            CompletableFuture<HttpResponseStatus> statusFuture =
+                httpClient.executeRequest(addAuthHeaders(webTarget, builder).build(),
+                    new AsyncHandler<HttpResponseStatus>() {
+                        private HttpResponseStatus status;
+
+                        @Override
+                        public State onStatusReceived(HttpResponseStatus httpResponseStatus) throws Exception {
+                            status = httpResponseStatus;
+                            if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
+                                return State.ABORT;
+                            }
+                            return State.CONTINUE;
+                        }
+
+                        @Override
+                        public State onHeadersReceived(HttpHeaders httpHeaders) throws Exception {
+                            return State.CONTINUE;
+                        }
+
+                        @Override
+                        public State onBodyPartReceived(HttpResponseBodyPart httpResponseBodyPart) throws Exception {
+                            os.write(httpResponseBodyPart.getBodyByteBuffer());
+                            return State.CONTINUE;
+                        }
+
+                        @Override
+                        public void onThrowable(Throwable throwable) {
+                            // we don't need to handle that throwable and use the returned future to handle it.
+                        }
+
+                        @Override
+                        public HttpResponseStatus onCompleted() throws Exception {
+                            return status;
+                        }
+                    }).toCompletableFuture();
+            statusFuture
+                .whenComplete((status, throwable) -> {
+                    try {
+                        os.close();
+                    } catch (IOException e) {
+                        future.completeExceptionally(getApiException(throwable));
+                    }
+                })
+                .thenAccept(status -> {
+                    if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                        future.completeExceptionally(
+                            getApiException(Response
+                                .status(status.getStatusCode())
+                                .entity(status.getStatusText())
+                                .build()));
+                    } else {
+                        future.complete(null);
+                    }
+                })
+                .exceptionally(throwable -> {
+                    future.completeExceptionally(getApiException(throwable));
+                    return null;
+                });
+        } catch (Exception e) {
+            future.completeExceptionally(getApiException(e));
+        }
         return future;
     }
 
     @Override
     public void delete(String packageName) throws PulsarAdminException {
-        try {
-            deleteAsync(packageName).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        sync(() -> deleteAsync(packageName));
     }
 
     @Override
@@ -221,14 +216,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public List<String> listPackageVersions(String packageName) throws PulsarAdminException {
-        try {
-            return listPackageVersionsAsync(packageName).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        return sync(() -> listPackageVersionsAsync(packageName));
     }
 
 
@@ -237,48 +225,17 @@ public class PackagesImpl extends ComponentResource implements Packages {
         PackageName name = PackageName.get(packageName);
         WebTarget path = packages.path(String.format("%s/%s/%s/%s",
             name.getPkgType().toString(), name.getTenant(), name.getNamespace(), name.getName()));
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<List<String>>() {
-            @Override
-            public void completed(List<String> strings) {
-                future.complete(strings);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     @Override
     public List<String> listPackages(String type, String namespace) throws PulsarAdminException {
-        try {
-            return listPackagesAsync(type, namespace).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        return sync(() -> listPackagesAsync(type, namespace));
     }
 
     @Override
     public CompletableFuture<List<String>> listPackagesAsync(String type, String namespace) {
         WebTarget path = packages.path(type + "/" + NamespaceName.get(namespace).toString());
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<List<String>>() {
-            @Override
-            public void completed(List<String> strings) {
-                future.complete(strings);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 }

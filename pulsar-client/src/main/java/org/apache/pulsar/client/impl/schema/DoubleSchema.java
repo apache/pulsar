@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,10 +32,10 @@ public class DoubleSchema extends AbstractSchema<Double> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfoImpl()
-            .setName("Double")
-            .setType(SchemaType.DOUBLE)
-            .setSchema(new byte[0]);
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("Double")
+            .type(SchemaType.DOUBLE)
+            .schema(new byte[0]).build();
         INSTANCE = new DoubleSchema();
     }
 
@@ -99,7 +99,7 @@ public class DoubleSchema extends AbstractSchema<Double> {
         validate(byteBuf);
         long value = 0;
 
-        for (int i = 0; i < 8; i ++) {
+        for (int i = 0; i < 8; i++) {
             value <<= 8;
             value |= byteBuf.getByte(i) & 0xFF;
         }

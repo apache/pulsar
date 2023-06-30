@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,7 +49,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
 
@@ -83,12 +83,12 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
     }
 
     @Test
-    public final void mulitpleFileTest() throws IOException {
+    public final void multipleFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
 
@@ -128,7 +128,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.TRUE);
         map.put("pollingInterval", 1000L);
@@ -163,7 +163,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
         map.put("pollingInterval", 100);
@@ -211,7 +211,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
         map.put("pollingInterval", 100);
@@ -250,6 +250,62 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
                 verify(inProcess, times(1)).add(produced);
                 verify(inProcess, times(1)).remove(produced);
                 verify(recentlyProcessed, times(1)).add(produced);
+            }
+
+        } catch (InterruptedException e) {
+            fail("Unable to generate files" + e.getLocalizedMessage());
+        }
+    }
+
+    @Test
+    public final void renameFileTest() throws IOException {
+
+        consumer = Mockito.mock(PushSource.class);
+        Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
+
+        String processedFileSuffix = ".file_process_done";
+        Map<String, Object> map = new HashMap<>();
+        map.put("inputDirectory", directory.toString());
+        map.put("keepFile", Boolean.FALSE);
+        map.put("pollingInterval", 100);
+        map.put("processedFileSuffix", processedFileSuffix);
+        fileConfig = FileSourceConfig.load(map);
+
+        try {
+            // Start producing files, with a .1 sec delay between
+            generatorThread =
+                    new TestFileGenerator(producedFiles, 500, 100, 1, directory.toString(), "continuous", ".txt",
+                            getPermissions());
+            executor.execute(generatorThread);
+
+            listingThread = new FileListingThread(fileConfig, workQueue, inProcess, recentlyProcessed);
+            consumerThread = new FileConsumerThread(consumer, workQueue, inProcess, recentlyProcessed);
+            cleanupThread = new ProcessedFileThread(fileConfig, recentlyProcessed);
+            executor.execute(listingThread);
+            executor.execute(consumerThread);
+            executor.execute(cleanupThread);
+
+            // Run for 30 seconds
+            Thread.sleep(30000);
+
+            // Stop producing files
+            generatorThread.halt();
+
+            // Let the consumer catch up
+            while (!workQueue.isEmpty() && !inProcess.isEmpty() && !recentlyProcessed.isEmpty()) {
+                Thread.sleep(2000);
+            }
+
+
+            // Make sure every single file was processed.
+            for (File produced : producedFiles) {
+                verify(workQueue, times(1)).offer(produced);
+                verify(inProcess, times(1)).add(produced);
+                verify(inProcess, times(1)).remove(produced);
+                verify(recentlyProcessed, times(1)).add(produced);
+
+                assert(!produced.exists());
+                assert(new File(produced.getAbsolutePath() + processedFileSuffix).exists());
             }
 
         } catch (InterruptedException e) {

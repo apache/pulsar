@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,9 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(ThreadLeakDetectorListener.class);
-    private static final boolean
-            THREAD_LEAK_DETECTOR_ENABLED = Boolean.valueOf(System.getProperty("testThreadLeakDetector",
-            "true"));
+
     private Set<ThreadKey> capturedThreadKeys;
 
     @Override

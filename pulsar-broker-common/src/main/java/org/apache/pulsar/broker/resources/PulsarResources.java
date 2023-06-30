@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,14 +19,11 @@
 package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
-
+import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-
-import lombok.AccessLevel;
-import lombok.Getter;
 
 public class PulsarResources {
 
@@ -50,8 +47,9 @@ public class PulsarResources {
     private final BookieResources bookieResources;
     @Getter
     private final TopicResources topicResources;
-
+    @Getter
     private final Optional<MetadataStore> localMetadataStore;
+    @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
 
     public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
@@ -62,8 +60,7 @@ public class PulsarResources {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
-            namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore,
-                    operationTimeoutSec);
+            namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         } else {
             tenantResources = null;
@@ -90,9 +87,19 @@ public class PulsarResources {
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);
     }
 
-    public static MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public static MetadataStoreExtended createLocalMetadataStore(String serverUrls, int sessionTimeoutMs,
+                                                                 boolean allowReadOnlyOperations)
             throws MetadataStoreException {
         return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false).build());
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
+    }
+
+    public static MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs,
+                                                                  boolean allowReadOnlyOperations)
+            throws MetadataStoreException {
+        return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
+                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
     }
 }

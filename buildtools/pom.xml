@@ -25,25 +25,40 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>23</version>
-    <relativePath></relativePath>
+    <version>29</version>
+    <relativePath />
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
-  <version>2.10.0-SNAPSHOT</version>
+  <version>3.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
   <properties>
+    <project.build.outputTimestamp>2023-05-03T02:53:27Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-    <surefire.version>3.0.0-M3</surefire.version>
-    <log4j2.version>2.14.0</log4j2.version>
-    <slf4j.version>1.7.25</slf4j.version>
-    <testng.version>7.3.0</testng.version>
+    <surefire.version>3.1.0</surefire.version>
+    <log4j2.version>2.18.0</log4j2.version>
+    <slf4j.version>1.7.32</slf4j.version>
+    <testng.version>7.7.1</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
-    <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+    <license-maven-plugin.version>4.1</license-maven-plugin.version>
+    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
+    <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <netty.version>4.1.94.Final</netty.version>
+    <guice.version>4.2.3</guice.version>
+    <guava.version>32.0.0-jre</guava.version>
+    <ant.version>1.10.12</ant.version>
+    <snakeyaml.version>2.0</snakeyaml.version>
+    <mockito.version>3.12.4</mockito.version>
+    <!-- required for running tests on JDK11+ -->
+    <test.additional.args>
+      --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+      --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+      --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
+    </test.additional.args>
   </properties>
 
   <dependencyManagement>
@@ -59,15 +74,32 @@
   </dependencyManagement>
 
   <dependencies>
+
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>${snakeyaml.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.ant</groupId>
+      <artifactId>ant</artifactId>
+      <version>${ant.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>${guice.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
       <version>${testng.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -80,10 +112,6 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-1.2-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -105,8 +133,18 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.68.Final</version>
+      <version>${netty.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
+      <version>${mockito.version}</version>
     </dependency>
   </dependencies>
 
@@ -115,7 +153,7 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>4.0.rc2</version>
+        <version>${license-maven-plugin.version}</version>
         <configuration>
           <licenseSets>
             <licenseSet>
@@ -123,7 +161,7 @@
             </licenseSet>
           </licenseSets>
           <mapping>
-            <java>JAVADOC_STYLE</java>
+            <java>SLASHSTAR_STYLE</java>
           </mapping>
         </configuration>
       </plugin>
@@ -138,15 +176,24 @@
           <properties>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier</value>
             </property>
           </properties>
+          <argLine>
+            ${test.additional.args}
+          </argLine>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>${surefire.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>${maven-shade-plugin.version}</version>
         <configuration>
           <createDependencyReducedPom>true</createDependencyReducedPom>
           <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
@@ -162,6 +209,14 @@
               <shadedPattern>org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3</shadedPattern>
             </relocation>
           </relocations>
+          <filters>
+            <filter>
+              <artifact>org.apache.commons:commons-lang3</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+            </filter>
+          </filters>
         </configuration>
         <executions>
           <execution>
@@ -182,12 +237,31 @@
           </excludes>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven-checkstyle-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>${puppycrawl.checkstyle.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>${project.basedir}/src/main/resources/pulsar/checkstyle.xml</configLocation>
+          <suppressionsLocation>${project.basedir}/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <encoding>UTF-8</encoding>
+          <excludes>**/proto/*</excludes>
+        </configuration>
+      </plugin>
     </plugins>
     <extensions>
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
         <artifactId>wagon-ssh-external</artifactId>
-        <version>2.10</version>
+        <version>3.5.3</version>
       </extension>
     </extensions>
   </build>

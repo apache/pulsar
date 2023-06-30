@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,7 +80,9 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
     private void handleWaterMarkEvent(Event<T> event) {
         long watermarkTs = event.getTimestamp();
         long windowEndTs = nextWindowEndTs;
-        log.debug(String.format("Window end ts %d Watermark ts %d", windowEndTs, watermarkTs));
+        if (log.isDebugEnabled()) {
+            log.debug("Window end ts {} Watermark ts {}", windowEndTs, watermarkTs);
+        }
         while (windowEndTs <= watermarkTs) {
             long currentCount = windowManager.getEventCount(windowEndTs);
             evictionPolicy.setContext(new DefaultEvictionContext(windowEndTs, currentCount));
@@ -93,10 +95,14 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
                  * window intervals based on event ts.
                  */
                 long ts = getNextAlignedWindowTs(windowEndTs, watermarkTs);
-                log.debug(String.format("Next aligned window end ts %d", ts));
+                if (log.isDebugEnabled()) {
+                    log.debug("Next aligned window end ts {}", ts);
+                }
                 if (ts == Long.MAX_VALUE) {
-                    log.debug(String.format("No events to process between %d and watermark ts %d",
-                            windowEndTs, watermarkTs));
+                    if (log.isDebugEnabled()) {
+                        log.debug("No events to process between {} and watermark ts {}",
+                                windowEndTs, watermarkTs);
+                    }
                     break;
                 }
                 windowEndTs = ts;

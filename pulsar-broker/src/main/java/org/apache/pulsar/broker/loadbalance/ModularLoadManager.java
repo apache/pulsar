@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
@@ -112,6 +114,11 @@ public interface ModularLoadManager {
     Set<String> getAvailableBrokers();
 
     /**
+     * Get available broker list in cluster by async invoke.
+     */
+    CompletableFuture<Set<String>> getAvailableBrokersAsync();
+
+    /**
      * Fetch local-broker data from load-manager broker cache.
      *
      * @param broker load-balancer path
@@ -125,4 +132,14 @@ public interface ModularLoadManager {
      * @return List of LoadBalancing Metrics
      */
     List<Metrics> getLoadBalancingMetrics();
+
+    /**
+     * Fetch bundle's load report data.
+     *
+     * @param bundle
+     * @return bundle data
+     */
+    BundleData getBundleDataOrDefault(String bundle);
+
+    String setNamespaceBundleAffinity(String bundle, String broker);
 }

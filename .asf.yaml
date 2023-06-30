@@ -35,9 +35,55 @@ github:
     # Enable projects for project management boards
     projects: true
   enabled_merge_buttons:
-    # enable squash button:
     squash:  true
-    # disable merge button:
     merge:   false
-    # disable rebase button:
-    rebase:  false
+    rebase:  true
+  protected_branches:
+    master:
+      required_status_checks:
+        # strict means "Require branches to be up to date before merging".
+        strict: false
+        # Contexts are the names of checks that must pass.
+        # See ./github/workflows/README.md for more documentation on this list.
+        contexts:
+           - Pulsar CI checks completed
+
+      required_pull_request_reviews:
+        dismiss_stale_reviews: false
+        require_code_owner_reviews: true
+        required_approving_review_count: 1
+
+      # squash or rebase must be allowed in the repo for this setting to be set to true.
+      required_linear_history: true
+
+      required_signatures: false
+
+    # The following branch protections only ensure that force pushes are not allowed
+    branch-1.15: {}
+    branch-1.16: {}
+    branch-1.17: {}
+    branch-1.18: {}
+    branch-1.19: {}
+    branch-1.20: {}
+    branch-1.21: {}
+    branch-1.22: {}
+    branch-2.0: {}
+    branch-2.1: {}
+    branch-2.2: {}
+    branch-2.3: {}
+    branch-2.4: {}
+    branch-2.5: {}
+    branch-2.6: {}
+    branch-2.7: {}
+    branch-2.8: {}
+    branch-2.9: {}
+    branch-2.10: {}
+    branch-2.11: {}
+    branch-3.0: {}
+
+notifications:
+  commits:      commits@pulsar.apache.org
+  issues:       commits@pulsar.apache.org
+  pullrequests: commits@pulsar.apache.org
+  discussions:  commits@pulsar.apache.org
+  jira_options: link label

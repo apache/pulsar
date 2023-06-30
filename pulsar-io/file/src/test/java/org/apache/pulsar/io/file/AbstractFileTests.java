@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.file;
 
 import java.io.File;
@@ -118,6 +117,12 @@ public abstract class AbstractFileTests {
 
     protected final void generateFiles(int numFiles, int numLines, String directory) throws IOException, InterruptedException, ExecutionException {
         generatorThread = new TestFileGenerator(producedFiles, numFiles, 1, numLines, directory, "prefix", ".txt", getPermissions());
+        Future<?> f = executor.submit(generatorThread);
+        f.get();
+    }
+
+    protected final void generateFiles(int numFiles, int numLines, String directory, String suffix) throws IOException, InterruptedException, ExecutionException {
+        generatorThread = new TestFileGenerator(producedFiles, numFiles, 1, numLines, directory, "prefix", suffix, getPermissions());
         Future<?> f = executor.submit(generatorThread);
         f.get();
     }
