@@ -105,7 +105,7 @@ public abstract class PerformanceBaseArguments {
 
     @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
             + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
-    public long memoryLimit = 0L;
+    public long memoryLimit;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 

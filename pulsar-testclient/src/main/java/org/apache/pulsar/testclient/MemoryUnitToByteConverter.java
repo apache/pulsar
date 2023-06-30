@@ -24,30 +24,32 @@ import com.google.common.collect.Sets;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
-/**
- * @see org.apache.pulsar.client.cli.MemoryUnitToByteConverter
- */
 class MemoryUnitToByteConverter implements IStringConverter<Long> {
 
     private static Set<Character> sizeUnit = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
-    private static final long DEFAULT_MEMORY_LIMIT = 0L;
+
+    private final long defaultValue;
+
+    public MemoryUnitToByteConverter(long defaultValue) {
+        this.defaultValue = defaultValue;
+    }
 
     @Override
     public Long convert(String memoryLimitArgument) {
-        return Math.max(DEFAULT_MEMORY_LIMIT, parseBytes(memoryLimitArgument));
+        return Math.max(defaultValue, parseBytes(memoryLimitArgument));
     }
 
-    public static long parseBytes(String memoryLimitArgument) {
+    long parseBytes(String memoryLimitArgument) {
         if (StringUtils.isNotEmpty(memoryLimitArgument)) {
             long memoryLimitArg = validateSizeString(memoryLimitArgument);
             if (positiveCheckStatic("memory-limit", memoryLimitArg)) {
                 return memoryLimitArg;
             }
         }
-        return DEFAULT_MEMORY_LIMIT;
+        return defaultValue;
     }
 
-    static long validateSizeString(String s) {
+    long validateSizeString(String s) {
         char last = s.charAt(s.length() - 1);
         String subStr = s.substring(0, s.length() - 1);
         long size;

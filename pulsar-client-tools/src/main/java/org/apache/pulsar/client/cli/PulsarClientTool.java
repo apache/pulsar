@@ -79,7 +79,7 @@ public class PulsarClientTool {
 
         @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
             + "(eg: 32M, 64M)", converter = MemoryUnitToByteConverter.class)
-        long memoryLimit;
+        long memoryLimit = 0L;
     }
 
     protected RootParams rootParams;
@@ -157,7 +157,8 @@ public class PulsarClientTool {
         this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
         this.rootParams.listenerName = StringUtils.trimToNull(properties.getProperty("listenerName"));
         // setting memory limit
-        this.rootParams.memoryLimit = MemoryUnitToByteConverter.parseBytes(properties.getProperty("memoryLimit"));
+        this.rootParams.memoryLimit = new MemoryUnitToByteConverter(this.rootParams.memoryLimit)
+                .parseBytes(properties.getProperty("memoryLimit"));
 
         String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
         if (proxyProtocolString != null) {
