@@ -331,11 +331,9 @@ public interface Brokers {
      * @param maxConcurrentUnloadPerSec the maximum number of topics to unload per second.
      *                                  This helps control the speed of the unload operation during shutdown.
      * @param forcedTerminateTopic if true, topics will be forcefully terminated during the shutdown process.
-     * @param runAsync if true, the shutdown operation will be run in an asynchronous manner.
      */
     void shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                  boolean forcedTerminateTopic,
-                                  boolean runAsync) throws PulsarAdminException;
+                                  boolean forcedTerminateTopic) throws PulsarAdminException;
 
     /**
      * Get version of broker.
