@@ -79,6 +79,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
+        jcommander.addCommand("get-batch-messages-by-id", new GetBatchMessagesById());
         jcommander.addCommand("last-message-id", new GetLastMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
@@ -629,7 +630,8 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get message by its ledgerId and entryId")
+    @Parameters(commandDescription = "Get message by its ledgerId and entryId, " +
+            "or get the exactly batch message by its batchIndex")
     private class GetMessageById extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -644,14 +646,54 @@ public class CmdPersistentTopics extends CmdBase {
             required = true)
         private long entryId;
 
+        @Parameter(names = { "-b", "--batchIndex" },
+                description = "batch index pointing to the desired message",
+                required = false)
+        private int batchIndex = -1;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            Message<byte[]> message = getPersistentTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            Message<byte[]> message = getPersistentTopics().getMessageById(persistentTopic, ledgerId, entryId, batchIndex);
 
             ByteBuf date = Unpooled.wrappedBuffer(message.getData());
             System.out.println(ByteBufUtil.prettyHexDump(date));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the whole batch messages by its ledgerId and entryId")
+    private class GetBatchMessagesById extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--ledgerId" },
+                description = "ledger id pointing to the desired ledger",
+                required = true)
+        private long ledgerId;
+
+        @Parameter(names = { "-e", "--entryId" },
+                description = "entry id pointing to the desired entry",
+                required = true)
+        private long entryId;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            List<Message<byte[]>> messages = getPersistentTopics().getBatchMessagesById(persistentTopic, ledgerId, entryId);
+
+            if (messages == null || messages.isEmpty()) {
+                System.out.println("Cannot find any messages based on ledgerId:"
+                        + ledgerId + " entryId:" + entryId);
+            } else {
+                for (Message message : messages) {
+                    if (message != null) {
+                        ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                        System.out.println(ByteBufUtil.prettyHexDump(date));
+                    }
+                }
+            }
         }
     }
 

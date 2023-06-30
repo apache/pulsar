@@ -963,9 +963,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
+    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId, int batchIndex) {
         CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
-        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
+        getRemoteMessageById(topic, ledgerId, entryId, batchIndex).handle((r, ex) -> {
             if (ex != null) {
                 if (ex instanceof NotFoundException) {
                     log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
@@ -981,7 +981,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
-    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
+    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId, int batchIndex) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
         final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
@@ -990,7 +990,22 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
+                            if (batchIndex == -1) {
+                                future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
+                            } else {
+                                List<Message<byte[]>> messages = getMessagesFromHttpResponse(topicName.toString(), response);
+                                for (Message<byte[]> msg : messages) {
+                                    MessageImpl<byte[]> message = (MessageImpl<byte[]>) msg;
+                                    if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                                        BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                                        if (msgId.getBatchIndex() == batchIndex) {
+                                            future.complete(msg);
+                                            return;
+                                        }
+                                    }
+                                }
+                                future.complete(null);
+                            }
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -1005,9 +1020,58 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
+    public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId, int batchIndex)
             throws PulsarAdminException {
-        return sync(() -> getMessageByIdAsync(topic, ledgerId, entryId));
+        return sync(() -> getMessageByIdAsync(topic, ledgerId, entryId, batchIndex));
+    }
+
+    @Override
+    public List<Message<byte[]>> getBatchMessagesById(String topic, long ledgerId, long entryId)
+            throws PulsarAdminException {
+        return sync(() -> getBatchMessagesByIdAsync(topic, ledgerId, entryId));
+    }
+
+    @Override
+    public CompletableFuture<List<Message<byte[]>>> getBatchMessagesByIdAsync(String topic, long ledgerId, long entryId) {
+        CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
+        getRemoteBatchMessagesById(topic, ledgerId, entryId).handle((r, ex) -> {
+            if (ex != null) {
+                if (ex instanceof NotFoundException) {
+                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
+                    future.complete(r);
+                } else {
+                    future.completeExceptionally(ex);
+                }
+                return null;
+            }
+
+            future.complete(r);
+            return null;
+        });
+        return future;
+    }
+
+    private CompletableFuture<List<Message<byte[]>>> getRemoteBatchMessagesById(String topic, long ledgerId, long entryId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
+        final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        try {
+                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response));
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
