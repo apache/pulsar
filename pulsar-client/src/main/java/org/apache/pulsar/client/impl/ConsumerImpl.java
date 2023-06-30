@@ -762,7 +762,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         // If success skip this subscribe request. If reconnection is required, whoever changes the state is
-        // responsible for reconnection. And the variable "duringConnect" will prevent the concurrent execution.
+        // responsible for reconnection.
+        // And the variable {@link ConnectionHandler#duringConnect} (in other words: "super.duringConnect") will
+        // prevent the concurrent execution.
         if (getState() == State.Ready) {
             return CompletableFuture.completedFuture(null);
         }
