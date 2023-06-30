@@ -25,7 +25,6 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -2229,7 +2228,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(
                 names = {"--bucket", "-b"},
                 description = "Bucket to place offloaded ledger into",
-                required = true)
+                required = false)
         private String bucket;
 
         @Parameter(
@@ -2265,7 +2264,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--maxBlockSize", "-mbs"},
-                description = "Max block size (eg: 32M, 64M), default is 64MB",
+                description = "Max block size (eg: 32M, 64M), default is 64MB"
+                  + "s3 and google-cloud-storage requires this parameter",
                 required = false)
         private String maxBlockSizeStr;
 
@@ -2277,7 +2277,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--offloadAfterElapsed", "-oae"},
-                description = "Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).",
+                description = "Delay time in Millis for deleting the bookkeeper ledger after offload "
+                    + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).",
                 required = false)
         private String offloadAfterElapsedStr;
 
@@ -2289,7 +2290,7 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--offloadAfterThresholdInSeconds", "-oats"},
-                description = "Offload after threshold seconds (eg: 1,5,10)",
+                description = "Offload after threshold seconds (or minutes,hours,days,weeks eg: 100m, 3h, 2d, 5w).",
                 required = false
         )
         private String offloadAfterThresholdInSecondsStr;
@@ -2390,7 +2391,13 @@ public class CmdNamespaces extends CmdBase {
 
             Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
             if (StringUtils.isNotEmpty(offloadAfterThresholdInSecondsStr)) {
-                long offloadThresholdInSeconds0 = Long.parseLong(offloadAfterThresholdInSecondsStr.trim());
+                Long offloadThresholdInSeconds0;
+                try {
+                    offloadThresholdInSeconds0 = TimeUnit.SECONDS.toSeconds(
+                      RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterThresholdInSecondsStr.trim()));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 if (maxValueCheck("OffloadAfterThresholdInSeconds", offloadThresholdInSeconds0, Long.MAX_VALUE)) {
                     offloadThresholdInSeconds = offloadThresholdInSeconds0;
                 }
@@ -2551,8 +2558,9 @@ public class CmdNamespaces extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String namespace = validateNamespace(params);
-            Json.prettyPrint(getAdmin().namespaces().getProperties(namespace));
+            final String namespace = validateNamespace(params);
+            final Map<String, String> properties = getAdmin().namespaces().getProperties(namespace);
+            prettyPrint(properties);
         }
     }
 

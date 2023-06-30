@@ -29,8 +29,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertNotNull;
+
 import com.beust.jcommander.JCommander;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -45,12 +48,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -351,6 +356,33 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void namespacesSetOffloadPolicies() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Namespaces mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        Lookup mockLookup = mock(Lookup.class);
+        when(admin.lookups()).thenReturn(mockLookup);
+
+        // filesystem offload
+        CmdNamespaces namespaces = new CmdNamespaces(() -> admin);
+        namespaces.run(split(
+          "set-offload-policies myprop/clust/ns2 -d filesystem -oat 100M -oats 1h -oae 1h -orp bookkeeper-first"));
+        verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns2",
+          OffloadPoliciesImpl.create("filesystem", null, null,
+            null, null, null, null, null, 64 * 1024 * 1024, 1024 * 1024,
+            100 * 1024 * 1024L, 3600L, 3600 * 1000L, OffloadedReadPriority.BOOKKEEPER_FIRST));
+
+        // S3 offload
+        CmdNamespaces namespaces2 = new CmdNamespaces(() -> admin);
+        namespaces2.run(split(
+          "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oats 100 -oae 10s -orp tiered-storage-first"));
+        verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
+          OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
+            "http://test.endpoint",null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+            10 * 1024 * 1024L, 100L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+    }
+
+        @Test
     public void namespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
@@ -1451,6 +1483,34 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void topicsSetOffloadPolicies() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+        Schemas mockSchemas = mock(Schemas.class);
+        when(admin.schemas()).thenReturn(mockSchemas);
+        Lookup mockLookup = mock(Lookup.class);
+        when(admin.lookups()).thenReturn(mockLookup);
+
+        // filesystem offload
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d filesystem -oat 100M -oats 1h -oae 1h -orp bookkeeper-first"));
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("filesystem", null, null
+          , null, null, null, null, null, 64 * 1024 * 1024, 1024 * 1024,
+          100 * 1024 * 1024L, 3600L, 3600 * 1000L, OffloadedReadPriority.BOOKKEEPER_FIRST);
+        verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
+
+//         S3 offload
+        CmdTopics cmdTopics2 = new CmdTopics(() -> admin);
+        cmdTopics2.run(split("set-offload-policies persistent://myprop/clust/ns1/ds2 -d s3 -r region -b bucket -e endpoint -ts 50 -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+        OffloadPoliciesImpl offloadPolicies2 = OffloadPoliciesImpl.create("s3", "region", "bucket"
+          , "endpoint", null, null, null, null,
+          8, 9, 10L, 50L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds2", offloadPolicies2);
+    }
+
+
+    @Test
     public void topics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
@@ -2200,6 +2260,24 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void testSourceCreateMissingSourceConfigFileFaileWithExitCode1() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        assertFalse(tool.run("sources create --source-config-file doesnotexist.yaml".split(" ")));
+    }
+
+    @Test
+    public void testSourceUpdateMissingSourceConfigFileFaileWithExitCode1() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        assertFalse(tool.run("sources update --source-config-file doesnotexist.yaml".split(" ")));
+    }
+
+    @Test
     public void testAuthTlsWithJsonParam() throws Exception {
 
         Properties properties = new Properties();
@@ -2356,6 +2434,11 @@ public class PulsarAdminToolTest {
         verify(schemas).createSchema("persistent://tn1/ns1/tp1", input);
 
         cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("compatibility -f " + schemaFile + " persistent://tn1/ns1/tp1"));
+        input = new ObjectMapper().readValue(new File(schemaFile), PostSchemaPayload.class);
+        verify(schemas).testCompatibility("persistent://tn1/ns1/tp1", input);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
         String jarFile = PulsarAdminToolTest.class.getClassLoader()
                 .getResource("dummyexamples.jar").getFile();
         String className = SchemaDemo.class.getName();
@@ -2436,6 +2519,32 @@ public class PulsarAdminToolTest {
         assertTrue(logs.contains("-bf=false")); // boolean flag, not passed = false
         assertTrue(logs.contains("main=null"));
 
+    }
+
+    @Test
+    public void customCommandsFactoryImmutable() throws Exception {
+        File narFile = new File(PulsarAdminTool.class.getClassLoader()
+                .getResource("cliextensions/customCommands-nar.nar").getFile());
+        log.info("NAR FILE is {}", narFile);
+
+        PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(builder.build()).thenReturn(admin);
+        Topics topics = mock(Topics.class);
+        when(admin.topics()).thenReturn(topics);
+        TopicStats topicStats = mock(TopicStats.class);
+        when(topics.getStats(anyString())).thenReturn(topicStats);
+        when(topicStats.toString()).thenReturn("MOCK-TOPIC-STATS");
+
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        properties.put("cliExtensionsDirectory", narFile.getParentFile().getAbsolutePath());
+        properties.put("customCommandFactories", "dummy");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+        List<CustomCommandFactory> customCommandFactories = tool.customCommandFactories;
+        assertNotNull(customCommandFactories);
+        tool.run(split("-h"));
+        assertSame(tool.customCommandFactories, customCommandFactories);
     }
 
     @Test

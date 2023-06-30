@@ -21,6 +21,7 @@ package org.apache.pulsar.io.docs;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.base.Strings;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -28,11 +29,9 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -47,21 +46,12 @@ public class ConnectorDocGenerator {
     private static final String INDENT = "  ";
 
     private static Reflections newReflections() throws Exception {
-        List<URL> urls = new ArrayList<>();
-        ClassLoader[] classLoaders = new ClassLoader[] {
-            ConnectorDocGenerator.class.getClassLoader(),
-            Thread.currentThread().getContextClassLoader()
-        };
-        for (int i = 0; i < classLoaders.length; i++) {
-            if (classLoaders[i] instanceof URLClassLoader) {
-                urls.addAll(Arrays.asList(((URLClassLoader) classLoaders[i]).getURLs()));
-            } else {
-                throw new RuntimeException("ClassLoader '" + classLoaders[i] + " is not an instance of URLClassLoader");
-            }
+        final String[] classpathList = System.getProperty("java.class.path").split(":");
+        final List<URL> urlList = new ArrayList<>();
+        for (String file : classpathList) {
+            urlList.add(new File(file).toURI().toURL());
         }
-        ConfigurationBuilder confBuilder = new ConfigurationBuilder();
-        confBuilder.setUrls(urls);
-        return new Reflections(confBuilder);
+        return new Reflections(new ConfigurationBuilder().setUrls(urlList));
     }
 
     private final Reflections reflections;
@@ -70,7 +60,7 @@ public class ConnectorDocGenerator {
         this.reflections = newReflections();
     }
 
-    private void generateConnectorYaml(Class configClass, PrintWriter writer) {
+    private void generateConnectorYamlFile(Class<?> configClass, PrintWriter writer) {
         log.info("Processing connector config class : {}", configClass);
 
         writer.println("configs:");
@@ -82,7 +72,9 @@ public class ConnectorDocGenerator {
             }
             FieldDoc fieldDoc = field.getDeclaredAnnotation(FieldDoc.class);
             if (null == fieldDoc) {
-                throw new RuntimeException("Missing `FieldDoc` for field '" + field.getName() + "'");
+                final String message = "Missing FieldDoc for field '%s' in class '%s'."
+                        .formatted(field.getName(), configClass.getCanonicalName());
+                throw new RuntimeException(message);
             }
             writer.println(INDENT + "# " + fieldDoc.help());
             String fieldPrefix = "";
@@ -99,28 +91,28 @@ public class ConnectorDocGenerator {
         writer.flush();
     }
 
-    private void generateConnectorYaml(Class connectorClass, Connector connectorDef, PrintWriter writer) {
+    private void generateConnectorYamlFile(Class<?> connectorClass, Connector connectorDef, PrintWriter writer) {
         log.info("Processing connector definition : {}", connectorDef);
         writer.println("# " + connectorDef.type() + " connector : " + connectorClass.getName());
         writer.println();
         writer.println("# " + connectorDef.help());
         writer.println();
-        generateConnectorYaml(connectorDef.configClass(), writer);
+        generateConnectorYamlFile(connectorDef.configClass(), writer);
     }
 
-    private void generatorConnectorYamls(String outputDir) throws IOException  {
+    private void generatorConnectorYamlFiles(String outputDir) throws IOException {
         Set<Class<?>> connectorClasses = reflections.getTypesAnnotatedWith(Connector.class);
         log.info("Retrieve all `Connector` annotated classes : {}", connectorClasses);
 
         for (Class<?> connectorClass : connectorClasses) {
-            Connector connectorDef = connectorClass.getDeclaredAnnotation(Connector.class);
-            try (FileOutputStream fos = new FileOutputStream(
-                    Paths.get(
-                    outputDir,
-                    "pulsar-io-" + connectorDef.name()
-                        + "-" + connectorDef.type().name().toLowerCase()).toString() + ".yml")) {
+            final Connector connectorDef = connectorClass.getDeclaredAnnotation(Connector.class);
+            final String name = connectorDef.name().toLowerCase();
+            final String type = connectorDef.type().name().toLowerCase();
+            final String filename = "pulsar-io-%s-%s.yml".formatted(name, type);
+            final Path outputPath = Path.of(outputDir, filename);
+            try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
                 PrintWriter pw = new PrintWriter(new OutputStreamWriter(fos, StandardCharsets.UTF_8));
-                generateConnectorYaml(connectorClass, connectorDef, pw);
+                generateConnectorYamlFile(connectorClass, connectorDef, pw);
                 pw.flush();
             }
         }
@@ -130,23 +122,14 @@ public class ConnectorDocGenerator {
      * Args for stats generator.
      */
     private static class MainArgs {
-
         @Parameter(
-            names = {
-                "-o", "--output-dir"
-            },
-            description = "The output dir to dump connector docs",
-            required = true
-        )
+                names = {"-o", "--output-dir"},
+                description = "The output dir to dump connector docs",
+                required = true)
         String outputDir = null;
 
-        @Parameter(
-            names = {
-                "-h", "--help"
-            },
-            description = "Show this help message")
+        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         boolean help = false;
-
     }
 
     public static void main(String[] args) throws Exception {
@@ -169,7 +152,7 @@ public class ConnectorDocGenerator {
         }
 
         ConnectorDocGenerator docGen = new ConnectorDocGenerator();
-        docGen.generatorConnectorYamls(mainArgs.outputDir);
+        docGen.generatorConnectorYamlFiles(mainArgs.outputDir);
     }
 
 }

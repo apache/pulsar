@@ -42,6 +42,19 @@
 # PULSAR_GLOBAL_ZK_CONF=
 
 # Extra options to be passed to the jvm
+# Discard parameter "-Xms" of $PULSAR_MEM, which tends to be the Broker's minimum memory, to avoid using too much
+# memory by tools.
+if [ -n "$PULSAR_MEM" ]; then
+  PULSAR_MEM_ARR=("${PULSAR_MEM}")
+  PULSAR_MEM_REWRITE=""
+  for i in ${PULSAR_MEM_ARR}
+  do
+    if [ "${i:0:4}" != "-Xms" ]; then
+       PULSAR_MEM_REWRITE="$PULSAR_MEM_REWRITE $i";
+    fi
+  done
+  PULSAR_MEM=${PULSAR_MEM_REWRITE}
+fi
 PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 
 # Garbage collection options

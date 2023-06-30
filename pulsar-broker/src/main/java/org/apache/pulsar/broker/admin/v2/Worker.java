@@ -66,7 +66,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return workers().getCluster(clientAppId());
+        return workers().getCluster(authParams());
     }
 
     @GET
@@ -81,7 +81,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return workers().getClusterLeader(clientAppId());
+        return workers().getClusterLeader(authParams());
     }
 
     @GET
@@ -96,7 +96,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return workers().getAssignments(clientAppId());
+        return workers().getAssignments(authParams());
     }
 
     @GET
@@ -112,7 +112,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/connectors")
     @Produces(MediaType.APPLICATION_JSON)
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return workers().getListOfConnectors(clientAppId());
+        return workers().getListOfConnectors(authParams());
     }
 
     @PUT
@@ -126,7 +126,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/rebalance")
     public void rebalance() {
-        workers().rebalance(uri.getRequestUri(), clientAppId());
+        workers().rebalance(uri.getRequestUri(), authParams());
     }
 
     @PUT
@@ -142,7 +142,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/leader/drain")
     public void drainAtLeader(@QueryParam("workerId") String workerId) {
-        workers().drain(uri.getRequestUri(), workerId, clientAppId(), true);
+        workers().drain(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @PUT
@@ -158,7 +158,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/drain")
     public void drain() {
-        workers().drain(uri.getRequestUri(), null, clientAppId(), false);
+        workers().drain(uri.getRequestUri(), null, authParams(), false);
     }
 
     @GET
@@ -172,7 +172,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/leader/drain")
     public LongRunningProcessStatus getDrainStatusFromLeader(@QueryParam("workerId") String workerId) {
-        return workers().getDrainStatus(uri.getRequestUri(), workerId, clientAppId(), true);
+        return workers().getDrainStatus(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @GET
@@ -186,7 +186,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/drain")
     public LongRunningProcessStatus getDrainStatus() {
-        return workers().getDrainStatus(uri.getRequestUri(), null, clientAppId(), false);
+        return workers().getDrainStatus(uri.getRequestUri(), null, authParams(), false);
     }
 
     @GET
@@ -199,6 +199,6 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/cluster/leader/ready")
     public Boolean isLeaderReady() {
-        return workers().isLeaderReady(clientAppId());
+        return workers().isLeaderReady(authParams());
     }
 }

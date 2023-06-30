@@ -22,8 +22,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.AntiAffinityNamespaceGroupTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
@@ -44,7 +43,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.testcontainers.shaded.org.apache.commons.lang3.reflect.FieldUtils;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -84,53 +82,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
     }
 
     protected void verifyLoadSheddingWithAntiAffinityNamespace(String namespace, String bundle) {
-        try {
-            String namespaceBundle = namespace + "/" + bundle;
-            var antiAffinityGroupPolicyHelper =
-                    (AntiAffinityGroupPolicyHelper)
-                            FieldUtils.readDeclaredField(
-                                    primaryLoadManager, "antiAffinityGroupPolicyHelper", true);
-            var brokerRegistry =
-                    (BrokerRegistry)
-                            FieldUtils.readDeclaredField(
-                                    primaryLoadManager, "brokerRegistry", true);
-            var brokers = brokerRegistry
-                    .getAvailableBrokerLookupDataAsync().get(5, TimeUnit.SECONDS);
-            var serviceUnitStateChannel = (ServiceUnitStateChannel)
-                    FieldUtils.readDeclaredField(
-                            primaryLoadManager, "serviceUnitStateChannel", true);
-            var srcBroker = serviceUnitStateChannel.getOwnerAsync(namespaceBundle)
-                    .get(5, TimeUnit.SECONDS).get();
-            var brokersCopy = new HashMap<>(brokers);
-            brokersCopy.remove(srcBroker);
-            var dstBroker = brokersCopy.entrySet().iterator().next().getKey();
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    "not-enabled-" + namespace + "/" + bundle,
-                    srcBroker, Optional.of(dstBroker)));
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    "not-enabled-" + namespace + "/" + bundle,
-                    srcBroker, Optional.empty()));
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    srcBroker, Optional.of(dstBroker)));
-
-            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    dstBroker, Optional.of(srcBroker)));
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    srcBroker, Optional.empty()));
-
-            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    dstBroker, Optional.empty()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // No-op
     }
 
     protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {

@@ -118,7 +118,7 @@ public class CmdGenerateDocs {
             sb.append(" subcommand").append("\n```").append("\n\n");
             cmdObj.getCommands().forEach((subK, subV) -> {
                 if (!subK.equals(name)) {
-                    sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
+                    sb.append("\n\n## ").append(subK).append("\n\n");
                     String subDesc = cmdObj.getUsageFormatter().getCommandDescription(subK);
                     if (null != subDesc && !subDesc.isEmpty()) {
                         sb.append(subDesc).append("\n");

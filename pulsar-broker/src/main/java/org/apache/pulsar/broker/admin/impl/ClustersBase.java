@@ -162,6 +162,9 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     NamedEntity.checkName(cluster);
+                    if (clusterData == null) {
+                        throw new RestException(Status.BAD_REQUEST, "cluster data is required");
+                    }
                     try {
                         clusterData.checkPropertiesIfPresent();
                     } catch (IllegalArgumentException ex) {

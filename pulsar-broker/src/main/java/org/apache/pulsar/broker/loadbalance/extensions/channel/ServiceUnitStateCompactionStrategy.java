@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.function.BiConsumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
@@ -29,11 +30,23 @@ import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrategy<ServiceUnitStateData> {
 
     private final Schema<ServiceUnitStateData> schema;
+    private BiConsumer<String, ServiceUnitStateData> skippedMsgHandler;
 
     private boolean checkBrokers = true;
 
     public ServiceUnitStateCompactionStrategy() {
         schema = Schema.JSON(ServiceUnitStateData.class);
+    }
+
+    public void setSkippedMsgHandler(BiConsumer<String, ServiceUnitStateData> skippedMsgHandler) {
+        this.skippedMsgHandler = skippedMsgHandler;
+    }
+
+    @Override
+    public void handleSkippedMessage(String key, ServiceUnitStateData cur) {
+        if (skippedMsgHandler != null) {
+            skippedMsgHandler.accept(key, cur);
+        }
     }
 
     @Override
@@ -52,9 +65,13 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
             return false;
         }
 
-        // Skip the compaction case where from = null and to.versionId > 1
-        if (from != null && from.versionId() + 1 != to.versionId()) {
-            return true;
+        if (from != null) {
+            if (from.versionId() == Long.MAX_VALUE && to.versionId() == Long.MIN_VALUE) { // overflow
+            } else if (from.versionId() >= to.versionId()) {
+                return true;
+            } else if (from.versionId() < to.versionId() - 1) { // Compacted
+                return false;
+            } // else from.versionId() == to.versionId() - 1 // continue to check further
         }
 
         if (to.force()) {

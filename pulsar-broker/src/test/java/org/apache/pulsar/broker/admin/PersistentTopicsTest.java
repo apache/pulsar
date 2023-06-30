@@ -1144,10 +1144,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // Check examine message not allowed on partitioned topic.
         try {
             admin.topics().examineMessage(topicName, "earliest", 1);
+            Assert.fail("fail to check examine message not allowed on partitioned topic");
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getMessage(),
                     "Examine messages on a partitioned topic is not allowed, please try examine message on specific "
                             + "topic partition");
+        }
+
+        try {
+            admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Could not examine messages due to the total message is zero");
         }
 
         producer.send("message1");
@@ -1374,6 +1383,31 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.fail();
         } catch (Exception e) {
             Assert.assertNull(message4);
+        }
+    }
+
+    @Test
+    public void testGetMessageById4SpecialPropsInMsg() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        Map<String, String> inSpecialProps = new HashMap<>();
+        inSpecialProps.put("city=shanghai", "tag");
+        inSpecialProps.put("city,beijing", "haidian");
+        @Cleanup
+        ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
+                .enableBatching(false).create();
+        String data1 = "test1";
+        MessageIdImpl id1 = (MessageIdImpl) producer1.newMessage().value(data1.getBytes()).properties(inSpecialProps)
+                .send();
+
+        Message<byte[]> message1 = admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId());
+        Assert.assertEquals(message1.getData(), data1.getBytes());
+        Map<String, String> outSpecialProps = message1.getProperties();
+        for (String k : inSpecialProps.keySet()) {
+            Assert.assertEquals(inSpecialProps.get(k), outSpecialProps.get(k));
         }
     }
 
