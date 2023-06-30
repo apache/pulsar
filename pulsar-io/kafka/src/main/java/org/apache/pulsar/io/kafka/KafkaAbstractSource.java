@@ -28,6 +28,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -64,6 +66,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
+    private final Executor executor = Executors.newSingleThreadExecutor();
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -190,12 +193,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         });
         runnerThread.setUncaughtExceptionHandler(
                 (t, e) -> {
-                    LOG.error("[{}] Error while consuming records", t.getName(), e);
-                    try {
-                        this.close();
-                    } catch (InterruptedException ex) {
-                        // The interrupted exception is thrown by the runnerThread itself. Ignore it.
-                    }
+                    executor.execute(() -> {
+                        LOG.error("[{}] Error while consuming records", t.getName(), e);
+                        try {
+                            this.close();
+                        } catch (Exception ex) {
+                            LOG.error("[{}] Close kafka source error", t.getName(), e);
+                        }
+                    });
                 });
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
