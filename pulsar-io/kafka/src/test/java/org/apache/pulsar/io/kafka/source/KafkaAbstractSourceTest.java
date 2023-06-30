@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
 import org.apache.pulsar.io.kafka.KafkaSourceConfig;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -173,7 +174,10 @@ public class KafkaAbstractSourceTest {
         Field runningField = KafkaAbstractSource.class.getDeclaredField("running");
         runningField.setAccessible(true);
 
-        Assert.assertFalse((boolean) runningField.get(source));
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertFalse((boolean) runningField.get(source));
+            Assert.assertNull(consumerField.get(source));
+        });
     }
 
     private File getFile(String name) {
