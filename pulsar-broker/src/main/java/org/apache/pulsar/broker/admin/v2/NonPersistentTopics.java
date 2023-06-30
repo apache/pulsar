@@ -25,6 +25,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -51,7 +52,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -442,35 +442,35 @@ public class NonPersistentTopics extends PersistentTopics {
                         bundleRange);
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                NamespaceBundle nsBundle;
-                try {
-                    nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
-                        bundleRange, true, true);
-                } catch (WebApplicationException wae) {
-                    asyncResponse.resume(wae);
-                    return;
-                }
-                try {
-                    ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
-                            pulsar().getBrokerService().getMultiLayerTopicsMap().get(namespaceName.toString());
-                    if (bundleTopics == null || bundleTopics.isEmpty()) {
-                        asyncResponse.resume(Collections.emptyList());
-                        return;
-                    }
-                    final List<String> topicList = Lists.newArrayList();
-                    String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                    ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
-                    if (topicMap != null) {
-                        topicList.addAll(topicMap.keys().stream()
-                                .filter(name -> !TopicName.get(name).isPersistent())
-                                .collect(Collectors.toList()));
-                    }
-                    asyncResponse.resume(topicList);
-                } catch (Exception e) {
-                    log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                            namespaceName, bundleRange, e);
-                    asyncResponse.resume(new RestException(e));
-                }
+                validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
+                        .thenAccept(nsBundle -> {
+                            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
+                                    pulsar().getBrokerService()
+                                            .getMultiLayerTopicsMap().get(namespaceName.toString());
+                            if (bundleTopics == null || bundleTopics.isEmpty()) {
+                                asyncResponse.resume(Collections.emptyList());
+                                return;
+                            }
+                            final List<String> topicList = new ArrayList<>();
+                            String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
+                            ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                            if (topicMap != null) {
+                                topicList.addAll(topicMap.keys().stream()
+                                        .filter(name -> !TopicName.get(name).isPersistent())
+                                        .collect(Collectors.toList()));
+                            }
+                            asyncResponse.resume(topicList);
+                        }).exceptionally(ex -> {
+                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                                    namespaceName, bundleRange, realCause);
+                            if (realCause instanceof WebApplicationException) {
+                                asyncResponse.resume(realCause);
+                            } else {
+                                asyncResponse.resume(new RestException(realCause));
+                            }
+                            return null;
+                        });
             }
         }).exceptionally(ex -> {
             log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
