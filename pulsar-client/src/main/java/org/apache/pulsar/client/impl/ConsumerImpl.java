@@ -761,6 +761,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
+        // If success skip this cmd-subscribe. If reconnection is required, whoever changes the state is
+        // responsible for reconnection.
+        if (getState() == State.Ready) {
+            return CompletableFuture.completedFuture(null);
+        }
         previousExceptions.clear();
 
         final State state = getState();

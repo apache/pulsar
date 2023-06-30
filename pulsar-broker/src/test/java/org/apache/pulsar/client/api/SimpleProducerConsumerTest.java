@@ -84,6 +84,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -107,7 +108,9 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -187,6 +190,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 {true, SubscriptionType.Key_Shared},
                 {false, SubscriptionType.Shared},
                 {false, SubscriptionType.Key_Shared},
+        };
+    }
+
+    @DataProvider(name = "subscriptionTypes")
+    public Object[][] subType() {
+        return new Object[][] {
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared},
+                {SubscriptionType.Exclusive},
+                {SubscriptionType.Failover}
         };
     }
 
@@ -338,6 +351,58 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
         return new Object[][] { { 0 }, { 1000 } };
+    }
+
+    @Test(dataProvider = "subscriptionTypes")
+    public void testConsumerReconnectTwice(SubscriptionType subscriptionType) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "subscription1";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        // Create producer and consumer.
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(subscriptionType)
+                .receiverQueueSize(1000).topic(topicName).subscriptionName(subscriptionName).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false)
+                .topic(topicName).create();
+        int sendMessageCount = 10;
+        for (int i = 0; i < sendMessageCount; i++){
+            producer.send("msg- " + i);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumer.numMessagesInQueue(), sendMessageCount);
+        });
+        printConsumerStats(topicName, subscriptionName);
+
+        // Do the second subscribe.
+        consumer.connectionOpened(consumer.getClientCnx());
+
+        // Verify messages are not lost.
+        List<Message<String>> messages = new ArrayList<>();
+        while (true) {
+            Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            messages.add(message);
+        }
+        printConsumerStats(topicName, subscriptionName);
+        assertEquals(messages.size(), sendMessageCount);
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    private void printConsumerStats(String topicName, String subscriptionName) throws Exception {
+        SubscriptionStats subscriptionStats =
+                admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName);
+        ConsumerStats consumerStats =
+                admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName).getConsumers().get(0);
+        log.info("msgBacklog: {}, msgOutCounter: {}, unackedMessages: {}, availablePermits: {}",
+                subscriptionStats.getMsgBacklog(), consumerStats.getMsgOutCounter(),
+                consumerStats.getUnackedMessages(), consumerStats.getAvailablePermits());
     }
 
     @Test(timeOut = 100000, dataProvider = "batch")
