@@ -1536,8 +1536,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+
     @Override
-    public void connectionOpened(final ClientCnx cnx) {
+    public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
 
         final long epoch;
@@ -1545,7 +1546,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // Because the state could have been updated while retrieving the connection, we set it back to connecting,
             // as long as the change from current state to connecting is a valid state change.
             if (!changeToConnecting()) {
-                return;
+                return CompletableFuture.completedFuture(null);
             }
             // We set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating
             // the producer, it will try to grab a new cnx. We also increment and get the epoch value for the producer.
@@ -1585,6 +1586,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
 
+        final CompletableFuture<Void> future = new CompletableFuture<>();
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
                         schemaInfo, epoch, userProvidedProducerName,
@@ -1599,11 +1601,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately
                     synchronized (ProducerImpl.this) {
-                        if (getState() == State.Closing || getState() == State.Closed) {
+                        State state = getState();
+                        if (state == State.Closing || state == State.Closed) {
                             // Producer was closed while reconnecting, close the connection to make sure the broker
                             // drops the producer on its side
                             cnx.removeProducer(producerId);
                             cnx.channel().close();
+                            future.complete(null);
                             return;
                         }
                         resetBackoff();
@@ -1653,13 +1657,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         }
                         resendMessages(cnx, epoch);
                     }
+                    future.complete(null);
                 }).exceptionally((e) -> {
                     Throwable cause = e.getCause();
                     cnx.removeProducer(producerId);
-                    if (getState() == State.Closing || getState() == State.Closed) {
+                    State state = getState();
+                    if (state == State.Closing || state == State.Closed) {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
                         // drops the producer on its side
                         cnx.channel().close();
+                        future.complete(null);
                         return null;
                     }
 
@@ -1688,6 +1695,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             }
                             producerCreatedFuture.completeExceptionally(cause);
                         });
+                        future.complete(null);
                         return null;
                     }
                     if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
@@ -1731,7 +1739,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 && System.currentTimeMillis() < PRODUCER_DEADLINE_UPDATER.get(ProducerImpl.this))) {
                         // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                         // still within the initial timeout budget and we are dealing with a retriable error
-                        reconnectLater(cause);
+                        future.completeExceptionally(cause);
                     } else {
                         setState(State.Failed);
                         producerCreatedFuture.completeExceptionally(cause);
@@ -1743,9 +1751,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             sendTimeout = null;
                         }
                     }
-
+                    if (!future.isDone()) {
+                        future.complete(null);
+                    }
                     return null;
                 });
+        return future;
     }
 
     @Override
@@ -1757,7 +1768,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (producerCreatedFuture.completeExceptionally(exception)) {
                 if (nonRetriableError) {
                     log.info("[{}] Producer creation failed for producer {} with unretriableError = {}",
-                            topic, producerId, exception);
+                            topic, producerId, exception.getMessage());
                 } else {
                     log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
                 }
@@ -2181,10 +2192,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     void setClientCnx(ClientCnx clientCnx) {
         this.connectionHandler.setClientCnx(clientCnx);
-    }
-
-    void reconnectLater(Throwable exception) {
-        this.connectionHandler.reconnectLater(exception);
     }
 
     void grabCnx() {
