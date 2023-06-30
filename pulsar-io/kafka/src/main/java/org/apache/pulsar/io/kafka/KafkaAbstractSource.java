@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.kafka;
 
 import io.jsonwebtoken.io.Encoders;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,8 +28,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -67,8 +64,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
-    private final static Executor EXECUTOR = Executors.newSingleThreadExecutor(
-            new DefaultThreadFactory("Kafka Source Close Task Thread"));
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -195,14 +190,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         });
         runnerThread.setUncaughtExceptionHandler(
                 (t, e) -> {
-                    EXECUTOR.execute(() -> {
+                    new Thread(() -> {
                         LOG.error("[{}] Error while consuming records", t.getName(), e);
                         try {
                             this.close();
                         } catch (Exception ex) {
                             LOG.error("[{}] Close kafka source error", t.getName(), e);
                         }
-                    });
+                    }, "Kafka Source Close Task Thread").start();
                 });
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
