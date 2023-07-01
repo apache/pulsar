@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.docs.tools;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;

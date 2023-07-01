@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.docs.tools;
 
 import static org.testng.Assert.assertEquals;
 import com.beust.jcommander.Parameter;
