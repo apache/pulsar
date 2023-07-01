@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils;
+
+package org.apache.pulsar.docs.tools;
 
 import com.beust.jcommander.Parameters;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.util.BaseGenerateDocumentation;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
-@Data
 @Parameters(commandDescription = "Generate documentation automatically.")
 @Slf4j
 public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
@@ -34,12 +36,20 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
     @Override
     public String generateDocumentByClassName(String className) throws Exception {
         StringBuilder sb = new StringBuilder();
-        if (ServiceConfiguration.class.getName().equals(className)) {
+        if (ProxyConfiguration.class.getName().equals(className)) {
+            return generateDocByFieldContext(className, "Pulsar proxy", sb);
+        } else if (ServiceConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "Broker", sb);
         } else if (ClientConfigurationData.class.getName().equals(className)) {
             return generateDocByApiModelProperty(className, "Client", sb);
         } else if (WebSocketProxyConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "WebSocket", sb);
+        } else if (ProducerConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Producer", sb);
+        } else if (ConsumerConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Consumer", sb);
+        } else if (ReaderConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Reader", sb);
         }
 
         return "Class [" + className + "] not found";
