@@ -86,8 +86,8 @@ public class CmdGenerateDocsTest {
                     + "\n"
                     + "|Flag|Description|Default|\n"
                     + "|---|---|---|\n"
-                    + "| `-n, --name` | Name|null|\n"
                     + "| `-h, --help` | Show this help message|false|\n"
+                    + "| `-n, --name` | Name|null|\n"
                     + System.lineSeparator();
             assertEquals(rightMsg, message);
         } finally {
