@@ -20,7 +20,6 @@ package org.apache.pulsar.docs.tools;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
@@ -37,7 +36,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
-@Parameters(commandDescription = "Generate documentation automatically.")
 @Slf4j
 public abstract class BaseGenerateDocumentation {
 
@@ -184,7 +182,9 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
-    protected String generateDocByFieldContext(String className, String type, StringBuilder sb) throws Exception {
+    protected String generateDocByFieldContext(String className, String type) throws Exception {
+        final StringBuilder sb = new StringBuilder();
+
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();
@@ -216,7 +216,9 @@ public abstract class BaseGenerateDocumentation {
         return sb.toString();
     }
 
-    protected String generateDocByApiModelProperty(String className, String type, StringBuilder sb) throws Exception {
+    protected String generateDocByApiModelProperty(String className, String type) throws Exception {
+        final StringBuilder sb = new StringBuilder();
+
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();

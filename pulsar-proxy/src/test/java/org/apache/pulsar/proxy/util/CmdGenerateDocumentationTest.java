@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.docs.tools;
+package org.apache.pulsar.proxy.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
