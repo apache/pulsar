@@ -708,7 +708,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         var getOwnerRequest = getOwnerRequests.get(serviceUnit);
         if (getOwnerRequest != null) {
             var data = tableview.get(serviceUnit);
-            if (data.state() == Owned) {
+            if (data != null && data.state() == Owned) {
                 getOwnerRequest.complete(data.dstBroker());
                 getOwnerRequests.remove(serviceUnit);
                 stateChangeListeners.notify(serviceUnit, data, null);
