@@ -1419,7 +1419,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         return new Object[][]{
                 {new NamespaceAttr(false, "non-partitioned", 0, false)},
                 {new NamespaceAttr(true, "non-partitioned", 0, false)},
-                {new NamespaceAttr(true, "partitioned", 3, false)}
+                {new NamespaceAttr(true, "partitioned", 3, false)},
+                {new NamespaceAttr(true, "partitioned", 3, true)}
         };
     }
 
@@ -1472,11 +1473,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             // Expected: cannot delete non-empty tenant
         }
 
-        // delete topic
-        admin.topics().deletePartitionedTopic(topic);
-
+        if (!conf.isForceDeleteNamespaceAllowed()) {
+            // delete topic
+            admin.topics().deletePartitionedTopic(topic);
+        }
         // delete namespace
-        admin.namespaces().deleteNamespace(namespace, false);
+        admin.namespaces().deleteNamespace(namespace, conf.isForceDeleteNamespaceAllowed());
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
