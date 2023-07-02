@@ -131,7 +131,7 @@ public class SecurityUtility {
                         System.getProperty("os.name"), System.getProperty("os.arch"));
             } else {
                 log.warn("Conscrypt isn't available. Using JDK default security provider."
-                        + " Cause : {}, Problem : {}", e.getCause(), e.getMessage());
+                        + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
             }
             return null;
         }
