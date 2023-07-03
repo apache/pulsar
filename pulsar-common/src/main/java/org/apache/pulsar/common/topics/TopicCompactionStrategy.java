@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.topics;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.client.api.Schema;
 
 /**
@@ -47,9 +45,6 @@ import org.apache.pulsar.client.api.Schema;
  */
 public interface TopicCompactionStrategy<T> {
 
-    String TABLE_VIEW_TAG = "table-view";
-    Map<String, TopicCompactionStrategy> INSTANCES = new ConcurrentHashMap<>();
-
     /**
      * Returns the schema object for this strategy.
      * @return
@@ -65,27 +60,17 @@ public interface TopicCompactionStrategy<T> {
      */
     boolean shouldKeepLeft(T prev, T cur);
 
-    default void handleSkippedMessage(String key, T cur) {
-    }
-
-
-    static TopicCompactionStrategy load(String tag, String topicCompactionStrategyClassName) {
+    static TopicCompactionStrategy load(String topicCompactionStrategyClassName) {
         if (topicCompactionStrategyClassName == null) {
             return null;
         }
-
         try {
             Class<?> clazz = Class.forName(topicCompactionStrategyClassName);
-            TopicCompactionStrategy instance = (TopicCompactionStrategy) clazz.getDeclaredConstructor().newInstance();
-            INSTANCES.put(tag, instance);
-            return instance;
+            Object instance = clazz.getDeclaredConstructor().newInstance();
+            return (TopicCompactionStrategy) instance;
         } catch (Exception e) {
             throw new IllegalArgumentException(
                     "Error when loading topic compaction strategy: " + topicCompactionStrategyClassName, e);
         }
-    }
-
-    static TopicCompactionStrategy getInstance(String tag) {
-        return INSTANCES.get(tag);
     }
 }

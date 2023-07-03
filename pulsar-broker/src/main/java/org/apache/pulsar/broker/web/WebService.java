@@ -264,7 +264,9 @@ public class WebService implements AutoCloseable {
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
         if (attributeMap != null) {
-            attributeMap.forEach(context::setAttribute);
+            attributeMap.forEach((key, value) -> {
+                context.setAttribute(key, value);
+            });
         }
         filterInitializer.addFilters(context, requiresAuthentication);
         handlers.add(context);

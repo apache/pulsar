@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -1392,10 +1391,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
-                if ("X-Pulsar-PROPERTY".equals(header)) {
-                    Map<String, String> msgPropsTmp = new Gson().fromJson((String) entry.getValue().get(0), Map.class);
-                    properties.putAll(msgPropsTmp);
-                    break;
+                if (header.contains("X-Pulsar-PROPERTY-")) {
+                    String keyName = header.substring("X-Pulsar-PROPERTY-".length());
+                    properties.put(keyName, (String) entry.getValue().get(0));
                 }
             }
 

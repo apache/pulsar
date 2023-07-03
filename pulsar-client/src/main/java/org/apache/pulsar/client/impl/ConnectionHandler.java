@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -42,16 +41,10 @@ public class ConnectionHandler {
     // Start with -1L because it gets incremented before sending on the first connection
     private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
-    private final AtomicBoolean duringConnect = new AtomicBoolean(false);
 
     interface Connection {
-
-        /**
-         * @apiNote If the returned future is completed exceptionally, reconnectLater will be called.
-         */
-        CompletableFuture<Void> connectionOpened(ClientCnx cnx);
-        default void connectionFailed(PulsarClientException e) {
-        }
+        void connectionFailed(PulsarClientException exception);
+        void connectionOpened(ClientCnx cnx);
     }
 
     protected Connection connection;
@@ -76,11 +69,6 @@ public class ConnectionHandler {
                     state.topic, state.getHandlerName(), state.getState());
             return;
         }
-        if (!duringConnect.compareAndSet(false, true)) {
-            log.info("[{}] [{}] Skip grabbing the connection since there is a pending connection",
-                    state.topic, state.getHandlerName());
-            return;
-        }
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
@@ -93,8 +81,7 @@ public class ConnectionHandler {
             } else {
                 cnxFuture = state.client.getConnection(state.topic); //
             }
-            cnxFuture.thenCompose(cnx -> connection.connectionOpened(cnx))
-                    .thenAccept(__ -> duringConnect.set(false))
+            cnxFuture.thenAccept(cnx -> connection.connectionOpened(cnx)) //
                     .exceptionally(this::handleConnectionError);
         } catch (Throwable t) {
             log.warn("[{}] [{}] Exception thrown while getting connection: ", state.topic, state.getHandlerName(), t);
@@ -103,27 +90,25 @@ public class ConnectionHandler {
     }
 
     private Void handleConnectionError(Throwable exception) {
-        try {
-            log.warn("[{}] [{}] Error connecting to broker: {}",
-                    state.topic, state.getHandlerName(), exception.getMessage());
-            if (exception instanceof PulsarClientException) {
-                connection.connectionFailed((PulsarClientException) exception);
-            } else if (exception.getCause() instanceof PulsarClientException) {
-                connection.connectionFailed((PulsarClientException) exception.getCause());
-            } else {
-                connection.connectionFailed(new PulsarClientException(exception));
-            }
-        } catch (Throwable throwable) {
-            log.error("[{}] [{}] Unexpected exception after the connection",
-                    state.topic, state.getHandlerName(), throwable);
+        log.warn("[{}] [{}] Error connecting to broker: {}",
+                state.topic, state.getHandlerName(), exception.getMessage());
+        if (exception instanceof PulsarClientException) {
+            connection.connectionFailed((PulsarClientException) exception);
+        } else if (exception.getCause() instanceof  PulsarClientException) {
+            connection.connectionFailed((PulsarClientException) exception.getCause());
+        } else {
+            connection.connectionFailed(new PulsarClientException(exception));
         }
 
-        reconnectLater(exception);
+        State state = this.state.getState();
+        if (state == State.Uninitialized || state == State.Connecting || state == State.Ready) {
+            reconnectLater(exception);
+        }
+
         return null;
     }
 
-    void reconnectLater(Throwable exception) {
-        duringConnect.set(false);
+    protected void reconnectLater(Throwable exception) {
         CLIENT_CNX_UPDATER.set(this, null);
         if (!isValidStateForReconnection()) {
             log.info("[{}] [{}] Ignoring reconnection request (state: {})",
@@ -147,7 +132,6 @@ public class ConnectionHandler {
 
     public void connectionClosed(ClientCnx cnx) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
-        duringConnect.set(false);
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {

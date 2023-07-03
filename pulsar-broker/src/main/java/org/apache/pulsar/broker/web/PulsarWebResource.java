@@ -309,7 +309,7 @@ public abstract class PulsarWebResource {
         }
         return pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenant)
                 .thenCompose(tenantInfoOptional -> {
-                    if (tenantInfoOptional.isEmpty()) {
+                    if (!tenantInfoOptional.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
                     TenantInfo tenantInfo = tenantInfoOptional.get();
@@ -380,11 +380,9 @@ public abstract class PulsarWebResource {
     /**
      * It validates that peer-clusters can't coexist in replication-clusters.
      *
-     * @param clusterName given cluster whose peer-clusters can't be present into replication-cluster list
-     * @param replicationClusters replication-cluster list
-     * @deprecated use {@link #validatePeerClusterConflictAsync(String, Set)} instead
+     * @clusterName: given cluster whose peer-clusters can't be present into replication-cluster list
+     * @replicationClusters: replication-cluster list
      */
-    @Deprecated
     protected void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
             ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
@@ -455,7 +453,7 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> validateClusterForTenantAsync(String tenant, String cluster) {
         return pulsar().getPulsarResources().getTenantResources().getTenantAsync(tenant)
                 .thenAccept(tenantInfo -> {
-                    if (tenantInfo.isEmpty()) {
+                    if (!tenantInfo.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
                     if (!tenantInfo.get().getAllowedClusters().contains(cluster)) {
@@ -490,7 +488,7 @@ public abstract class PulsarWebResource {
      * Check if the cluster exists and redirect the call to the owning cluster.
      *
      * @param cluster Cluster name
-     * @throws WebApplicationException In case the redirect happens
+     * @throws Exception In case the redirect happens
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         sync(()-> validateClusterOwnershipAsync(cluster));
@@ -552,8 +550,11 @@ public abstract class PulsarWebResource {
             return true;
         }
 
-        // Without authorization, any cluster name should be valid and accepted by the broker
-        return !pulsarService.getConfiguration().isAuthorizationEnabled();
+        if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
+            // Without authorization, any cluster name should be valid and accepted by the broker
+            return true;
+        }
+        return false;
     }
 
     protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
@@ -610,7 +611,7 @@ public abstract class PulsarWebResource {
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
-        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
+        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
     }
 
     protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
@@ -663,7 +664,7 @@ public abstract class PulsarWebResource {
                     .loadTopicsInBundle(false).build();
             Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, options);
             // Ensure we get a url
-            if (webUrl.isEmpty()) {
+            if (webUrl == null || !webUrl.isPresent()) {
                 log.warn("Unable to get web service url");
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "Failed to find ownership for ServiceUnit:" + bundle.toString());
@@ -696,6 +697,8 @@ public abstract class PulsarWebResource {
         } catch (NullPointerException e) {
             log.warn("Unable to get web service url");
             throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for ServiceUnit:" + bundle);
+        } catch (WebApplicationException wae) {
+            throw wae;
         }
     }
 
@@ -709,24 +712,24 @@ public abstract class PulsarWebResource {
                 .loadTopicsInBundle(false).build();
         return nsService.getWebServiceUrlAsync(bundle, options)
                 .thenCompose(webUrl -> {
-                    if (webUrl.isEmpty()) {
+                    if (webUrl == null || !webUrl.isPresent()) {
                         log.warn("Unable to get web service url");
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
+                    }
+                    // If the load manager is extensible load manager, we don't need check the authoritative.
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                        return CompletableFuture.completedFuture(null);
                     }
                     return nsService.isServiceUnitOwnedAsync(bundle)
                             .thenAccept(owned -> {
                                 if (!owned) {
                                     boolean newAuthoritative = this.isLeaderBroker();
                                     // Replace the host and port of the current request and redirect
-                                    UriBuilder uriBuilder = UriBuilder.fromUri(uri.getRequestUri())
-                                            .host(webUrl.get().getHost())
-                                            .port(webUrl.get().getPort())
-                                            .replaceQueryParam("authoritative", newAuthoritative);
-                                    if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
-                                        uriBuilder.replaceQueryParam("destinationBroker", null);
-                                    }
-                                    URI redirect = uriBuilder.build();
+                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
+                                                    newAuthoritative).replaceQueryParam("destinationBroker",
+                                                    null).build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);

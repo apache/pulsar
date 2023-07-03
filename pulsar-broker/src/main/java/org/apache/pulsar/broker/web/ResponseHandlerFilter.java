@@ -76,24 +76,24 @@ public class ResponseHandlerFilter implements Filter {
         if (request.isAsyncSupported() && request.isAsyncStarted()) {
             request.getAsyncContext().addListener(new AsyncListener() {
                 @Override
-                public void onComplete(AsyncEvent asyncEvent) {
+                public void onComplete(AsyncEvent asyncEvent) throws IOException {
                     handleInterceptor(request, response);
                 }
 
                 @Override
-                public void onTimeout(AsyncEvent asyncEvent) {
+                public void onTimeout(AsyncEvent asyncEvent) throws IOException {
                     LOG.warn("Http request {} async context timeout.", request);
                     handleInterceptor(request, response);
                 }
 
                 @Override
-                public void onError(AsyncEvent asyncEvent) {
+                public void onError(AsyncEvent asyncEvent) throws IOException {
                     LOG.warn("Http request {} async context error.", request, asyncEvent.getThrowable());
                     handleInterceptor(request, response);
                 }
 
                 @Override
-                public void onStartAsync(AsyncEvent asyncEvent) {
+                public void onStartAsync(AsyncEvent asyncEvent) throws IOException {
                     // nothing to do
                 }
             });

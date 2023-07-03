@@ -964,10 +964,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
-        defaultConf.setLoadBalancerDebugModeEnabled(true);
-        defaultConf.setTopicLevelPoliciesEnabled(false);
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
             ExtensibleLoadManagerImpl ternaryLoadManager = spy((ExtensibleLoadManagerImpl)
@@ -1008,7 +1005,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30 * 1000)
     public void testListTopic() throws Exception {
         final String namespace = "public/testListTopic";
-        admin.namespaces().createNamespace(namespace, 9);
+        admin.namespaces().createNamespace(namespace, 3);
 
         final String persistentTopicName = TopicName.get(
                 "persistent", NamespaceName.get(namespace),
@@ -1017,8 +1014,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         final String nonPersistentTopicName = TopicName.get(
                 "non-persistent", NamespaceName.get(namespace),
                 "get_topics_mode_" + UUID.randomUUID()).toString();
-        admin.topics().createPartitionedTopic(persistentTopicName, 9);
-        admin.topics().createPartitionedTopic(nonPersistentTopicName, 9);
+        admin.topics().createPartitionedTopic(persistentTopicName, 3);
+        admin.topics().createPartitionedTopic(nonPersistentTopicName, 3);
         pulsarClient.newProducer().topic(persistentTopicName).create().close();
         pulsarClient.newProducer().topic(nonPersistentTopicName).create().close();
 
@@ -1036,10 +1033,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertFalse(TopicName.get(s).isPersistent());
             }
         }
-        assertEquals(topicNum, 9);
+        assertEquals(topicNum, 3);
 
         List<String> list = admin.topics().getList(namespace);
-        assertEquals(list.size(), 18);
+        assertEquals(list.size(), 6);
         admin.namespaces().deleteNamespace(namespace, true);
     }
 

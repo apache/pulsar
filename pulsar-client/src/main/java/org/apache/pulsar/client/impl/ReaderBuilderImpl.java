@@ -32,7 +32,6 @@ import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
@@ -171,12 +170,6 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
-        return this;
-    }
-
-    @Override
-    public ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
-        conf.setMessageCrypto(messageCrypto);
         return this;
     }
 

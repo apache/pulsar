@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -3088,11 +3087,9 @@ public class PersistentTopicsBase extends AdminResource {
 
         ResponseBuilder responseBuilder = Response.ok();
         responseBuilder.header("X-Pulsar-Message-ID", pos.toString());
-
-        Map<String, String> properties = metadata.getPropertiesList().stream()
-                .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (v1, v2) -> v2));
-        responseBuilder.header("X-Pulsar-PROPERTY", new Gson().toJson(properties));
-
+        for (KeyValue keyValue : metadata.getPropertiesList()) {
+            responseBuilder.header("X-Pulsar-PROPERTY-" + keyValue.getKey(), keyValue.getValue());
+        }
         if (brokerEntryMetadata != null) {
             if (brokerEntryMetadata.hasBrokerTimestamp()) {
                 responseBuilder.header("X-Pulsar-Broker-Entry-METADATA-timestamp",
@@ -4114,43 +4111,31 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
             try {
-                PersistentSubscription sub = null;
-                PersistentReplicator repl = null;
-
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    repl = (PersistentReplicator)
-                            topic.getPersistentReplicator(remoteCluster);
-                    if (repl == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                "Replicator not found"));
-                        return;
-                    }
-                } else {
-                    sub = topic.getSubscription(subName);
-                    if (sub == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                getSubNotFoundErrorMessage(topicName.toString(), subName)));
-                        return;
-                    }
+                PersistentSubscription sub = topic.getSubscription(subName);
+                if (sub == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                            getSubNotFoundErrorMessage(topicName.toString(), subName)));
+                    return;
                 }
-
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
-
-                PersistentReplicator finalRepl = repl;
-                PersistentSubscription finalSub = sub;
-
                 batchSizeFuture.thenAccept(bi -> {
                     PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
                     boolean issued;
                     try {
                         if (subName.startsWith(topic.getReplicatorPrefix())) {
-                            issued = finalRepl.expireMessages(position);
+                            String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                            PersistentReplicator repl = (PersistentReplicator)
+                                    topic.getPersistentReplicator(remoteCluster);
+                            if (repl == null) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                        "Replicator not found"));
+                                return;
+                            }
+                            issued = repl.expireMessages(position);
                         } else {
-                            issued = finalSub.expireMessages(position);
+                            issued = sub.expireMessages(position);
                         }
-
                         if (issued) {
                             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
                                     topicName, subName);

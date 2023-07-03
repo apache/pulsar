@@ -121,15 +121,11 @@ public class ReaderImpl<T> implements Reader<T> {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
-        if (readerConfiguration.getMessageCrypto() != null) {
-            consumerConfiguration.setMessageCrypto(readerConfiguration.getMessageCrypto());
-        }
-
         if (readerConfiguration.getKeyHashRanges() != null) {
             consumerConfiguration.setKeySharedPolicy(
-                    KeySharedPolicy
-                            .stickyHashRange()
-                            .ranges(readerConfiguration.getKeyHashRanges())
+                KeySharedPolicy
+                    .stickyHashRange()
+                    .ranges(readerConfiguration.getKeyHashRanges())
             );
         }
 

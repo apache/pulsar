@@ -45,8 +45,8 @@ public class NamespaceBundles {
 
     public static final Long FULL_LOWER_BOUND = 0x00000000L;
     public static final Long FULL_UPPER_BOUND = 0xffffffffL;
-
     private final NamespaceBundle fullBundle;
+
     private final Optional<Pair<LocalPolicies, Long>> localPolicies;
 
     public NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
@@ -94,8 +94,13 @@ public class NamespaceBundles {
     }
 
     public NamespaceBundle findBundle(TopicName topicName) {
-        checkArgument(nsname.equals(topicName.getNamespaceObject()));
-        return factory.getTopicBundleAssignmentStrategy().findBundle(topicName, this);
+        checkArgument(this.nsname.equals(topicName.getNamespaceObject()));
+        long hashCode = factory.getLongHashCode(topicName.toString());
+        NamespaceBundle bundle = getBundle(hashCode);
+        if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
+            bundle.setHasNonPersistentTopic(true);
+        }
+        return bundle;
     }
 
     public List<NamespaceBundle> getBundles() {

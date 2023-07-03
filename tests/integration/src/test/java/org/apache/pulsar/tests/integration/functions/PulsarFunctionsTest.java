@@ -27,6 +27,7 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.swagger.util.Json;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1700,17 +1701,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
             if (msg == null) {
                 log.info("Input topic stats: {}",
-                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
-                                pulsarAdmin.topics().getStats(inputTopic, true)));
+                        Json.pretty(pulsarAdmin.topics().getStats(inputTopic, true)));
                 log.info("Output topic stats: {}",
-                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
-                                pulsarAdmin.topics().getStats(outputTopic, true)));
+                        Json.pretty(pulsarAdmin.topics().getStats(outputTopic, true)));
                 log.info("Input topic internal-stats: {}",
-                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
-                                pulsarAdmin.topics().getInternalStats(inputTopic, true)));
+                        Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true)));
                 log.info("Output topic internal-stats: {}",
-                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
-                                pulsarAdmin.topics().getInternalStats(outputTopic, true)));
+                        Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true)));
             } else {
                 String logMsg = new String(msg.getValue(), UTF_8);
                 log.info("Received message: '{}'", logMsg);

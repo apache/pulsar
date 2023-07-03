@@ -49,6 +49,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
+@SuppressWarnings("deprecation")
 @Slf4j
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
@@ -70,7 +71,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
         if (properties != null) {
-            properties.forEach(bkConf::setProperty);
+            properties.forEach((key, value) -> bkConf.setProperty(key, value));
         }
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());

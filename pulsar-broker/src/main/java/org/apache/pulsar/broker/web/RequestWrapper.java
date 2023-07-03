@@ -62,7 +62,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
 
             }
 
-            public int read() {
+            public int read() throws IOException {
                 return byteArrayInputStream.read();
             }
         };

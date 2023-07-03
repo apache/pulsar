@@ -105,10 +105,7 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        return Optional
-                .ofNullable(schema)
-                .map(s->s.getNativeSchema())
-                .orElse(Optional.empty());
+        return Optional.ofNullable(schema);
     }
 
     @Override
