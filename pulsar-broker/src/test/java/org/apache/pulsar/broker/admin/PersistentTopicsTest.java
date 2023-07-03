@@ -1387,6 +1387,31 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetMessageById4SpecialPropsInMsg() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        Map<String, String> inSpecialProps = new HashMap<>();
+        inSpecialProps.put("city=shanghai", "tag");
+        inSpecialProps.put("city,beijing", "haidian");
+        @Cleanup
+        ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
+                .enableBatching(false).create();
+        String data1 = "test1";
+        MessageIdImpl id1 = (MessageIdImpl) producer1.newMessage().value(data1.getBytes()).properties(inSpecialProps)
+                .send();
+
+        Message<byte[]> message1 = admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId());
+        Assert.assertEquals(message1.getData(), data1.getBytes());
+        Map<String, String> outSpecialProps = message1.getProperties();
+        for (String k : inSpecialProps.keySet()) {
+            Assert.assertEquals(inSpecialProps.get(k), outSpecialProps.get(k));
+        }
+    }
+
+    @Test
     public void testGetMessageIdByTimestamp() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
