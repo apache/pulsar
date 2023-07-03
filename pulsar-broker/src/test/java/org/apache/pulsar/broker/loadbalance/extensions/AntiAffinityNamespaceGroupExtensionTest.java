@@ -131,7 +131,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
 
         var expected = new HashMap<>(brokers);
         var actual = antiAffinityGroupPolicyFilter.filter(
-                brokers, namespaceBundle, context);
+                brokers, namespaceBundle, context).get();
         assertEquals(actual, expected);
 
         doReturn(antiAffinityEnabledNameSpace + "/" + bundle).when(namespaceBundle).toString();
@@ -142,7 +142,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
                 .get(5, TimeUnit.SECONDS).get();
         expected.remove(srcBroker);
         actual = antiAffinityGroupPolicyFilter.filter(
-                brokers, namespaceBundle, context);
+                brokers, namespaceBundle, context).get();
         assertEquals(actual, expected);
     }
 }
