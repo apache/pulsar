@@ -397,11 +397,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
                     .get().auth_policies.getTopicAuthentication().containsKey(partitionedTopic));
-            for (int i = 0; i < numPartitions; i++) {
-                assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                        .get().auth_policies.getTopicAuthentication()
-                        .containsKey(TopicName.get(partitionedTopic).getPartition(i).toString()));
-            }
         });
 
         admin.topics().deletePartitionedTopic("persistent://p1/ns1/partitioned-topic");

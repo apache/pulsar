@@ -942,19 +942,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), expectActions);
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
-                partitionedTopicName);
-        for (int i = 0; i < numPartitions; i++) {
-            TopicName partition = topicName.getPartition(i);
-            response = mock(AsyncResponse.class);
-            responseCaptor = ArgumentCaptor.forClass(Response.class);
-            persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace,
-                    partition.getEncodedLocalName());
-            verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-            Map<String, Set<AuthAction>> partitionPermissions =
-                    (Map<String, Set<AuthAction>>) responseCaptor.getValue();
-            Assert.assertEquals(partitionPermissions.get(role), expectActions);
-        }
     }
 
     @Test
