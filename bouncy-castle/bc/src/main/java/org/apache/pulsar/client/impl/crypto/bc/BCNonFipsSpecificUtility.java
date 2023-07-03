@@ -21,12 +21,14 @@ package org.apache.pulsar.client.impl.crypto.bc;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Optional;
 import javax.crypto.BadPaddingException;
@@ -50,6 +52,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
+import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -73,12 +76,14 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificCryptoUtility 
         Cipher dataKeyCipher = null;
         try {
 
+            AlgorithmParameterSpec params = null;
             // Encrypt data key using public key
             if (RSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(RSA_TRANS, providerName);
             } else {
                 if (ECDSA.equals(pubKey.getAlgorithm())) {
                     dataKeyCipher = Cipher.getInstance(ECIES, providerName);
+                    params = createIESParameterSpec();
                 } else {
                     String msg = logCtx + "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
                     log.error(msg);
@@ -87,11 +92,16 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificCryptoUtility 
             }
             //TODO this is really a WRAP - but has to be tested for backwards compatibility if we can just change it to
             // WRAP + ECIES is not supporting wrap operation
-            dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
+            if (params != null) {
+                dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey, params);
+            } else {
+                dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
+            }
             return dataKeyCipher.doFinal(dataKey.getEncoded());
 
         } catch (IllegalBlockSizeException | NoSuchAlgorithmException | NoSuchProviderException
-                 | NoSuchPaddingException | InvalidKeyException | BadPaddingException e) {
+                 | NoSuchPaddingException | InvalidKeyException | BadPaddingException |
+                 InvalidAlgorithmParameterException e) {
             log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
@@ -104,21 +114,27 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificCryptoUtility 
         byte[] dataKeyValue = null;
         try {
 
+            AlgorithmParameterSpec params = null;
             // Decrypt data key using private key
             if (RSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(RSA_TRANS, providerName);
             } else if (ECDSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, providerName);
+                params = createIESParameterSpec();
             } else {
                 log.error("Unsupported key type {} for key {}.", privateKey.getAlgorithm(), keyName);
                 return Optional.empty();
             }
             //TODO this is really an UNWRAP - but has to be tested for backwards compatibility if we can just change it
             // to UNWRAP + ECIES is not supporting wrap operation
-            dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            if (params != null) {
+                dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey, params);
+            } else {
+                dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            }
             dataKeyValue = dataKeyCipher.doFinal(encryptedDataKey);
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException | InvalidKeyException
-                 | IllegalBlockSizeException | BadPaddingException e) {
+                 | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e) {
             log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return Optional.empty();
         }
@@ -228,6 +244,13 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificCryptoUtility 
             throw new RuntimeException(e);
         }
         return privateKey;
+    }
+
+    // required since Bouncycastle 1.72 when using ECIES, it is required to pass in an IESParameterSpec
+    private static IESParameterSpec createIESParameterSpec() {
+        // the IESParameterSpec to use was discovered by debugging BouncyCastle 1.69 and running the
+        // test org.apache.pulsar.client.api.SimpleProducerConsumerTest#testCryptoWithChunking
+        return new IESParameterSpec(null, null, 128);
     }
 
 }
