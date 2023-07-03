@@ -156,7 +156,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         List<String> list = admin.brokers().getActiveBrokers("test");
         assertEquals(list.size(), 1);
         admin.brokers().shutDownBrokerGracefully(1, false);
-        //We can only unload one bundle per second, so it takes at least 2 seconds.
         Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
             assertNull(pulsar.getBrokerService());
             assertEquals(pulsar.getState(), PulsarService.State.Closed);
@@ -171,7 +170,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         producer.close();
         resetState();
     }
-    
+
     @Test
     public void testOwnedNsCheck() throws Exception {
         final String topic = "persistent://prop/ns-abc/successTopic";
