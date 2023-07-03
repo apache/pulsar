@@ -42,6 +42,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
@@ -94,6 +95,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -321,6 +323,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             ServiceUnitStateCompactionStrategy.class.getName()))
                     .create();
             tableview.listen((key, value) -> handle(key, value));
+            var strategy = (ServiceUnitStateCompactionStrategy) TopicCompactionStrategy.getInstance(TABLE_VIEW_TAG);
+            if (strategy == null) {
+                String err = TABLE_VIEW_TAG + "tag TopicCompactionStrategy is null.";
+                log.error(err);
+                throw new IllegalStateException(err);
+            }
+            strategy.setSkippedMsgHandler((key, value) -> handleSkippedEvent(key));
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
@@ -692,6 +701,18 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     next == null ? "" : next,
                     handlerTotalCount, handlerFailureCount,
                     e);
+        }
+    }
+
+    private void handleSkippedEvent(String serviceUnit) {
+        var getOwnerRequest = getOwnerRequests.get(serviceUnit);
+        if (getOwnerRequest != null) {
+            var data = tableview.get(serviceUnit);
+            if (data.state() == Owned) {
+                getOwnerRequest.complete(data.dstBroker());
+                getOwnerRequests.remove(serviceUnit);
+                stateChangeListeners.notify(serviceUnit, data, null);
+            }
         }
     }
 
