@@ -634,9 +634,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    static void readCompactedEntries(TopicCompactionService topicCompactionService, ManagedCursor cursor,
-                                     int numberOfEntriesToRead, boolean isFirstRead,
-                                     AsyncCallbacks.ReadEntriesCallback callback, Consumer consumer) {
+    public static void readCompactedEntries(TopicCompactionService topicCompactionService, ManagedCursor cursor,
+                                            int numberOfEntriesToRead, boolean isFirstRead,
+                                            AsyncCallbacks.ReadEntriesCallback callback, Consumer consumer) {
         final PositionImpl readPosition;
         if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
             readPosition = PositionImpl.EARLIEST;
@@ -644,8 +644,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             readPosition = (PositionImpl) cursor.getReadPosition();
         }
 
-        PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
-                PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
+        // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
+        ReadEntriesCtx readEntriesCtx = ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
 
         CompletableFuture<Position> lastCompactedPositionFuture = topicCompactionService.getLastCompactedPosition();
 
