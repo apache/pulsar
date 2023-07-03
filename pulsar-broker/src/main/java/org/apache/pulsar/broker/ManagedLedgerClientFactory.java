@@ -158,17 +158,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 // factory, however that might be introducing more unknowns.
                 log.warn("Encountered exceptions on closing bookkeeper client", ree);
             }
-            if (bkEnsemblePolicyToBkClientMap != null) {
-                bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
-                    try {
-                        if (bk != null) {
-                            bk.close();
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+            bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
+                try {
+                    if (bk != null) {
+                        bk.close();
                     }
-                });
-            }
+                } catch (Exception e) {
+                    log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+                }
+            });
             log.info("Closed BookKeeper client");
         } catch (Exception e) {
             log.warn(e.getMessage(), e);

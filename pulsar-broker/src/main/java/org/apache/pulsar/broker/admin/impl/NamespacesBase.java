@@ -1323,6 +1323,7 @@ public abstract class NamespacesBase extends AdminResource {
                         "Backlog Quota exceeds configured retention quota for namespace."
                                 + " Please increase retention quota and retry");
             }
+            policies.backlog_quota_map.put(quotaType, quota);
             return policies;
         });
     }

@@ -25,7 +25,6 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -2559,8 +2558,9 @@ public class CmdNamespaces extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String namespace = validateNamespace(params);
-            Json.prettyPrint(getAdmin().namespaces().getProperties(namespace));
+            final String namespace = validateNamespace(params);
+            final Map<String, String> properties = getAdmin().namespaces().getProperties(namespace);
+            prettyPrint(properties);
         }
     }
 
