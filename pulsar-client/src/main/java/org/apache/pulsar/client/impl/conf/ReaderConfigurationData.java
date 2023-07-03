@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.util.HashSet;
@@ -26,8 +27,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderInterceptor;
@@ -112,6 +116,11 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
                     + "compression information in it using which application can decrypt consumed message payload."
     )
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
+    @JsonIgnore
+    @Setter(onMethod_ = @SuppressFBWarnings({"EI_EXPOSE_REP2"}))
+    @Getter(onMethod_ = @SuppressFBWarnings({"EI_EXPOSE_REP"}))
+    private transient MessageCrypto messageCrypto = null;
 
     @ApiModelProperty(
             name = "readCompacted",

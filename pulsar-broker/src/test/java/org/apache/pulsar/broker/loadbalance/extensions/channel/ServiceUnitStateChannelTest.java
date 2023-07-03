@@ -53,6 +53,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNull;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
@@ -199,7 +200,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(priority = 0)
+    @Test(priority = -1)
     public void channelOwnerTest() throws Exception {
         var channelOwner1 = channel1.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
         var channelOwner2 = channel2.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
@@ -947,8 +948,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } catch (CompletionException e) {
             ex = e;
         }
-        assertNotNull(ex);
-        assertEquals(TimeoutException.class, ex.getCause().getClass());
+        assertNull(ex);
         assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(bundle).get());
         assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(bundle).get());
 

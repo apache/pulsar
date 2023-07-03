@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -298,20 +299,9 @@ public class PersistentTopicsBase extends AdminResource {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenantAsync(namespaceName.getTenant())
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync().thenCompose(unused1 ->
-             getPartitionedTopicMetadataAsync(topicName, true, false)
-                  .thenCompose(metadata -> {
-                      int numPartitions = metadata.partitions;
-                      CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
-                      if (numPartitions > 0) {
-                          for (int i = 0; i < numPartitions; i++) {
-                              TopicName topicNamePartition = topicName.getPartition(i);
-                              future = future.thenCompose(unused -> grantPermissionsAsync(topicNamePartition, role,
-                                      actions));
-                          }
-                      }
-                      return future.thenCompose(unused -> grantPermissionsAsync(topicName, role, actions))
-                              .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
-                  }))).exceptionally(ex -> {
+                        grantPermissionsAsync(topicName, role, actions)
+                                .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))))
+                .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, realCause);
                     resumeAsyncResponseExceptionally(asyncResponse, realCause);
@@ -3087,9 +3077,11 @@ public class PersistentTopicsBase extends AdminResource {
 
         ResponseBuilder responseBuilder = Response.ok();
         responseBuilder.header("X-Pulsar-Message-ID", pos.toString());
-        for (KeyValue keyValue : metadata.getPropertiesList()) {
-            responseBuilder.header("X-Pulsar-PROPERTY-" + keyValue.getKey(), keyValue.getValue());
-        }
+
+        Map<String, String> properties = metadata.getPropertiesList().stream()
+                .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (v1, v2) -> v2));
+        responseBuilder.header("X-Pulsar-PROPERTY", new Gson().toJson(properties));
+
         if (brokerEntryMetadata != null) {
             if (brokerEntryMetadata.hasBrokerTimestamp()) {
                 responseBuilder.header("X-Pulsar-Broker-Entry-METADATA-timestamp",
@@ -4111,31 +4103,43 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
             try {
-                PersistentSubscription sub = topic.getSubscription(subName);
-                if (sub == null) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                            getSubNotFoundErrorMessage(topicName.toString(), subName)));
-                    return;
+                PersistentSubscription sub = null;
+                PersistentReplicator repl = null;
+
+                if (subName.startsWith(topic.getReplicatorPrefix())) {
+                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    repl = (PersistentReplicator)
+                            topic.getPersistentReplicator(remoteCluster);
+                    if (repl == null) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Replicator not found"));
+                        return;
+                    }
+                } else {
+                    sub = topic.getSubscription(subName);
+                    if (sub == null) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                getSubNotFoundErrorMessage(topicName.toString(), subName)));
+                        return;
+                    }
                 }
+
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
+
+                PersistentReplicator finalRepl = repl;
+                PersistentSubscription finalSub = sub;
+
                 batchSizeFuture.thenAccept(bi -> {
                     PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
                     boolean issued;
                     try {
                         if (subName.startsWith(topic.getReplicatorPrefix())) {
-                            String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                            PersistentReplicator repl = (PersistentReplicator)
-                                    topic.getPersistentReplicator(remoteCluster);
-                            if (repl == null) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                        "Replicator not found"));
-                                return;
-                            }
-                            issued = repl.expireMessages(position);
+                            issued = finalRepl.expireMessages(position);
                         } else {
-                            issued = sub.expireMessages(position);
+                            issued = finalSub.expireMessages(position);
                         }
+
                         if (issued) {
                             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
                                     topicName, subName);
