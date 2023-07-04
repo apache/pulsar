@@ -24,10 +24,13 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+
+import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileOutputStream;
@@ -199,6 +202,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-d",
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
+
+        @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay in a random"
+                + " number of seconds by the range. e.g. \"[1,2]\"", converter = RangeConvert.class)
+        public Range<Long> delayRange = null;
 
         @Parameter(names = { "-set",
                 "--set-event-time" }, description = "Set the eventTime on messages")
@@ -615,6 +622,12 @@ public class PerformanceProducer {
                     }
                     if (arguments.delay > 0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    } else {
+                        if (arguments.delayRange != null) {
+                            final long deliverAfter = ThreadLocalRandom.current()
+                                    .nextLong(arguments.delayRange.lowerEndpoint(), arguments.delayRange.upperEndpoint());
+                            messageBuilder.deliverAfter(deliverAfter, TimeUnit.SECONDS);
+                        }
                     }
                     if (arguments.setEventTime) {
                         messageBuilder.eventTime(System.currentTimeMillis());
@@ -774,4 +787,32 @@ public class PerformanceProducer {
     public enum MessageKeyGenerationMode {
         autoIncrement, random
     }
+
+    static class RangeConvert implements IStringConverter<Range<Long>> {
+        @Override
+        public Range<Long> convert(String rangeStr) {
+            try {
+                final String[] facts = rangeStr.substring(1, rangeStr.length() - 1).split(",");
+                long min = Long.parseLong(facts[0].trim());
+                long max = Long.parseLong(facts[1].trim());
+                if (rangeStr.startsWith("(")) {
+                    if (rangeStr.endsWith(")")) {
+                        return Range.open(min, max);
+                    } else if (rangeStr.endsWith("]")) {
+                        return Range.openClosed(min, max);
+                    }
+                } else if (rangeStr.startsWith("[")) {
+                    if (rangeStr.endsWith(")")) {
+                        return Range.closedOpen(min, max);
+                    } else if (rangeStr.endsWith("]")) {
+                        return Range.closed(min, max);
+                    }
+                }
+                throw new IllegalArgumentException("Unknown range interval. " + rangeStr);
+            } catch (Throwable ex) {
+                throw new IllegalArgumentException("Unknown range interval. " + rangeStr);
+            }
+        }
+    }
+
 }
