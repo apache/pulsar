@@ -124,8 +124,8 @@ public class ConnectionHandler {
     }
 
     void reconnectLater(Throwable exception) {
-        duringConnect.set(false);
         CLIENT_CNX_UPDATER.set(this, null);
+        duringConnect.set(false);
         if (!isValidStateForReconnection()) {
             log.info("[{}] [{}] Ignoring reconnection request (state: {})",
                     state.topic, state.getHandlerName(), state.getState());
