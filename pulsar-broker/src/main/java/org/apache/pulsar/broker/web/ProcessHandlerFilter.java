@@ -37,7 +37,7 @@ public class ProcessHandlerFilter implements Filter {
 
     public ProcessHandlerFilter(PulsarService pulsar) {
         this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
+        this.interceptorEnabled = interceptor != null && !pulsar.getConfig().isDisableBrokerInterceptors();
     }
 
     @Override

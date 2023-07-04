@@ -51,7 +51,7 @@ public class ResponseHandlerFilter implements Filter {
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
         this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
+        this.interceptorEnabled = interceptor != null && !pulsar.getConfig().isDisableBrokerInterceptors();
     }
 
     @Override
