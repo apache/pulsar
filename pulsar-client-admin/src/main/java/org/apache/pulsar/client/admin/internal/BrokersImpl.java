@@ -210,9 +210,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public CompletableFuture<Void> shutDownBrokerGracefully(
-            int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic
-    ) {
+    public CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
+                                                            boolean forcedTerminateTopic) {
         WebTarget path = adminBrokers.path("shutdown")
                 .queryParam("maxConcurrentUnloadPerSec", maxConcurrentUnloadPerSec)
                 .queryParam("forcedTerminateTopic", forcedTerminateTopic);
