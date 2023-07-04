@@ -151,7 +151,7 @@ public class InterceptFilterOutTest {
         Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
         ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
         // Disable the broker interceptor
-        Mockito.doReturn(Sets.newHashSet()).when(conf).getBrokerInterceptors();
+        Mockito.doReturn(true).when(conf).isDisableBrokerInterceptors();
         Mockito.doReturn(conf).when(pulsarService).getConfig();
         ResponseHandlerFilter filter = new ResponseHandlerFilter(pulsarService);
 
