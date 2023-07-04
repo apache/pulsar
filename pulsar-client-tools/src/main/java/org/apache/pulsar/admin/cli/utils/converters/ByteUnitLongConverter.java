@@ -37,7 +37,7 @@ public class ByteUnitLongConverter extends BaseConverter<Long> {
     Long parseBytes(String argStr) {
         emptyCheck(getOptionName(), argStr);
         long valueInBytes = ByteUnitUtil.validateSizeString(argStr);
-        maxValueCheck(getOptionName(), valueInBytes, Integer.MAX_VALUE);
+        maxValueCheck(getOptionName(), valueInBytes, Long.MAX_VALUE);
         positiveCheck(getOptionName(), valueInBytes);
         return valueInBytes;
     }

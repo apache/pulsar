@@ -1252,14 +1252,12 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)",
-                required = true,
                 converter = ByteUnitLongConverter.class)
         private Long limit;
 
         @Parameter(names = { "-lt", "--limitTime" },
                 description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
                         + "non-positive number for disabling time limit.",
-                required = true,
                 converter = TimeUnitToSecondsConverter.class,
                 validateValueWith = PositiveValueValidator.class)
         private Long limitTimeInSec;
@@ -1300,9 +1298,15 @@ public class CmdNamespaces extends CmdBase {
             BacklogQuota.Builder builder = BacklogQuota.builder().retentionPolicy(policy);
             if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage) {
                 // set quota by storage size
+                if (limit == null) {
+                    throw new ParameterException("Quota type of 'destination_storage' needs a size limit");
+                }
                 builder.limitSize(limit);
             } else {
                 // set quota by time
+                if (limitTimeInSec == null) {
+                    throw new ParameterException("Quota type of 'message_age' needs a time limit");
+                }
                 builder.limitTime(limitTimeInSec.intValue());
             }
             getAdmin().namespaces().setBacklogQuota(namespace, builder.build(), backlogQuotaType);
