@@ -302,7 +302,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testSaslServerAndClientAuth2() throws Exception {
+    public void testSaslOnlyAuthFirstStage() throws Exception {
         AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
                 .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
 
@@ -320,7 +320,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
         field.setAccessible(true);
         Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
-        assertEquals(cache.estimatedSize(), 10);
+        assertEquals(cache.asMap().size(), 10);
         // The cache expiration time is set to 1ms. Residual auth info should be cleaned up
         Properties properties = new Properties();
         properties.setProperty("authentication_sasl_prefix", "1");
