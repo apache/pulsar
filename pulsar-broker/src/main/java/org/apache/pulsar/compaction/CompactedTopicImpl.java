@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx;
@@ -141,9 +142,13 @@ public class CompactedTopicImpl implements CompactedTopic {
                             }
                         }))
                     .exceptionally((exception) -> {
-                        if (exception.getCause() instanceof NoSuchElementException) {
+                        Throwable realEx = exception.getCause() == null ? exception : exception.getCause();
+                        if (realEx instanceof NoSuchElementException) {
                             cursor.seek(compactionHorizon.getNext());
                             callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+                        } else if (ManagedLedgerImpl.isNotRecoverableException(realEx)) {
+                            cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx,
+                                    PositionImpl.LATEST);
                         } else {
                             callback.readEntriesFailed(new ManagedLedgerException(exception), readEntriesCtx);
                         }

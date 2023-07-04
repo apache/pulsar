@@ -3929,6 +3929,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    public static boolean isNotRecoverableException(Throwable ex){
+        return ex instanceof ManagedLedgerException.NonRecoverableLedgerException
+                || ex instanceof BKException.BKNoSuchLedgerExistsException
+                || ex instanceof BKException.BKNoSuchLedgerExistsOnMetadataServerException
+                || ex instanceof BKException.BKNoSuchEntryException;
+    }
+
     public static ManagedLedgerException createManagedLedgerException(Throwable t) {
         if (t instanceof org.apache.bookkeeper.client.api.BKException) {
             return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) t).getCode());
