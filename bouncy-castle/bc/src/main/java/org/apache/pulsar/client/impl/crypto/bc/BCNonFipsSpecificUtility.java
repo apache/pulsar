@@ -100,8 +100,8 @@ public class BCNonFipsSpecificUtility implements BcVersionSpecificCryptoUtility 
             return dataKeyCipher.doFinal(dataKey.getEncoded());
 
         } catch (IllegalBlockSizeException | NoSuchAlgorithmException | NoSuchProviderException
-                 | NoSuchPaddingException | InvalidKeyException | BadPaddingException |
-                 InvalidAlgorithmParameterException e) {
+                 | NoSuchPaddingException | InvalidKeyException | BadPaddingException
+                 | InvalidAlgorithmParameterException e) {
             log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
