@@ -332,8 +332,8 @@ public interface Brokers {
      *                                  This helps control the speed of the unload operation during shutdown.
      * @param forcedTerminateTopic if true, topics will be forcefully terminated during the shutdown process.
      */
-    void shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                  boolean forcedTerminateTopic) throws PulsarAdminException;
+    CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
+                                                     boolean forcedTerminateTopic);
 
     /**
      * Get version of broker.

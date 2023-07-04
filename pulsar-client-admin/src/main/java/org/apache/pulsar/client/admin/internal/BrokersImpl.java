@@ -210,13 +210,13 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public void shutDownBrokerGracefully(
+    public CompletableFuture<Void> shutDownBrokerGracefully(
             int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic
     ) {
         WebTarget path = adminBrokers.path("shutdown")
                 .queryParam("maxConcurrentUnloadPerSec", maxConcurrentUnloadPerSec)
                 .queryParam("forcedTerminateTopic", forcedTerminateTopic);
-        asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).join();
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
