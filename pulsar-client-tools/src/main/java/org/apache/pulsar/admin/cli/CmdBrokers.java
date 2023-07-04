@@ -151,7 +151,7 @@ public class CmdBrokers extends CmdBase {
         @Override
         void run() throws Exception {
             getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic).join();
-            System.out.println("Successfully trigger broker shutdown gracefully");
+            System.out.println("Successfully broker shutdown gracefully");
         }
 
     }
