@@ -1025,7 +1025,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 "Consumer that failed is already present on the connection");
                     } else {
                         Consumer consumer = existingConsumerFuture.getNow(null);
-                        log.info("[{}] Consumer with the same id is already created:"
+                        log.warn("[{}] Consumer with the same id is already created:"
                                         + " consumerId={}, consumer={}",
                                 remoteAddress, consumerId, consumer);
                         commandSender.sendSuccessResponse(requestId);
