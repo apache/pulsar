@@ -621,12 +621,10 @@ public class PerformanceProducer {
                     }
                     if (arguments.delay > 0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
-                    } else {
-                        if (arguments.delayRange != null) {
-                            final long deliverAfter = ThreadLocalRandom.current()
-                                    .nextLong(arguments.delayRange.lowerEndpoint(), arguments.delayRange.upperEndpoint());
-                            messageBuilder.deliverAfter(deliverAfter, TimeUnit.SECONDS);
-                        }
+                    } else if (arguments.delayRange != null) {
+                        final long deliverAfter = ThreadLocalRandom.current()
+                                .nextLong(arguments.delayRange.lowerEndpoint(), arguments.delayRange.upperEndpoint());
+                        messageBuilder.deliverAfter(deliverAfter, TimeUnit.SECONDS);
                     }
                     if (arguments.setEventTime) {
                         messageBuilder.eventTime(System.currentTimeMillis());
