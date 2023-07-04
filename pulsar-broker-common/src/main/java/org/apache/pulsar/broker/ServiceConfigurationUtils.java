@@ -140,6 +140,9 @@ public class ServiceConfigurationUtils {
 
     public static long getLongPropertyOrDefault(ServiceConfiguration config, String key, long defaultValue) {
         Object value = config.getProperties().get(key);
+        if (value instanceof Integer) {
+            return ((Integer) value).longValue();
+        }
         if (value instanceof Long) {
             return (Long) value;
         } else if (value instanceof String) {
