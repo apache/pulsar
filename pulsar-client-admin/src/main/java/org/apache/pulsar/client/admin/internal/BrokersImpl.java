@@ -212,11 +212,11 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public void shutDownBrokerGracefully(
             int maxConcurrentUnloadPerSec, boolean forcedTerminateTopic
-    ) throws PulsarAdminException {
+    ) {
         WebTarget path = adminBrokers.path("shutdown")
                 .queryParam("maxConcurrentUnloadPerSec", maxConcurrentUnloadPerSec)
                 .queryParam("forcedTerminateTopic", forcedTerminateTopic);
-        sync(() -> asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)));
+        asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).join();
     }
 
     @Override
