@@ -202,8 +202,7 @@ public class PerformanceProducer {
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
 
-        @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay in a random"
-                + " number of seconds by the range. e.g. \"[1,2]\"", converter = RangeConvert.class)
+        @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random number of seconds. this value between the specified origin (inclusive) and the specified bound (exclusive). e.g. \"1,300\"", converter = RangeConvert.class)
         public Range<Long> delayRange = null;
 
         @Parameter(names = { "-set",
@@ -793,22 +792,10 @@ public class PerformanceProducer {
                 final String[] facts = rangeStr.substring(1, rangeStr.length() - 1).split(",");
                 long min = Long.parseLong(facts[0].trim());
                 long max = Long.parseLong(facts[1].trim());
-                if (rangeStr.startsWith("(")) {
-                    if (rangeStr.endsWith(")")) {
-                        return Range.open(min, max);
-                    } else if (rangeStr.endsWith("]")) {
-                        return Range.openClosed(min, max);
-                    }
-                } else if (rangeStr.startsWith("[")) {
-                    if (rangeStr.endsWith(")")) {
-                        return Range.closedOpen(min, max);
-                    } else if (rangeStr.endsWith("]")) {
-                        return Range.closed(min, max);
-                    }
-                }
-                throw new IllegalArgumentException("Unknown range interval. " + rangeStr);
+                return Range.openClosed(min, max);
             } catch (Throwable ex) {
-                throw new IllegalArgumentException("Unknown range interval. " + rangeStr);
+                throw new IllegalArgumentException("Unknown delay range interval,"
+                        + " the format should be \"<origin>,<bound>\". error message: " + rangeStr);
             }
         }
     }
