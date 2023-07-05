@@ -796,7 +796,7 @@ public class PerformanceProducer {
                 final String[] facts = rangeStr.substring(1, rangeStr.length() - 1).split(",");
                 final long min = Long.parseLong(facts[0].trim());
                 final long max = Long.parseLong(facts[1].trim());
-                return Range.openClosed(min, max);
+                return Range.closedOpen(min, max);
             } catch (Throwable ex) {
                 throw new IllegalArgumentException("Unknown delay range interval,"
                         + " the format should be \"<origin>,<bound>\". error message: " + rangeStr);
