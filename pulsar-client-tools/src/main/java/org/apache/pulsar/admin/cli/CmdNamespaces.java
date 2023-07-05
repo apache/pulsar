@@ -73,7 +73,6 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -1982,18 +1981,13 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--lag", "-l" },
                    description = "Duration to wait after offloading a ledger segment, before deleting the copy of that"
                                   + " segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).",
-                   required = true)
-        private String lag = "-1";
+                   required = true,
+                    converter = TimeUnitToSecondsConverter.class)
+        private Long lagInSec = -1L;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long lagInSec;
-            try {
-                lagInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(lag);
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
             getAdmin().namespaces().setOffloadDeleteLag(namespace, lagInSec,
                     TimeUnit.SECONDS);
         }
