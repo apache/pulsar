@@ -626,7 +626,7 @@ public class PerformanceProducer {
                     } else if (arguments.delayRange != null) {
                         final long deliverAfter = ThreadLocalRandom.current()
                                 .nextLong(arguments.delayRange.lowerEndpoint(),
-                                        arguments.delayRange.upperEndpoint() + 1);
+                                        arguments.delayRange.upperEndpoint());
                         messageBuilder.deliverAfter(deliverAfter, TimeUnit.SECONDS);
                     }
                     if (arguments.setEventTime) {
