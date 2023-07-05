@@ -207,6 +207,28 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     },
 
+    /**
+     * tencent cloud COS is compatible with the S3 API
+     * https://cloud.tencent.com/document/product/436/41284
+     * https://intl.cloud.tencent.com/document/product/436/34688
+     */
+    TENCENT_CLOUD_COS("tencent-cloud-cos", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
+        @Override
+        public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
+            TENCENT_CLOUD_COS_VALIDATION.validate(config);
+        }
+
+        @Override
+        public BlobStore getBlobStore(TieredStorageConfiguration config) {
+            return TENCENT_CLOUD_COS_OBJECT_STORE_BUILDER.getBlobStore(config);
+        }
+
+        @Override
+        public void buildCredentials(TieredStorageConfiguration config) {
+            TENCENT_CLOUD_COS_CREDENTIAL_BUILDER.buildCredentials(config);
+        }
+    },
+
     TRANSIENT("transient", new AnonymousProviderMetadata(new TransientApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
@@ -449,4 +471,57 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         config.setProviderCredentials(() -> credentials);
     };
 
+    static final BlobStoreBuilder TENCENT_CLOUD_COS_OBJECT_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        Properties overrides = config.getOverrides();
+        // COS supports both Path-Style and Virtual Hosted-Style access
+        // for security reasons, Virtual Hosted-Style is more recommended
+        overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
+        contextBuilder.overrides(overrides);
+        contextBuilder.endpoint(config.getServiceEndpoint());
+
+        if (config.getProviderCredentials() != null) {
+            return contextBuilder
+              .credentialsSupplier(config.getCredentials()::get)
+              .buildView(BlobStoreContext.class)
+              .getBlobStore();
+        } else {
+            log.warn("The credentials is null. driver: {}, bucket: {}", config.getDriver(), config.getBucket());
+            return contextBuilder
+              .buildView(BlobStoreContext.class)
+              .getBlobStore();
+        }
+    };
+
+    static final ConfigValidation TENCENT_CLOUD_COS_VALIDATION = (TieredStorageConfiguration config) -> {
+        if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
+            throw new IllegalArgumentException(
+              "ServiceEndpoint must specified for " + config.getDriver() + " offload");
+        }
+
+        if (Strings.isNullOrEmpty(config.getBucket())) {
+            throw new IllegalArgumentException(
+              "Bucket cannot be empty for " + config.getDriver() + " offload");
+        }
+
+        if (config.getMaxBlockSizeInBytes() < (5 * 1024 * 1024)) {
+            throw new IllegalArgumentException(
+              "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for "
+                + config.getDriver() + " offload");
+        }
+    };
+
+    static final CredentialBuilder TENCENT_CLOUD_COS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        String accountName = System.getenv("TENCENT_CLOUD_COS_ACCESS_KEY_ID");
+        if (StringUtils.isEmpty(accountName)) {
+            throw new IllegalArgumentException("Couldn't get the tencent cloud cos access key id.");
+        }
+        String accountKey = System.getenv("TENCENT_CLOUD_COS_ACCESS_KEY_SECRET");
+        if (StringUtils.isEmpty(accountKey)) {
+            throw new IllegalArgumentException("Couldn't get the tencent cloud cos access key secret.");
+        }
+        Credentials credentials = new Credentials(
+          accountName, accountKey);
+        config.setProviderCredentials(() -> credentials);
+    };
 }
