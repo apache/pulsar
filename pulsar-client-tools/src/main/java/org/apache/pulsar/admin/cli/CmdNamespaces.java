@@ -40,10 +40,9 @@ import org.apache.pulsar.admin.cli.utils.converters.ByteUnitIntegerConverter;
 import org.apache.pulsar.admin.cli.utils.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToSecondsConverter;
-import org.apache.pulsar.admin.cli.utils.validators.IntegerMaxValueLongValidator;
 import org.apache.pulsar.admin.cli.utils.validators.MinNegativeOneValidator;
 import org.apache.pulsar.admin.cli.utils.validators.NonNegativeValueValidator;
-import org.apache.pulsar.admin.cli.utils.validators.PositiveValueValidator;
+import org.apache.pulsar.admin.cli.utils.validators.PositiveIntegerValueValidator;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -411,7 +410,7 @@ public class CmdNamespaces extends CmdBase {
                 description = "Message TTL in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w). "
                         + "When the value is set to `0`, TTL is disabled.", required = true,
                         converter = TimeUnitToSecondsConverter.class,
-                        validateValueWith = {IntegerMaxValueLongValidator.class, NonNegativeValueValidator.class})
+                        validateValueWith = {NonNegativeValueValidator.class})
         private Long messageTTLInSecond;
 
         @Override
@@ -1252,7 +1251,7 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)",
                 converter = ByteUnitToLongConverter.class)
-        private Long limit;
+        private Long limit = 0L;
 
         @Parameter(names = { "-lt", "--limitTime" },
                 description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
@@ -2229,7 +2228,7 @@ public class CmdNamespaces extends CmdBase {
                   + "s3 and google-cloud-storage requires this parameter",
                 required = false,
                 converter = ByteUnitIntegerConverter.class,
-                validateValueWith = {PositiveValueValidator.class, IntegerMaxValueLongValidator.class})
+                validateValueWith = {PositiveIntegerValueValidator.class})
         private Integer maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
         @Parameter(
@@ -2237,7 +2236,7 @@ public class CmdNamespaces extends CmdBase {
                 description = "Read buffer size (eg: 1M, 5M), default is 1MB",
                 required = false,
                 converter = ByteUnitIntegerConverter.class,
-                validateValueWith = {PositiveValueValidator.class, IntegerMaxValueLongValidator.class})
+                validateValueWith = {PositiveIntegerValueValidator.class})
         private Integer readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
         @Parameter(
@@ -2246,7 +2245,7 @@ public class CmdNamespaces extends CmdBase {
                     + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).",
                 required = false,
                 converter = TimeUnitToMillisConverter.class,
-                validateValueWith = PositiveValueValidator.class)
+                validateValueWith = PositiveIntegerValueValidator.class)
         private Long offloadAfterElapsedInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
         @Parameter(
