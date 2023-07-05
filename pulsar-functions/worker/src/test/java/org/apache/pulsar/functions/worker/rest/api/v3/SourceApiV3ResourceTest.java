@@ -22,6 +22,7 @@ import static org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3ResourceTe
 import static org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3ResourceTest.getPulsarIOInvalidNar;
 import static org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3ResourceTest.getPulsarIOTwitterNar;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
@@ -58,6 +60,7 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -846,6 +849,72 @@ public class SourceApiV3ResourceTest {
                 null);
     }
 
+    @Test
+    public void testUpdateSourceWithNoChange() {
+        mockWorkerUtils();
+
+        // No change on config,
+        SourceConfig sourceConfig = createDefaultSourceConfig();
+        mockStatic(SourceConfigUtils.class, ctx -> {
+            ctx.when(() -> SourceConfigUtils.convertFromDetails(any())).thenReturn(sourceConfig);
+            ctx.when(() -> SourceConfigUtils.convert(any(), any())).thenCallRealMethod();
+            ctx.when(() -> SourceConfigUtils.validateUpdate(any(), any())).thenCallRealMethod();
+            ctx.when(() -> SourceConfigUtils.clone(any())).thenCallRealMethod();
+            ctx.when(() -> SourceConfigUtils.validateAndExtractDetails(any(),any(),anyBoolean())).thenCallRealMethod();
+        });
+
+        mockFunctionCommon(sourceConfig.getTenant(), sourceConfig.getNamespace(), sourceConfig.getName());
+
+        // config has not changes and don't update auth, should fail
+        try {
+            resource.updateSource(
+                    sourceConfig.getTenant(),
+                    sourceConfig.getNamespace(),
+                    sourceConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    sourceConfig,
+                    null,
+                    null);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        try {
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+            updateOptions.setUpdateAuthData(false);
+            resource.updateSource(
+                    sourceConfig.getTenant(),
+                    sourceConfig.getNamespace(),
+                    sourceConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    sourceConfig,
+                    null,
+                    updateOptions);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        // no changes but set the auth-update flag to true, should not fail
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+        updateOptions.setUpdateAuthData(true);
+        resource.updateSource(
+                sourceConfig.getTenant(),
+                sourceConfig.getNamespace(),
+                sourceConfig.getName(),
+                null,
+                mockedFormData,
+                null,
+                sourceConfig,
+                null,
+                updateOptions);
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a "
             + "positive number")
     public void testUpdateSourceZeroParallelism() throws Exception {
@@ -881,26 +950,7 @@ public class SourceApiV3ResourceTest {
             Integer parallelism,
             String expectedError) throws Exception {
 
-        mockStatic(ConnectorUtils.class, c -> {
-        });
-        mockStatic(ClassLoaderUtils.class, c -> {
-        });
-        mockStatic(FunctionCommon.class, ctx -> {
-            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getSourceType(argThat(clazz -> clazz.getName().equals(TWITTER_FIRE_HOSE))))
-                    .thenReturn(String.class);
-            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any()))
-                    .thenReturn(narClassLoader);
-
-
-        });
-
-        this.mockedFunctionMetaData =
-                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
-        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
-
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        mockFunctionCommon(tenant, namespace, function);
 
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
@@ -940,6 +990,27 @@ public class SourceApiV3ResourceTest {
                 sourceConfig,
                 null, null);
 
+    }
+
+    private void mockFunctionCommon(String tenant, String namespace, String function) {
+        mockStatic(ConnectorUtils.class, c -> {
+        });
+        mockStatic(ClassLoaderUtils.class, c -> {
+        });
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getSourceType(argThat(clazz -> clazz.getName().equals(TWITTER_FIRE_HOSE))))
+                    .thenReturn(String.class);
+            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any()))
+                    .thenReturn(narClassLoader);
+        });
+
+        this.mockedFunctionMetaData =
+                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
     }
 
     private void updateDefaultSource() throws Exception {

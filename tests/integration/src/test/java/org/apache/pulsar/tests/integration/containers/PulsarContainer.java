@@ -70,7 +70,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final boolean PULSAR_CONTAINERS_LEAVE_RUNNING =
             Boolean.parseBoolean(System.getenv("PULSAR_CONTAINERS_LEAVE_RUNNING"));
 
-    private final String hostname;
+    protected final String hostname;
     private final String serviceName;
     private final String serviceEntryPoint;
     private final int servicePort;

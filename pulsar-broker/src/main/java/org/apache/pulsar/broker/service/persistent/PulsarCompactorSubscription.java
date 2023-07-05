@@ -32,11 +32,11 @@ import org.apache.pulsar.compaction.Compactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CompactorSubscription extends PersistentSubscription {
+public class PulsarCompactorSubscription extends PersistentSubscription {
     private final CompactedTopic compactedTopic;
 
-    public CompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
-                                 String subscriptionName, ManagedCursor cursor) {
+    public PulsarCompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
+                                       String subscriptionName, ManagedCursor cursor) {
         super(topic, subscriptionName, cursor, false);
         checkArgument(subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION));
         this.compactedTopic = compactedTopic;
@@ -106,5 +106,5 @@ public class CompactorSubscription extends PersistentSubscription {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(CompactorSubscription.class);
+    private static final Logger log = LoggerFactory.getLogger(PulsarCompactorSubscription.class);
 }

@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -42,9 +42,8 @@ public interface BrokerFilter {
      * @param context The load manager context.
      * @return Filtered broker list.
      */
-    Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                         ServiceUnitId serviceUnit,
-                                         LoadManagerContext context)
-            throws BrokerFilterException;
+    CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
+                                                            ServiceUnitId serviceUnit,
+                                                            LoadManagerContext context);
 
 }

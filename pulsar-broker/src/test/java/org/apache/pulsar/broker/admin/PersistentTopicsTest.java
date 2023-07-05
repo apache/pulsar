@@ -930,19 +930,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), expectActions);
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
-                partitionedTopicName);
-        for (int i = 0; i < numPartitions; i++) {
-            TopicName partition = topicName.getPartition(i);
-            response = mock(AsyncResponse.class);
-            responseCaptor = ArgumentCaptor.forClass(Response.class);
-            persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace,
-                    partition.getEncodedLocalName());
-            verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-            Map<String, Set<AuthAction>> partitionPermissions =
-                    (Map<String, Set<AuthAction>>) responseCaptor.getValue();
-            Assert.assertEquals(partitionPermissions.get(role), expectActions);
-        }
     }
 
     @Test
@@ -1383,6 +1370,31 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.fail();
         } catch (Exception e) {
             Assert.assertNull(message4);
+        }
+    }
+
+    @Test
+    public void testGetMessageById4SpecialPropsInMsg() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        Map<String, String> inSpecialProps = new HashMap<>();
+        inSpecialProps.put("city=shanghai", "tag");
+        inSpecialProps.put("city,beijing", "haidian");
+        @Cleanup
+        ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
+                .enableBatching(false).create();
+        String data1 = "test1";
+        MessageIdImpl id1 = (MessageIdImpl) producer1.newMessage().value(data1.getBytes()).properties(inSpecialProps)
+                .send();
+
+        Message<byte[]> message1 = admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId());
+        Assert.assertEquals(message1.getData(), data1.getBytes());
+        Map<String, String> outSpecialProps = message1.getProperties();
+        for (String k : inSpecialProps.keySet()) {
+            Assert.assertEquals(inSpecialProps.get(k), outSpecialProps.get(k));
         }
     }
 
