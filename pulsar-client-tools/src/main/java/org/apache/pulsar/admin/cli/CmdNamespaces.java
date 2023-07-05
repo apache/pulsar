@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.admin.cli.utils.converters.ByteUnitIntegerConverter;
-import org.apache.pulsar.admin.cli.utils.converters.ByteUnitLongConverter;
+import org.apache.pulsar.admin.cli.utils.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToSecondsConverter;
 import org.apache.pulsar.admin.cli.utils.validators.IntegerMaxValueLongValidator;
@@ -1251,7 +1251,7 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)",
-                converter = ByteUnitLongConverter.class)
+                converter = ByteUnitToLongConverter.class)
         private Long limit;
 
         @Parameter(names = { "-lt", "--limitTime" },
@@ -1912,7 +1912,7 @@ public class CmdNamespaces extends CmdBase {
                    description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                                  + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
                    required = true,
-                    converter = ByteUnitLongConverter.class)
+                    converter = ByteUnitToLongConverter.class)
         private Long threshold = 0L;
 
         @Override
@@ -1946,7 +1946,7 @@ public class CmdNamespaces extends CmdBase {
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true,
-                    converter = ByteUnitLongConverter.class)
+                    converter = ByteUnitToLongConverter.class)
         private Long threshold = -1L;
 
         @Override
@@ -2254,7 +2254,7 @@ public class CmdNamespaces extends CmdBase {
                 names = {"--offloadAfterThreshold", "-oat"},
                 description = "Offload after threshold size (eg: 1M, 5M)",
                 required = false,
-                converter = ByteUnitLongConverter.class)
+                converter = ByteUnitToLongConverter.class)
         private Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
 
         @Parameter(

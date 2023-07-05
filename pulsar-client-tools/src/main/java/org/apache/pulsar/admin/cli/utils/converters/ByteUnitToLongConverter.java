@@ -19,13 +19,11 @@
 package org.apache.pulsar.admin.cli.utils.converters;
 
 import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.emptyCheck;
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.maxValueCheck;
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.positiveCheck;
 import com.beust.jcommander.converters.BaseConverter;
 
-public class ByteUnitLongConverter extends BaseConverter<Long> {
+public class ByteUnitToLongConverter extends BaseConverter<Long> {
 
-    public ByteUnitLongConverter(String optionName) {
+    public ByteUnitToLongConverter(String optionName) {
         super(optionName);
     }
 
