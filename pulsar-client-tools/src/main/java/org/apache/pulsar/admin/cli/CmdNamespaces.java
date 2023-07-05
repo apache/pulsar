@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -2275,7 +2274,7 @@ public class CmdNamespaces extends CmdBase {
         )
         private String offloadReadPriorityStr;
 
-        public final List<String> driverNames = Collections.singletonList(OffloadPoliciesImpl.DRIVER_NAMES);
+        public final List<String> driverNames = OffloadPoliciesImpl.DRIVER_NAMES;
 
         public boolean driverSupported(String driver) {
             return driverNames.stream().anyMatch(d -> d.equalsIgnoreCase(driver));
