@@ -25,6 +25,6 @@ import org.apache.pulsar.admin.cli.utils.ValueValidationUtils;
 public class NonNegativeValueValidator implements IValueValidator<Long> {
     @Override
     public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtils.maxValueCheck(name, value, Long.MAX_VALUE);
+        ValueValidationUtils.minValueCheck(name, value, 0L);
     }
 }

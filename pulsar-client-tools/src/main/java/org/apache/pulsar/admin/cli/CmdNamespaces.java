@@ -757,12 +757,12 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            final int retentionTimeInMin = retentionTimeInSec ==  -1
-                    ? retentionTimeInSec.intValue()
-                    : (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
-            final int retentionSizeInMB = sizeLimit == -1
-                    ? sizeLimit
-                    : (sizeLimit / (1024 * 1024));
+            final int retentionTimeInMin = retentionTimeInSec !=  -1
+                    ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
+                    : retentionTimeInSec.intValue();
+            final int retentionSizeInMB = sizeLimit != -1
+                    ? (int) (sizeLimit / (1024 * 1024))
+                    : sizeLimit;
             getAdmin().namespaces()
                     .setRetention(namespace, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
@@ -1257,8 +1257,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "-lt", "--limitTime" },
                 description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
                         + "non-positive number for disabling time limit.",
-                converter = TimeUnitToSecondsConverter.class,
-                validateValueWith = PositiveValueValidator.class)
+                converter = TimeUnitToSecondsConverter.class)
         private Long limitTimeInSec;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
@@ -1552,8 +1551,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in "
                 + "seconds, topics that are inactive for longer than this value will be deleted "
                 + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true,
-                converter = TimeUnitToSecondsConverter.class,
-                validateValueWith = PositiveValueValidator.class)
+                converter = TimeUnitToSecondsConverter.class)
         private Long maxInactiveDurationInSeconds;
 
         @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic, Valid options are: "
@@ -1593,8 +1591,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on "
                 + "delayed delivery messages, affecting the accuracy of the delivery time compared to "
                 + "the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)",
-                converter = TimeUnitToMillisConverter.class,
-                validateValueWith = PositiveValueValidator.class)
+                converter = TimeUnitToMillisConverter.class)
         private Long delayedDeliveryTimeInMills = 1000L;
 
         @Override
@@ -2231,14 +2228,16 @@ public class CmdNamespaces extends CmdBase {
                 description = "Max block size (eg: 32M, 64M), default is 64MB"
                   + "s3 and google-cloud-storage requires this parameter",
                 required = false,
-                converter = ByteUnitIntegerConverter.class)
+                converter = ByteUnitIntegerConverter.class,
+                validateValueWith = {PositiveValueValidator.class, IntegerMaxValueLongValidator.class})
         private Integer maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
         @Parameter(
                 names = {"--readBufferSize", "-rbs"},
                 description = "Read buffer size (eg: 1M, 5M), default is 1MB",
                 required = false,
-                converter = ByteUnitIntegerConverter.class)
+                converter = ByteUnitIntegerConverter.class,
+                validateValueWith = {PositiveValueValidator.class, IntegerMaxValueLongValidator.class})
         private Integer readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
         @Parameter(
@@ -2261,8 +2260,7 @@ public class CmdNamespaces extends CmdBase {
                 names = {"--offloadAfterThresholdInSeconds", "-oats"},
                 description = "Offload after threshold seconds (or minutes,hours,days,weeks eg: 100m, 3h, 2d, 5w).",
                 required = false,
-                converter = TimeUnitToSecondsConverter.class,
-                validateValueWith = PositiveValueValidator.class)
+                converter = TimeUnitToSecondsConverter.class)
         private Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
 
         @Parameter(
@@ -2287,20 +2285,6 @@ public class CmdNamespaces extends CmdBase {
                 return false;
             }
             return driver.equalsIgnoreCase(driverNames.get(0)) || driver.equalsIgnoreCase(driverNames.get(1));
-        }
-
-        public boolean positiveCheck(String paramName, long value) {
-            if (value <= 0) {
-                throw new ParameterException(paramName + " is not be negative or 0!");
-            }
-            return true;
-        }
-
-        public boolean maxValueCheck(String paramName, long value, long maxValue) {
-            if (value > maxValue) {
-                throw new ParameterException(paramName + " is not bigger than " + maxValue + "!");
-            }
-            return true;
         }
 
         @Override

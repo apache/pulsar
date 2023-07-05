@@ -19,7 +19,6 @@
 package org.apache.pulsar.admin.cli.utils.converters;
 
 import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.emptyCheck;
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.maxValueCheck;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.converters.BaseConverter;
 import java.util.concurrent.TimeUnit;
@@ -35,10 +34,8 @@ public class TimeUnitToSecondsConverter extends BaseConverter<Long> {
     public Long convert(String str) {
         emptyCheck(getOptionName(), str);
         try {
-            long inputValue = TimeUnit.SECONDS.toSeconds(
+            return TimeUnit.SECONDS.toSeconds(
                     RelativeTimeUtil.parseRelativeTimeInSeconds(str.trim()));
-            maxValueCheck(getOptionName(), inputValue, Long.MAX_VALUE);
-            return inputValue;
         } catch (IllegalArgumentException exception) {
             throw new ParameterException("For input " + getOptionName() + ": " + exception.getMessage());
         }

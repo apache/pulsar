@@ -19,8 +19,6 @@
 package org.apache.pulsar.admin.cli.utils.converters;
 
 import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.emptyCheck;
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.maxValueCheck;
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.positiveCheck;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.converters.BaseConverter;
 import java.util.concurrent.TimeUnit;
@@ -36,11 +34,8 @@ public class TimeUnitToMillisConverter extends BaseConverter<Long> {
     public Long convert(String str) {
         emptyCheck(getOptionName(), str);
         try {
-            long inputValue = TimeUnit.SECONDS.toMillis(
+            return TimeUnit.SECONDS.toMillis(
                     RelativeTimeUtil.parseRelativeTimeInSeconds(str.trim()));
-            positiveCheck(getOptionName(), inputValue);
-            maxValueCheck(getOptionName(), inputValue, Long.MAX_VALUE);
-            return inputValue;
         } catch (IllegalArgumentException exception) {
             throw new ParameterException("For input " + getOptionName() + ": " + exception.getMessage());
         }
