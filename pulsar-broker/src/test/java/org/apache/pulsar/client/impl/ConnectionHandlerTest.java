@@ -75,7 +75,7 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
                         return CompletableFuture.completedFuture(null);
                     });
             handler.grabCnx();
-            Assert.assertEquals(future.join(), i);
+            Assert.assertEquals(future.join(), Integer.valueOf(i));
         }
     }
 
