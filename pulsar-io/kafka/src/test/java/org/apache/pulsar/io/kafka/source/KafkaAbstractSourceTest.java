@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.io.kafka.source;
 
-
 import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
-import java.util.Collection;
 import java.util.Collections;
 import java.lang.reflect.Field;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -57,18 +55,17 @@ public class KafkaAbstractSourceTest {
     private static class DummySource extends KafkaAbstractSource<String> {
 
         @Override
-        public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-            KafkaRecord record = new KafkaRecord(consumerRecord,
+        public KafkaRecord<String> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
+            return new KafkaRecord<>(consumerRecord,
                     new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
                     Schema.STRING,
                     Collections.emptyMap());
-            return record;
         }
     }
 
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
-        KafkaAbstractSource source = new DummySource();
+        KafkaAbstractSource<String> source = new DummySource();
         SourceContext ctx = mock(SourceContext.class);
         Map<String, Object> config = new HashMap<>();
         Assert.ThrowingRunnable openAndClose = ()->{
@@ -160,7 +157,7 @@ public class KafkaAbstractSourceTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Subscribe exception")
     public final void throwExceptionBySubscribe() throws Exception {
-        KafkaAbstractSource source = new DummySource();
+        KafkaAbstractSource<String> source = new DummySource();
 
         KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
         kafkaSourceConfig.setTopic("test-topic");
@@ -168,9 +165,9 @@ public class KafkaAbstractSourceTest {
         kafkaSourceConfigField.setAccessible(true);
         kafkaSourceConfigField.set(source, kafkaSourceConfig);
 
-        Consumer consumer = mock(Consumer.class);
+        Consumer<Object, Object> consumer = mock(Consumer.class);
         Mockito.doThrow(new RuntimeException("Subscribe exception")).when(consumer)
-                .subscribe(Mockito.any(Collection.class));
+                .subscribe(Mockito.anyCollection());
 
         Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
         consumerField.setAccessible(true);
@@ -181,7 +178,7 @@ public class KafkaAbstractSourceTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Pool exception")
     public final void throwExceptionByPoll() throws Exception {
-        KafkaAbstractSource source = new DummySource();
+        KafkaAbstractSource<String> source = new DummySource();
 
         KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
         kafkaSourceConfig.setTopic("test-topic");
@@ -189,7 +186,7 @@ public class KafkaAbstractSourceTest {
         kafkaSourceConfigField.setAccessible(true);
         kafkaSourceConfigField.set(source, kafkaSourceConfig);
 
-        Consumer consumer = mock(Consumer.class);
+        Consumer<Object, Object> consumer = mock(Consumer.class);
         Mockito.doThrow(new RuntimeException("Pool exception")).when(consumer)
                 .poll(Mockito.any(Duration.class));
 

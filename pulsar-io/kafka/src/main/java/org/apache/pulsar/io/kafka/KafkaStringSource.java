@@ -27,14 +27,12 @@ import org.apache.pulsar.client.api.Schema;
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
 
-
     @Override
-    public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-        KafkaRecord record = new KafkaRecord(consumerRecord,
+    public KafkaRecord<String> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
+        return new KafkaRecord<>(consumerRecord,
                 new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
                 Schema.STRING,
                 copyKafkaHeaders(consumerRecord));
-        return record;
     }
 
 }
