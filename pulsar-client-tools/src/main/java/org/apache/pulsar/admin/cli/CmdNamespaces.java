@@ -2288,6 +2288,20 @@ public class CmdNamespaces extends CmdBase {
             return driver.equalsIgnoreCase(driverNames.get(0)) || driver.equalsIgnoreCase(driverNames.get(1));
         }
 
+        public boolean positiveCheck(String paramName, long value) {
+            if (value <= 0) {
+                throw new ParameterException(paramName + " cannot be less than or equal to 0!");
+            }
+            return true;
+        }
+
+        public boolean maxValueCheck(String paramName, long value, long maxValue) {
+            if (value > maxValue) {
+                throw new ParameterException(paramName + " cannot be greater than " + maxValue + "!");
+            }
+            return true;
+        }
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);

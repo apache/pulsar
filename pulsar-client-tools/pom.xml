@@ -111,6 +111,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
