@@ -38,8 +38,6 @@ public class ByteUnitIntegerConverter extends BaseConverter<Integer> {
     Long parseBytes(String argStr) {
         emptyCheck(getOptionName(), argStr);
         long valueInBytes = validateSizeString(argStr);
-        maxValueCheck(getOptionName(), valueInBytes, Integer.MAX_VALUE);
-        positiveCheck(getOptionName(), valueInBytes);
         return valueInBytes;
     }
 }
