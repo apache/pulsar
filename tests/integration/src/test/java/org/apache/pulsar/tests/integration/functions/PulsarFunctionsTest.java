@@ -752,7 +752,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         checkSubscriptionType(inputTopicName,
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(info, FunctionConfig.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class));
 
         // delete function
         deleteFunction(functionName);
