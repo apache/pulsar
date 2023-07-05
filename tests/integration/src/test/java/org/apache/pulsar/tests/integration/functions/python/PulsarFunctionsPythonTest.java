@@ -69,4 +69,12 @@ public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
         testAvroSchemaFunction(Runtime.PYTHON);
     }
 
+    @Test(groups = {"python_function", "function"})
+    public void testRetainOrderingTest() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, false, false,
+                false, generator -> {
+                    generator.setRetainOrdering(true);
+                });
+    }
+
 }
