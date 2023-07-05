@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
-import static java.util.Objects.*;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
