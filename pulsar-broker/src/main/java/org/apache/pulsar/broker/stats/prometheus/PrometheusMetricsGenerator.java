@@ -243,8 +243,8 @@ public class PrometheusMetricsGenerator {
                     clusterName, Collector.Type.GAUGE, stream);
         }
 
-        parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
-                        .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
+        parseMetricsToPrometheusMetrics(pulsar.getBrokerService()
+                        .getPulsarStats().getBrokerOperabilityMetrics().getMetrics(),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics

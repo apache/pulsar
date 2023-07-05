@@ -251,6 +251,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Collection<Metric> pulsarTopicLoadTimesCountMetrics = metrics.get("pulsar_topic_load_times_count");
         assertEquals(pulsarTopicLoadTimesMetrics.size(), 6);
         assertEquals(pulsarTopicLoadTimesCountMetrics.size(), 1);
+        Collection<Metric> topicLoadTimeP999Metrics = metrics.get("pulsar_topic_load_time_99_9_percentile_ms");
+        Collection<Metric> topicLoadTimeFailedCountMetrics = metrics.get("pulsar_topic_load_failed_count");
+        assertEquals(topicLoadTimeP999Metrics.size(), 2);
+        assertEquals(topicLoadTimeFailedCountMetrics.size(), 1);
     }
 
     @Test
