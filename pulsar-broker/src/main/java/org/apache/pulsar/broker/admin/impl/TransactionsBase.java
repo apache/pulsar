@@ -448,16 +448,16 @@ public abstract class TransactionsBase extends AdminResource {
                                 "Transaction buffer Snapshot for the topic does not exist"));
                     } else if (snapshotType == TransactionBuffer.SnapshotType.Segment) {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
-                        this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
+                        TopicName segmentTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-                        return getTxnSnapshotInternalStats(topicName, authoritative, metadata)
+                        return getTxnSnapshotInternalStats(segmentTopic, metadata)
                                 .thenApply(snapshotInternalStats -> {
                                     transactionBufferInternalStats.segmentInternalStats = snapshotInternalStats;
                                     return transactionBufferInternalStats;
                                 }).thenCompose(ignore -> {
-                                    this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
+                                    TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                             SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-                                    return getTxnSnapshotInternalStats(topicName, authoritative, metadata)
+                                    return getTxnSnapshotInternalStats(indexTopic, metadata)
                                             .thenApply(indexStats -> {
                                                 transactionBufferInternalStats.segmentIndexInternalStats = indexStats;
                                                 return transactionBufferInternalStats;
@@ -465,9 +465,9 @@ public abstract class TransactionsBase extends AdminResource {
                                 });
                     } else if (snapshotType == TransactionBuffer.SnapshotType.Single) {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
-                        this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
+                        TopicName singleSnapshotTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-                        return getTxnSnapshotInternalStats(topicName, authoritative, metadata)
+                        return getTxnSnapshotInternalStats(singleSnapshotTopic, metadata)
                                 .thenApply(snapshotInternalStats -> {
                                    transactionBufferInternalStats.singleSnapshotInternalStats = snapshotInternalStats;
                                    return transactionBufferInternalStats;
@@ -479,7 +479,6 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     private CompletableFuture<SnapshotInternalStats> getTxnSnapshotInternalStats(TopicName topicName,
-                                                                                 boolean authoritative,
                                                                                  boolean metadata) {
         final PulsarAdmin admin;
         try {
@@ -488,27 +487,14 @@ public abstract class TransactionsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(e));
         }
         NamespaceService ns = pulsar().getNamespaceService();
-        return ns.isServiceUnitOwnedAsync(topicName).thenCompose(isOwner -> {
-            if (isOwner) {
-                return getExistingPersistentTopicAsync(authoritative).thenCompose(persistentTopic -> {
-                    return persistentTopic.getManagedLedger().getManagedLedgerInternalStats(metadata)
-                            .thenApply(managedLedgerInternalStats -> {
-                                SnapshotInternalStats snapshotInternalStats = new SnapshotInternalStats();
-                                snapshotInternalStats.managedLedgerName = persistentTopic.getManagedLedger().getName();
-                                snapshotInternalStats.managedLedgerInternalStats = managedLedgerInternalStats;
-                                return snapshotInternalStats;
-                            });
-                });
-            } else {
-                return admin.topics().getInternalStatsAsync(topicName.toString())
+        return ns.isServiceUnitOwnedAsync(topicName)
+                .thenCompose(isOwner -> admin.topics().getInternalStatsAsync(topicName.toString(), metadata)
                         .thenApply(persistentTopicInternalStats -> {
                             SnapshotInternalStats snapshotInternalStats = new SnapshotInternalStats();
                             snapshotInternalStats.managedLedgerInternalStats = persistentTopicInternalStats;
                             snapshotInternalStats.managedLedgerName = topicName.getEncodedLocalName();
                             return snapshotInternalStats;
-                        });
-            }
-        });
+                        }));
     }
 
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
