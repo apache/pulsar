@@ -283,6 +283,40 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role, boolean force) {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
+                policiesOptional -> {
+                    Policies policies = policiesOptional.orElseThrow(() ->
+                            new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                    if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
+                            || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
+                        log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
+                                clientAppId(), role, topicUri);
+                        if (force) {
+                            return CompletableFuture.completedFuture(null);
+                        } else {
+                            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                    "Permissions are not set at the topic level"));
+                        }
+                    }
+                    // Write the new policies to metadata store
+                    return namespaceResources().setPoliciesAsync(namespaceName, p -> {
+                        p.auth_policies.getTopicAuthentication().computeIfPresent(topicUri, (k, roles) -> {
+                            roles.remove(role);
+                            if (roles.isEmpty()) {
+                                return null;
+                            }
+                            return roles;
+                        });
+                        return p;
+                    }).thenAccept(__ ->
+                            log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
+                            topicUri)
+                    );
+                }
+        );
+    }
+
     protected void internalRevokePermissionsOnTopic(AsyncResponse asyncResponse, String role) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenantAsync(namespaceName.getTenant())
@@ -4107,27 +4141,33 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
             try {
-                final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                } else {
-                    messageExpirer = topic.getSubscription(subName);
-                }
-                if (messageExpirer == null) {
-                    final String message = (subName.startsWith(topic.getReplicatorPrefix()))
-                            ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, message));
+                PersistentSubscription sub = topic.getSubscription(subName);
+                if (sub == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                            getSubNotFoundErrorMessage(topicName.toString(), subName)));
                     return;
                 }
-
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
 
                 batchSizeFuture.thenAccept(bi -> {
                     PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
+                    boolean issued;
                     try {
-                        if (messageExpirer.expireMessages(position)) {
+                        if (subName.startsWith(topic.getReplicatorPrefix())) {
+                            String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                            PersistentReplicator repl = (PersistentReplicator)
+                                    topic.getPersistentReplicator(remoteCluster);
+                            if (repl == null) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                        "Replicator not found"));
+                                return;
+                            }
+                            issued = repl.expireMessages(position);
+                        } else {
+                            issued = sub.expireMessages(position);
+                        }
+                        if (issued) {
                             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
                                     topicName, subName);
                         } else {
