@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
@@ -39,9 +38,10 @@ public class AntiAffinityGroupPolicyFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(
+    public Map<String, BrokerLookupData> filter(
             Map<String, BrokerLookupData> brokers, ServiceUnitId serviceUnitId, LoadManagerContext context) {
-        return helper.filterAsync(brokers, serviceUnitId.toString());
+        helper.filter(brokers, serviceUnitId.toString());
+        return brokers;
     }
 
 

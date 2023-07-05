@@ -233,14 +233,14 @@ public abstract class NamespacesBase extends AdminResource {
                                     }))
                             .thenCompose(topics -> {
                                 List<String> allTopics = topics.get(0);
-                                Set<String> allUserCreatedTopics = new HashSet<>();
+                                ArrayList<String> allUserCreatedTopics = new ArrayList<>();
                                 List<String> allPartitionedTopics = topics.get(1);
-                                Set<String> allUserCreatedPartitionTopics = new HashSet<>();
+                                ArrayList<String> allUserCreatedPartitionTopics = new ArrayList<>();
                                 boolean hasNonSystemTopic = false;
-                                Set<String> allSystemTopics = new HashSet<>();
-                                Set<String> allPartitionedSystemTopics = new HashSet<>();
-                                Set<String> topicPolicy = new HashSet<>();
-                                Set<String> partitionedTopicPolicy = new HashSet<>();
+                                List<String> allSystemTopics = new ArrayList<>();
+                                List<String> allPartitionedSystemTopics = new ArrayList<>();
+                                List<String> topicPolicy = new ArrayList<>();
+                                List<String> partitionedTopicPolicy = new ArrayList<>();
                                 for (String topic : allTopics) {
                                     if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                                         hasNonSystemTopic = true;
@@ -279,12 +279,6 @@ public abstract class NamespacesBase extends AdminResource {
                                         return old;
                                     });
                                 }
-                                allUserCreatedTopics.removeIf(t ->
-                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
-                                allSystemTopics.removeIf(t ->
-                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
-                                topicPolicy.removeIf(t ->
-                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
                                 return markDeleteFuture.thenCompose(__ ->
                                                 internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
@@ -354,7 +348,7 @@ public abstract class NamespacesBase extends AdminResource {
         return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
     }
 
-    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(Set<String> topicNames) {
+    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -368,7 +362,7 @@ public abstract class NamespacesBase extends AdminResource {
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> internalDeleteTopicsAsync(Set<String> topicNames) {
+    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }

@@ -27,7 +27,6 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 
 /**
@@ -36,7 +35,7 @@ import java.util.concurrent.ExecutionException;
 public class BrokerLoadManagerClassFilterTest extends BrokerFilterTestBase {
 
     @Test
-    public void test() throws BrokerFilterException, ExecutionException, InterruptedException {
+    public void test() throws BrokerFilterException {
         LoadManagerContext context = getContext();
         context.brokerConfiguration().setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         BrokerLoadManagerClassFilter filter = new BrokerLoadManagerClassFilter();
@@ -49,14 +48,14 @@ public class BrokerLoadManagerClassFilterTest extends BrokerFilterTestBase {
                 "broker5", getLookupData("3.0.0", null)
         );
 
-        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(originalBrokers), null, context).get();
+        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(originalBrokers), null, context);
         assertEquals(result, Map.of(
                 "broker1", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName()),
                 "broker2", getLookupData("3.0.0", ExtensibleLoadManagerImpl.class.getName())
         ));
 
         context.brokerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        result = filter.filter(new HashMap<>(originalBrokers), null, context).get();
+        result = filter.filter(new HashMap<>(originalBrokers), null, context);
 
         assertEquals(result, Map.of(
                 "broker3", getLookupData("3.0.0", ModularLoadManagerImpl.class.getName()),

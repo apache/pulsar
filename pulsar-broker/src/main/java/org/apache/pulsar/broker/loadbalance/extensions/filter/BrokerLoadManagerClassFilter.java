@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -34,12 +34,13 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(
+    public Map<String, BrokerLookupData> filter(
             Map<String, BrokerLookupData> brokers,
             ServiceUnitId serviceUnit,
-            LoadManagerContext context) {
+            LoadManagerContext context)
+            throws BrokerFilterException {
         if (brokers.isEmpty()) {
-            return CompletableFuture.completedFuture(brokers);
+            return brokers;
         }
         brokers.entrySet().removeIf(entry -> {
             BrokerLookupData v = entry.getValue();
@@ -47,6 +48,6 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
             return !Objects.equals(v.getLoadManagerClassName(),
                     context.brokerConfiguration().getLoadManagerClassName());
         });
-        return CompletableFuture.completedFuture(brokers);
+        return brokers;
     }
 }

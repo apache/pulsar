@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.util;
+package org.apache.pulsar.client.impl.conf;
 
 import com.beust.jcommander.Parameters;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.BaseGenerateDocumentation;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
 
 @Data
 @Parameters(commandDescription = "Generate documentation automatically.")
@@ -32,9 +31,16 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
     @Override
     public String generateDocumentByClassName(String className) throws Exception {
         StringBuilder sb = new StringBuilder();
-        if (ProxyConfiguration.class.getName().equals(className)) {
-            return generateDocByFieldContext(className, "Pulsar proxy", sb);
+        if (ClientConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Client", sb);
+        } else if (ProducerConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Producer", sb);
+        } else if (ConsumerConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Consumer", sb);
+        } else if (ReaderConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Reader", sb);
         }
+
         return "Class [" + className + "] not found";
     }
 

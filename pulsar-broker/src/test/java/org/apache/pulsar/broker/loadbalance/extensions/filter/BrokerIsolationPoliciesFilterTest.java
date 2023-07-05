@@ -31,9 +31,6 @@ import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -70,7 +67,7 @@ public class BrokerIsolationPoliciesFilterTest {
      */
     @Test
     public void testFilterWithNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers()
-            throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
+            throws IllegalAccessException, BrokerFilterException {
         var namespace = "my-tenant/my-ns";
         NamespaceName namespaceName = NamespaceName.get(namespace);
 
@@ -86,18 +83,18 @@ public class BrokerIsolationPoliciesFilterTest {
         Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+                "broker3", getLookupData())), namespaceName, getContext());
         assertEquals(result.keySet(), Set.of("broker1"));
 
         // b. available-brokers: broker2, broker3          => result: broker2
         result = filter.filter(new HashMap<>(Map.of(
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+                "broker3", getLookupData())), namespaceName, getContext());
         assertEquals(result.keySet(), Set.of("broker2"));
 
         // c. available-brokers: broker3                   => result: NULL
         result = filter.filter(new HashMap<>(Map.of(
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+                "broker3", getLookupData())), namespaceName, getContext());
         assertTrue(result.isEmpty());
 
         // 2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
@@ -107,24 +104,24 @@ public class BrokerIsolationPoliciesFilterTest {
         result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+                "broker3", getLookupData())), namespaceName, getContext());
         assertEquals(result.keySet(), Set.of("broker1", "broker2"));
 
         // b. available-brokers: broker2, broker3          => result: broker2
         result = filter.filter(new HashMap<>(Map.of(
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+                "broker3", getLookupData())), namespaceName, getContext());
         assertEquals(result.keySet(), Set.of("broker2"));
 
         // c. available-brokers: broker3                   => result: NULL
         result = filter.filter(new HashMap<>(Map.of(
-                "broker3", getLookupData())), namespaceName, getContext()).get();
+                "broker3", getLookupData())), namespaceName, getContext());
         assertTrue(result.isEmpty());
     }
 
     @Test
     public void testFilterWithPersistentOrNonPersistentDisabled()
-            throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
+            throws IllegalAccessException, BrokerFilterException {
         var namespace = "my-tenant/my-ns";
         NamespaceName namespaceName = NamespaceName.get(namespace);
         NamespaceBundle namespaceBundle = mock(NamespaceBundle.class);
@@ -132,8 +129,7 @@ public class BrokerIsolationPoliciesFilterTest {
         doReturn(namespaceName).when(namespaceBundle).getNamespaceObject();
 
         var policies = mock(SimpleResourceAllocationPolicies.class);
-        doReturn(CompletableFuture.completedFuture(false))
-                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
+        doReturn(false).when(policies).areIsolationPoliciesPresent(eq(namespaceName));
         doReturn(true).when(policies).isSharedBroker(any());
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
 
@@ -144,14 +140,14 @@ public class BrokerIsolationPoliciesFilterTest {
         Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+                "broker3", getLookupData())), namespaceBundle, getContext());
         assertEquals(result.keySet(), Set.of("broker1", "broker2", "broker3"));
 
 
         result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(true, false),
                 "broker2", getLookupData(true, false),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+                "broker3", getLookupData())), namespaceBundle, getContext());
         assertEquals(result.keySet(), Set.of("broker3"));
 
         doReturn(false).when(namespaceBundle).hasNonPersistentTopic();
@@ -159,13 +155,13 @@ public class BrokerIsolationPoliciesFilterTest {
         result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+                "broker3", getLookupData())), namespaceBundle, getContext());
         assertEquals(result.keySet(), Set.of("broker1", "broker2", "broker3"));
 
         result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(false, true),
                 "broker2", getLookupData(),
-                "broker3", getLookupData())), namespaceBundle, getContext()).get();
+                "broker3", getLookupData())), namespaceBundle, getContext());
         assertEquals(result.keySet(), Set.of("broker2", "broker3"));
     }
 
@@ -176,8 +172,7 @@ public class BrokerIsolationPoliciesFilterTest {
                                       Set<String> shared,
                                       int min_limit) {
         reset(policies);
-        doReturn(CompletableFuture.completedFuture(true))
-                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
+        doReturn(true).when(policies).areIsolationPoliciesPresent(eq(namespaceName));
         doReturn(false).when(policies).isPrimaryBroker(eq(namespaceName), any());
         doReturn(false).when(policies).isSecondaryBroker(eq(namespaceName), any());
         doReturn(false).when(policies).isSharedBroker(any());

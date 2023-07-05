@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.policies;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
@@ -42,11 +41,11 @@ public class AntiAffinityGroupPolicyHelper {
         this.channel = channel;
     }
 
-    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
-                                                                        String bundle) {
-        return LoadManagerShared.filterAntiAffinityGroupOwnedBrokersAsync(pulsar, bundle,
-                brokers.keySet(), channel.getOwnershipEntrySet(), brokerToFailureDomainMap)
-                .thenApply(__ -> brokers);
+    public void filter(
+            Map<String, BrokerLookupData> brokers, String bundle) {
+        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, bundle,
+                brokers.keySet(),
+                channel.getOwnershipEntrySet(), brokerToFailureDomainMap);
     }
 
     public boolean hasAntiAffinityGroupPolicy(String bundle) {

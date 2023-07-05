@@ -64,12 +64,6 @@ public class ConnectionHandler {
     }
 
     protected void grabCnx() {
-        if (!duringConnect.compareAndSet(false, true)) {
-            log.info("[{}] [{}] Skip grabbing the connection since there is a pending connection",
-                    state.topic, state.getHandlerName());
-            return;
-        }
-
         if (CLIENT_CNX_UPDATER.get(this) != null) {
             log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request",
                     state.topic, state.getHandlerName());
@@ -80,6 +74,11 @@ public class ConnectionHandler {
             // Ignore connection closed when we are shutting down
             log.info("[{}] [{}] Ignoring reconnection request (state: {})",
                     state.topic, state.getHandlerName(), state.getState());
+            return;
+        }
+        if (!duringConnect.compareAndSet(false, true)) {
+            log.info("[{}] [{}] Skip grabbing the connection since there is a pending connection",
+                    state.topic, state.getHandlerName());
             return;
         }
 
@@ -124,8 +123,8 @@ public class ConnectionHandler {
     }
 
     void reconnectLater(Throwable exception) {
-        CLIENT_CNX_UPDATER.set(this, null);
         duringConnect.set(false);
+        CLIENT_CNX_UPDATER.set(this, null);
         if (!isValidStateForReconnection()) {
             log.info("[{}] [{}] Ignoring reconnection request (state: {})",
                     state.topic, state.getHandlerName(), state.getState());

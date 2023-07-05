@@ -21,14 +21,13 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 import com.github.zafarkhaja.semver.Version;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Filter by broker version.
@@ -47,12 +46,13 @@ public class BrokerVersionFilter implements BrokerFilter {
      *
      */
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
-                                                                   ServiceUnitId serviceUnit,
-                                                                   LoadManagerContext context) {
+    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                ServiceUnitId serviceUnit,
+                                                LoadManagerContext context)
+            throws BrokerFilterException {
         ServiceConfiguration conf = context.brokerConfiguration();
         if (!conf.isPreferLaterVersions() || brokers.isEmpty()) {
-            return CompletableFuture.completedFuture(brokers);
+            return brokers;
         }
 
         Version latestVersion;
@@ -63,8 +63,7 @@ public class BrokerVersionFilter implements BrokerFilter {
             }
         } catch (Exception ex) {
             log.warn("Disabling PreferLaterVersions feature; reason: " + ex.getMessage());
-            return FutureUtil.failedFuture(
-                    new BrokerFilterBadVersionException("Cannot determine newest broker version: " + ex.getMessage()));
+            throw new BrokerFilterBadVersionException("Cannot determine newest broker version: " + ex.getMessage());
         }
 
         int numBrokersLatestVersion = 0;
@@ -89,7 +88,7 @@ public class BrokerVersionFilter implements BrokerFilter {
         if (numBrokersOlderVersion == 0) {
             log.info("All {} brokers are running the latest version [{}]", numBrokersLatestVersion, latestVersion);
         }
-        return CompletableFuture.completedFuture(brokers);
+        return brokers;
     }
 
     /**

@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -36,9 +36,9 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
-                                                                   ServiceUnitId serviceUnit,
-                                                                   LoadManagerContext context) {
+    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                ServiceUnitId serviceUnit,
+                                                LoadManagerContext context) throws BrokerFilterException {
         int loadBalancerBrokerMaxTopics = context.brokerConfiguration().getLoadBalancerBrokerMaxTopics();
         brokers.keySet().removeIf(broker -> {
             Optional<BrokerLoadData> brokerLoadDataOpt = context.brokerLoadDataStore().get(broker);
@@ -46,6 +46,6 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
             // TODO: The broker load data might be delayed, so the max topic check might not accurate.
             return topics >= loadBalancerBrokerMaxTopics;
         });
-        return CompletableFuture.completedFuture(brokers);
+        return brokers;
     }
 }
