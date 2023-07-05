@@ -39,6 +39,10 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-api</artifactId>
       <version>${project.version}</version>
@@ -135,6 +139,11 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-text</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>32.0.0-jre</version>
     </dependency>
 
   </dependencies>
