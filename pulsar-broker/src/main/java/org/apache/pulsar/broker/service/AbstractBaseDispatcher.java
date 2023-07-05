@@ -183,7 +183,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     continue;
                 }
             }
-            if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
+            if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,

@@ -23,6 +23,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,9 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -223,6 +227,62 @@ public class TransactionConsumeTest extends TransactionTestBase {
             log.info("Receive shared normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
         }
         log.info("TransactionConsumeTest sortedTest finish.");
+    }
+
+    @Test
+    public void testMessageRedelivery() throws Exception {
+        int transactionMessageCnt = 10;
+        String subName = "shared-test";
+
+        @Cleanup
+        Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Awaitility.await().until(sharedConsumer::isConnected);
+
+        long mostSigBits = 2L;
+        long leastSigBits = 5L;
+        TxnID txnID = new TxnID(mostSigBits, leastSigBits);
+
+        // produce batch message with txn and then abort
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(CONSUME_TOPIC, false).get().get();
+
+        List<String> sendMessageList = new ArrayList<>();
+        List<MessageIdData> messageIdDataList = appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
+
+        persistentTopic.endTxn(txnID, TxnAction.ABORT_VALUE, 0L).get();
+        log.info("Abort txn.");
+
+        // redeliver transaction messages to shared consumer
+        PersistentSubscription subRef = persistentTopic.getSubscription(subName);
+        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) subRef
+                .getDispatcher();
+        Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
+                .getDeclaredField("redeliveryMessages");
+        redeliveryMessagesField.setAccessible(true);
+        MessageRedeliveryController redeliveryMessages = new MessageRedeliveryController(true);
+
+        final Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class
+                .getDeclaredField("totalAvailablePermits");
+        totalAvailablePermitsField.setAccessible(true);
+        totalAvailablePermitsField.set(dispatcher, 1000);
+
+        for (MessageIdData messageIdData : messageIdDataList) {
+            redeliveryMessages.add(messageIdData.getLedgerId(), messageIdData.getEntryId());
+        }
+
+        redeliveryMessagesField.set(dispatcher, redeliveryMessages);
+        dispatcher.readMoreEntries();
+
+        // shared consumer should not receive the redelivered aborted transaction messages
+        Message message = sharedConsumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        log.info("TransactionConsumeTest testMessageRedelivery finish.");
     }
 
     private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt,
