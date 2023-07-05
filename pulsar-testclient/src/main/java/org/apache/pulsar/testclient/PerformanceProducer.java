@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static java.util.Objects.*;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -202,7 +203,9 @@ public class PerformanceProducer {
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
 
-        @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random number of seconds. this value between the specified origin (inclusive) and the specified bound (exclusive). e.g. \"1,300\"", converter = RangeConvert.class)
+        @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random"
+                + " number of seconds. this value between the specified origin (inclusive) and the specified bound"
+                + " (exclusive). e.g. \"1,300\"", converter = RangeConvert.class)
         public Range<Long> delayRange = null;
 
         @Parameter(names = { "-set",
@@ -789,9 +792,10 @@ public class PerformanceProducer {
         @Override
         public Range<Long> convert(String rangeStr) {
             try {
+                requireNonNull(rangeStr);
                 final String[] facts = rangeStr.substring(1, rangeStr.length() - 1).split(",");
-                long min = Long.parseLong(facts[0].trim());
-                long max = Long.parseLong(facts[1].trim());
+                final long min = Long.parseLong(facts[0].trim());
+                final long max = Long.parseLong(facts[1].trim());
                 return Range.openClosed(min, max);
             } catch (Throwable ex) {
                 throw new IllegalArgumentException("Unknown delay range interval,"
