@@ -181,7 +181,7 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>
-    <guava.version>32.0.0-jre</guava.version>
+    <guava.version>32.1.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.0.1</confluent.version>
