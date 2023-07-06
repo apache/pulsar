@@ -195,7 +195,7 @@ flexible messaging model and an intuitive client API.</description>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.5.2</json-smart.version>
-    <opensearch.version>1.2.4</opensearch.version>
+    <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <trino.version>368</trino.version>
     <debezium.version>2.6.1.Final</debezium.version>
