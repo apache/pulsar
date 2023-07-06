@@ -74,8 +74,8 @@
                   <workingDirectory>${project.basedir}/target</workingDirectory>
                   <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
                   <arguments>
-                    <!-- build python 3.8 -->
-                    <argument>3.8 cp38-cp38 manylinux2014 x86_64</argument>
+                    <!-- build python 3.10 -->
+                    <argument>3.10 cp310-cp310 manylinux2014 x86_64</argument>
                   </arguments>
                 </configuration>
               </execution>
