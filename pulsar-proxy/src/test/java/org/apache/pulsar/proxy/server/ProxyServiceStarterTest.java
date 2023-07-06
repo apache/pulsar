@@ -79,18 +79,6 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         return String.format("ws://localhost:%d/ws", serviceStarter.getServer().getListenPortHTTP().get());
     }
 
-    @Test
-    public void testEnableWebSocketServer() throws Exception {
-        HttpClient httpClient = new HttpClient();
-        WebSocketClient webSocketClient = new WebSocketClient(httpClient);
-        webSocketClient.start();
-        MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = computeWsBasePath() + "/pingpong";
-        Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
-        System.out.println("uri" + webSocketUri);
-        sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        assertTrue(myWebSocket.getResponse().contains("ping"));
-    }
 
     @Test
     public void testProducer() throws Exception {

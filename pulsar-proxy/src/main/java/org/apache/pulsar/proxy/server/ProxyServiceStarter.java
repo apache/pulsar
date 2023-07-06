@@ -51,7 +51,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.proxy.stats.ProxyStats;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
-import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -303,12 +302,6 @@ public class ProxyServiceStarter {
                     new ServletHolder(readerWebSocketServlet));
             server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet));
-
-            final WebSocketServlet pingPongWebSocketServlet = new WebSocketPingPongServlet(webSocketService);
-            server.addServlet(WebSocketPingPongServlet.SERVLET_PATH,
-                    new ServletHolder(pingPongWebSocketServlet));
-            server.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
-                    new ServletHolder(pingPongWebSocketServlet));
         }
     }
 
