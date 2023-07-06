@@ -173,7 +173,6 @@ import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
-import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -1069,12 +1068,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     new ServletHolder(readerWebSocketServlet), true, attributeMap);
             webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet), true, attributeMap);
-
-            final WebSocketServlet pingPongWebSocketServlet = new WebSocketPingPongServlet(webSocketService);
-            webService.addServlet(WebSocketPingPongServlet.SERVLET_PATH,
-                    new ServletHolder(pingPongWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
-                    new ServletHolder(pingPongWebSocketServlet), true, attributeMap);
         }
     }
 
