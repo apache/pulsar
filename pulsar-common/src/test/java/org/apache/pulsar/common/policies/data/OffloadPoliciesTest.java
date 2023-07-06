@@ -365,4 +365,19 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
     }
+
+    @Test
+    public void testSupportExtraOffloadDrivers() {
+        System.setProperty("pulsar.extra.offload.drivers", "driverA,driverB");
+        OffloadPoliciesImpl newPolicies = new OffloadPoliciesImpl();
+        newPolicies.setManagedLedgerOffloadDriver("driverA");
+        Assert.assertTrue(newPolicies.driverSupported());
+        Assert.assertEquals(newPolicies.getManagedLedgerOffloadDriver(), "driverA");
+        newPolicies.setManagedLedgerOffloadDriver("driverB");
+        Assert.assertTrue(newPolicies.driverSupported());
+        Assert.assertEquals(newPolicies.getManagedLedgerOffloadDriver(), "driverB");
+        newPolicies.setManagedLedgerOffloadDriver("aws-s3");
+        Assert.assertTrue(newPolicies.driverSupported());
+        Assert.assertEquals(newPolicies.getManagedLedgerOffloadDriver(), "aws-s3");
+    }
 }
