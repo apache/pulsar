@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -381,10 +382,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     // This method will be deprecated and removed in version 4.x.0
     private CompletableFuture<PositionImpl> recoverOldSnapshot() {
-        return topic.getBrokerService().getTopic(TopicName.get(topic.getName()).getNamespace() + "/"
-                        + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT, false)
-                .thenCompose(topicOption -> {
-                    if (!topicOption.isPresent()) {
+        return topic.getBrokerService().getPulsar().getPulsarResources().getTopicResources()
+                .listPersistentTopicsAsync(NamespaceName.get(TopicName.get(topic.getName()).getNamespace()))
+                .thenCompose(topics -> {
+                    if (!topics.contains(TopicDomain.persistent + "://"
+                            + TopicName.get(topic.getName()).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT)) {
                         return CompletableFuture.completedFuture(null);
                     } else {
                         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
