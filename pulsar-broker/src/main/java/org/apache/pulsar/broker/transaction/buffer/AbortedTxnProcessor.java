@@ -67,8 +67,10 @@ public interface AbortedTxnProcessor {
 
     /**
      * Get the lastSnapshotTimestamps.
+     *
+     * @return a transactionBufferStats with the stats in the abortedTxnProcessor.
      */
-    void generateSnapshotStats(TransactionBufferStats transactionBufferStats, boolean segmentStats);
+    TransactionBufferStats generateSnapshotStats(boolean segmentStats);
 
     CompletableFuture<Void> closeAsync();
 

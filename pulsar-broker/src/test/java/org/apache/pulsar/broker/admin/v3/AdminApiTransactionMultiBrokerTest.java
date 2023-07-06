@@ -119,7 +119,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         TransactionBufferInternalStats stats = admin.transactions()
                 .getTransactionBufferInternalStatsAsync(topic1, true).get();
         assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
-        assertNull(stats.singleSnapshotInternalStats);
+        assertNull(stats.singleSnapshotSystemTopicInternalStats);
         assertNotNull(stats.segmentInternalStats);
         assertTrue(stats.segmentInternalStats.managedLedgerName
                 .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));

@@ -50,7 +50,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.SnapshotInternalStats;
+import org.apache.pulsar.common.policies.data.SnapshotSystemTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
@@ -451,8 +451,9 @@ public abstract class TransactionsBase extends AdminResource {
                         TopicName segmentTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
                         return getTxnSnapshotInternalStats(segmentTopic, metadata)
-                                .thenApply(snapshotInternalStats -> {
-                                    transactionBufferInternalStats.segmentInternalStats = snapshotInternalStats;
+                                .thenApply(snapshotSystemTopicInternalStats -> {
+                                    transactionBufferInternalStats.segmentInternalStats =
+                                            snapshotSystemTopicInternalStats;
                                     return transactionBufferInternalStats;
                                 }).thenCompose(ignore -> {
                                     TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
@@ -468,8 +469,9 @@ public abstract class TransactionsBase extends AdminResource {
                         TopicName singleSnapshotTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
                         return getTxnSnapshotInternalStats(singleSnapshotTopic, metadata)
-                                .thenApply(snapshotInternalStats -> {
-                                   transactionBufferInternalStats.singleSnapshotInternalStats = snapshotInternalStats;
+                                .thenApply(snapshotSystemTopicInternalStats -> {
+                                   transactionBufferInternalStats.singleSnapshotSystemTopicInternalStats =
+                                           snapshotSystemTopicInternalStats;
                                    return transactionBufferInternalStats;
                                 });
                     }
@@ -478,8 +480,8 @@ public abstract class TransactionsBase extends AdminResource {
                 });
     }
 
-    private CompletableFuture<SnapshotInternalStats> getTxnSnapshotInternalStats(TopicName topicName,
-                                                                                 boolean metadata) {
+    private CompletableFuture<SnapshotSystemTopicInternalStats> getTxnSnapshotInternalStats(TopicName topicName,
+                                                                                            boolean metadata) {
         final PulsarAdmin admin;
         try {
             admin = pulsar().getAdminClient();
@@ -490,10 +492,11 @@ public abstract class TransactionsBase extends AdminResource {
         return ns.isServiceUnitOwnedAsync(topicName)
                 .thenCompose(isOwner -> admin.topics().getInternalStatsAsync(topicName.toString(), metadata)
                         .thenApply(persistentTopicInternalStats -> {
-                            SnapshotInternalStats snapshotInternalStats = new SnapshotInternalStats();
-                            snapshotInternalStats.managedLedgerInternalStats = persistentTopicInternalStats;
-                            snapshotInternalStats.managedLedgerName = topicName.getEncodedLocalName();
-                            return snapshotInternalStats;
+                            SnapshotSystemTopicInternalStats
+                                    snapshotSystemTopicInternalStats = new SnapshotSystemTopicInternalStats();
+                            snapshotSystemTopicInternalStats.managedLedgerInternalStats = persistentTopicInternalStats;
+                            snapshotSystemTopicInternalStats.managedLedgerName = topicName.getEncodedLocalName();
+                            return snapshotSystemTopicInternalStats;
                         }));
     }
 

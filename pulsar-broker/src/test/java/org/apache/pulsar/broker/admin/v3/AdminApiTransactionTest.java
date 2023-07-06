@@ -621,13 +621,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         TransactionBufferInternalStats stats = admin.transactions()
                 .getTransactionBufferInternalStatsAsync(topic2, true).get();
         assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Single.toString());
-        assertNotNull(stats.singleSnapshotInternalStats);
+        assertNotNull(stats.singleSnapshotSystemTopicInternalStats);
 
         // Get managed ledger internal stats for the transaction buffer snapshot topic
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
                 TopicName.get(topic2).getNamespace() + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        verifyManagedLedgerInternalStats(stats.singleSnapshotInternalStats.managedLedgerInternalStats, internalStats);
-        assertTrue(stats.singleSnapshotInternalStats.managedLedgerName
+        verifyManagedLedgerInternalStats(stats.singleSnapshotSystemTopicInternalStats.managedLedgerInternalStats,
+                internalStats);
+        assertTrue(stats.singleSnapshotSystemTopicInternalStats.managedLedgerName
                 .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT));
         assertNull(stats.segmentInternalStats);
         assertNull(stats.segmentIndexInternalStats);
@@ -645,7 +646,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         // Get transaction buffer internal stats and verify segmented snapshot stats
         stats = admin.transactions().getTransactionBufferInternalStatsAsync(topic3, true).get();
         assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
-        assertNull(stats.singleSnapshotInternalStats);
+        assertNull(stats.singleSnapshotSystemTopicInternalStats);
         assertNotNull(stats.segmentInternalStats);
 
         // Get managed ledger internal stats for the transaction buffer segments topic

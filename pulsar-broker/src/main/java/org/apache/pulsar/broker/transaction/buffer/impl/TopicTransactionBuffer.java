@@ -519,9 +519,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats) {
-        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        TransactionBufferStats transactionBufferStats = this.snapshotAbortedTxnProcessor
+                .generateSnapshotStats(segmentStats);
         transactionBufferStats.snapshotType = snapshotType.toString();
-        this.snapshotAbortedTxnProcessor.generateSnapshotStats(transactionBufferStats, segmentStats);
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
         if (lowWaterMarks) {

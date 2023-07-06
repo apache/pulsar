@@ -23,11 +23,11 @@ public class TransactionBufferInternalStats {
     public String snapshotType;
 
     // If snapshotType is "Single", this field will provide the statistics of single snapshot log.
-    public SnapshotInternalStats singleSnapshotInternalStats;
+    public SnapshotSystemTopicInternalStats singleSnapshotSystemTopicInternalStats;
 
     // If snapshotType is "Segment", this field will provide the statistics of snapshot segment topic.
-    public SnapshotInternalStats segmentInternalStats;
+    public SnapshotSystemTopicInternalStats segmentInternalStats;
 
     // If snapshotType is "Segment", this field will provide the statistics of snapshot segment index topic.
-    public SnapshotInternalStats segmentIndexInternalStats;
+    public SnapshotSystemTopicInternalStats segmentIndexInternalStats;
 }

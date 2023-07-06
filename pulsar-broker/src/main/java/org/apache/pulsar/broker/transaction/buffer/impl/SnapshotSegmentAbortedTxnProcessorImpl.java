@@ -456,8 +456,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 persistentWorker::clearSnapshotSegmentAndIndexes);
     }
 
-    @Override
-    public void generateSnapshotStats(TransactionBufferStats transactionBufferStats, boolean segmentStats) {
+    public TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
         transactionBufferStats.totalAbortedTransactions = this.aborts.size();
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         SegmentsStats segmentsStats = new SegmentsStats();
@@ -474,6 +474,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             segmentsStats.segmentStats = statsList;
         }
         transactionBufferStats.segmentsStats = segmentsStats;
+        return transactionBufferStats;
     }
 
     @Override

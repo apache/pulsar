@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-public class SnapshotInternalStats {
+public class SnapshotSystemTopicInternalStats {
     // The managed ledger name for the snapshot segment topic or index topic.
     public String managedLedgerName;
 
