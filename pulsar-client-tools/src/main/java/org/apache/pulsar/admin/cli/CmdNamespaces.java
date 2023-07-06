@@ -43,6 +43,7 @@ import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToSecondsConverter;
 import org.apache.pulsar.admin.cli.utils.validators.MinNegativeOneValidator;
 import org.apache.pulsar.admin.cli.utils.validators.NonNegativeValueValidator;
 import org.apache.pulsar.admin.cli.utils.validators.PositiveIntegerValueValidator;
+import org.apache.pulsar.admin.cli.utils.validators.PositiveLongValueValidator;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -2245,7 +2246,7 @@ public class CmdNamespaces extends CmdBase {
                     + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).",
                 required = false,
                 converter = TimeUnitToMillisConverter.class,
-                validateValueWith = PositiveIntegerValueValidator.class)
+                validateValueWith = PositiveLongValueValidator.class)
         private Long offloadAfterElapsedInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
         @Parameter(
