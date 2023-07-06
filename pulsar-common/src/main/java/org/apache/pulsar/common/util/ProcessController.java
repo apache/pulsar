@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,16 +27,7 @@ public class ProcessController {
 
     private static AtomicReference<Step> currentStep = new AtomicReference<>();
 
-    public static void waitAndSet(int waitSeconds, Step step) {
-        try {
-            Thread.sleep(1000 * waitSeconds);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        compareAndSet(step);
-    }
-
-    public static void compareAndSet(Step step, Object...contextsToTrace) {
+    public static void compareAndSet(Step step) {
         Step previous = step.previousStep();
         log.info("step: {}, wait to set to {}", currentStep.get(), step);
         if (currentStep.get() == null) {
@@ -58,4 +50,6 @@ public class ProcessController {
     public static Step getCurrentStep() {
         return currentStep.get();
     }
+
+    public static final AtomicBoolean SAME_CONSUMER_SUBSCRIBE_TWICE = new AtomicBoolean();
 }

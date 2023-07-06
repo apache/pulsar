@@ -164,6 +164,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ProcessController;
 import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
@@ -1194,6 +1195,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         log.warn("[{}] Consumer with the same id is already created:"
                                         + " consumerId={}, consumer={}",
                                 remoteAddress, consumerId, consumer);
+                        ProcessController.SAME_CONSUMER_SUBSCRIBE_TWICE.set(true);
                         commandSender.sendSuccessResponse(requestId);
                     }
                     return null;

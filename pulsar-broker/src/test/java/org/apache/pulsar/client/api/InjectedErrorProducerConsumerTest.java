@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -151,41 +151,6 @@ public class InjectedErrorProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testFirstSubscribeTimeout() throws Exception {
-        final String topicName = randomTopicName();
-        final String subscribeName = "subscribe1";
-        final SubscriptionType subscriptionType = SubscriptionType.Shared;
-        final int pulsarClientTimeoutSeconds = 2;
-        PulsarClient lowTimeoutClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .operationTimeout(pulsarClientTimeoutSeconds, TimeUnit.SECONDS)
-                .statsInterval(0, TimeUnit.SECONDS).build();
-
-        // Inject a timeout.
-        InjectedSubscription injectedSubscription =
-                createTopicAndSubscriptionAndInjectDispatcher(topicName, subscribeName, subscriptionType);
-        CountDownLatch subscribeSignal = injectedSubscription.injectSubscribeControl(1);
-
-        // Do subscribe.
-        try {
-            lowTimeoutClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subscribeName).receiverQueueSize(5)
-                    .subscriptionType(subscriptionType).subscribe();
-            fail("expected the consumer1 creation will timeout.");
-        } catch (Exception ex) {
-            //
-        }
-        subscribeSignal.countDown();
-
-        // Verify the consumer will be removed from dispatcher.
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertEquals(injectedSubscription.subscription.getDispatcher().getConsumers().size(), 0);
-        });
-
-        // cleanup.
-        lowTimeoutClient.close();
-        admin.topics().delete(topicName, false);
-    }
-
-    @Test
     public void testCnxInactiveWhenDoingSubscribe() throws Exception {
         final String topicName = randomTopicName();
         final String subscribeName = "subscribe1";
@@ -208,14 +173,16 @@ public class InjectedErrorProducerConsumerTest extends ProducerConsumerBase {
 
         // after timeout is triggered, do unload topic the second time.
         // It will trigger a new subscribe request, and the request will succeed.
-        ProcessController.compareAndSet(Step.start_unload2, injectedSubscription);
+        ProcessController.compareAndSet(Step.start_unload2);
         new Thread(() -> {
-            ProcessController.compareAndSet(Step.stop_subscribe_timeout, injectedSubscription);
+            ProcessController.compareAndSet(Step.stop_subscribe_timeout);
             subscribeSignal.countDown();
         }).start();
         admin.topics().resetCursor(topicName, subscribeName, 0L);
 
         sneakySleep(10 * 1000);
+
+        assertFalse(ProcessController.SAME_CONSUMER_SUBSCRIBE_TWICE.get());
 
         // cleanup.
         consumer.close();

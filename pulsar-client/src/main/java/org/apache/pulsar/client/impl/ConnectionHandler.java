@@ -152,7 +152,6 @@ public class ConnectionHandler {
 
     public void connectionClosed(ClientCnx cnx) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
-        // TODO Why set false?
         if (ProcessController.getCurrentStep() == Step.start_unload2) {
             ProcessController.compareAndSet(Step.before_reconnect_due_to_unload2);
             ProcessController.compareAndSet(Step.before_reconnect_due_to_unload2_started);
