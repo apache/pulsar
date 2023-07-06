@@ -55,46 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarAdminToolConverterTest {
 
-    @Test
-    public void namespacesSimpl() throws Exception {
-        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        Namespaces mockNamespaces = mock(Namespaces.class);
-        when(admin.namespaces()).thenReturn(mockNamespaces);
-        Lookup mockLookup = mock(Lookup.class);
-        when(admin.lookups()).thenReturn(mockLookup);
 
-        CmdNamespaces namespaces = new CmdNamespaces(() -> admin);
-
-        mockNamespaces = mock(Namespaces.class);
-        when(admin.namespaces()).thenReturn(mockNamespaces);
-        namespaces = new CmdNamespaces(() -> admin);
-
-        namespaces.run(split(
-                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oats 100 -oae 10s -orp tiered-storage-first"));
-        verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
-                OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
-                        "http://test.endpoint", null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024L, 100L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
-
-        namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
-        verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
-
-        namespaces.run(split("get-offload-policies myprop/clust/ns1"));
-        verify(mockNamespaces).getOffloadPolicies("myprop/clust/ns1");
-
-        namespaces.run(split("remove-message-ttl myprop/clust/ns1"));
-        verify(mockNamespaces).removeNamespaceMessageTTL("myprop/clust/ns1");
-
-        namespaces.run(split("set-deduplication-snapshot-interval myprop/clust/ns1 -i 1000"));
-        verify(mockNamespaces).setDeduplicationSnapshotInterval("myprop/clust/ns1", 1000);
-        namespaces.run(split("get-deduplication-snapshot-interval myprop/clust/ns1"));
-        verify(mockNamespaces).getDeduplicationSnapshotInterval("myprop/clust/ns1");
-        namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
-        verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
-
-    }
-
-    
     @Test
     public void namespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -261,6 +222,31 @@ public class PulsarAdminToolConverterTest {
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
+
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -lt 10000 -t message_age"));
+        verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
+                BacklogQuota.builder()
+                        .limitTime(10000)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build(),
+                BacklogQuota.BacklogQuotaType.message_age);
+
+        namespaces.run(split("set-persistence myprop/clust/ns1 -e 2 -w 1 -a 1 -r 100.0"));
+        verify(mockNamespaces).setPersistence("myprop/clust/ns1",
+                new PersistencePolicies(2, 1, 1, 100.0d));
+
+        namespaces.run(split("get-persistence myprop/clust/ns1"));
+        verify(mockNamespaces).getPersistence("myprop/clust/ns1");
+
+        namespaces.run(split("remove-persistence myprop/clust/ns1"));
+        verify(mockNamespaces).removePersistence("myprop/clust/ns1");
+
+        namespaces.run(split("get-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxSubscriptionsPerTopic("myprop/clust/ns1");
+        namespaces.run(split("set-max-subscriptions-per-topic myprop/clust/ns1 -m 300"));
+        verify(mockNamespaces).setMaxSubscriptionsPerTopic("myprop/clust/ns1", 300);
+        namespaces.run(split("remove-max-subscriptions-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxSubscriptionsPerTopic("myprop/clust/ns1");
 
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
