@@ -61,6 +61,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
+import org.apache.pulsar.common.util.ProcessController;
+import org.apache.pulsar.common.util.Step;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -812,6 +814,9 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
+        if (ProcessController.getCurrentStep() == Step.first_subscribe_end) {
+            ProcessController.compareAndSet(Step.received_unload1);
+        }
         log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.remove(consumerId);

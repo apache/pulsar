@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.HandlerState.State;
+import org.apache.pulsar.common.util.ProcessController;
+import org.apache.pulsar.common.util.Step;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,6 +126,8 @@ public class ConnectionHandler {
     }
 
     void reconnectLater(Throwable exception) {
+        ProcessController.compareAndSet(Step.before_reconnect_due_to_timeout2);
+        ProcessController.compareAndSet(Step.reconnect_due_to_timeout_started);
         CLIENT_CNX_UPDATER.set(this, null);
         duringConnect.set(false);
         if (!isValidStateForReconnection()) {
@@ -148,6 +152,11 @@ public class ConnectionHandler {
 
     public void connectionClosed(ClientCnx cnx) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
+        // TODO Why set false?
+        if (ProcessController.getCurrentStep() == Step.start_unload2) {
+            ProcessController.compareAndSet(Step.before_reconnect_due_to_unload2);
+            ProcessController.compareAndSet(Step.before_reconnect_due_to_unload2_started);
+        }
         duringConnect.set(false);
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {

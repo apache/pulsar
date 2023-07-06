@@ -90,6 +90,8 @@ import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.common.util.ProcessController;
+import org.apache.pulsar.common.util.Step;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -827,6 +829,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             setClientCnx(cnx);
+            if (ProcessController.getCurrentStep() == Step.received_unload1) {
+                ProcessController.compareAndSet(Step.second_subscribe_due_to_unload1_started);
+            }
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.isReplicateSubscriptionState(),
@@ -859,8 +864,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
                     increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
                 }
+                if (ProcessController.getCurrentStep() == Step.before_reconnect_due_to_unload2_started) {
+                    ProcessController.compareAndSet(Step.before_reconnect_due_to_unload2_is_success);
+                }
+                if (ProcessController.getCurrentStep() == Step.reconnect_due_to_timeout_started) {
+                    ProcessController.compareAndSet(Step.reconnect_due_to_timeout_is_success);
+                }
                 future.complete(null);
             }).exceptionally((e) -> {
+                if (e.getCause() instanceof PulsarClientException.TimeoutException) {
+                    ProcessController.compareAndSet(Step.subscribe_timeout_triggered);
+                    ProcessController.compareAndSet(Step.before_reconnect_due_to_timeout1);
+                }
                 deregisterFromClientCnx();
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
