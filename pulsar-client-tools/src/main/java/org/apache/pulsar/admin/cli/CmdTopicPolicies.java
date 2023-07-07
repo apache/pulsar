@@ -1245,8 +1245,10 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = { "--threshold", "-t" },
                 description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                         + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
-                required = true)
-        private String thresholdStr = "0";
+                required = true,
+                    converter = ByteUnitToLongConverter.class)
+        private Long threshold = 0L;
+
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
@@ -1254,7 +1256,6 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long threshold = validateSizeString(thresholdStr);
             getTopicPolicies(isGlobal).setCompactionThreshold(persistentTopic, threshold);
         }
     }
