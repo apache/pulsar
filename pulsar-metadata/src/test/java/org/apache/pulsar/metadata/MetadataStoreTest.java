@@ -396,24 +396,20 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @DataProvider(name = "conditionOfSwitchThread")
     public Object[][] conditionOfSwitchThread(){
         return new Object[][]{
-            {false, false},
-            {false, true},
-            {true, false},
-            {true, true}
+            {false},
+            {true},
+            {false},
+            {true}
         };
     }
 
     @Test(dataProvider = "conditionOfSwitchThread")
-    public void testThreadSwitchOfZkMetadataStore(boolean hasSynchronizer, boolean enabledBatch) throws Exception {
+    public void testThreadSwitchOfZkMetadataStore(boolean enabledBatch) throws Exception {
         final String prefix = newKey();
-        final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
+        final String metadataStoreNamePrefix = "metadata-store";
         MetadataStoreConfig.MetadataStoreConfigBuilder builder =
-                MetadataStoreConfig.builder().metadataStoreName(metadataStoreName);
-        builder.fsyncEnable(false);
+                MetadataStoreConfig.builder();
         builder.batchingEnabled(enabledBatch);
-        if (!hasSynchronizer) {
-            builder.synchronizer(null);
-        }
         MetadataStoreConfig config = builder.build();
         @Cleanup
         ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
@@ -421,8 +417,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
             String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
-                    metadataStoreName, currentThreadName);
-            assertTrue(Thread.currentThread().getName().startsWith(metadataStoreName), errorMessage);
+                    metadataStoreNamePrefix, currentThreadName);
+            assertTrue(Thread.currentThread().getName().startsWith(metadataStoreNamePrefix), errorMessage);
         };
 
         // put with node which has parent(but the parent node is not exists).
