@@ -626,7 +626,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (!dispatchRateLimiter.isPresent()
                     && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
                 this.dispatchRateLimiter = Optional.of(
-                        new DispatchRateLimiter(topic, cursor.getName(), Type.REPLICATOR));
+                        new DispatchRateLimiter(topic, Codec.decode(cursor.getName()), Type.REPLICATOR));
             }
         }
     }
