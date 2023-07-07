@@ -40,6 +40,7 @@ import org.apache.pulsar.admin.cli.utils.converters.ByteUnitIntegerConverter;
 import org.apache.pulsar.admin.cli.utils.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.admin.cli.utils.converters.TimeUnitToSecondsConverter;
+import org.apache.pulsar.admin.cli.utils.validators.IntegerMaxValueLongValidator;
 import org.apache.pulsar.admin.cli.utils.validators.MinNegativeOneValidator;
 import org.apache.pulsar.admin.cli.utils.validators.NonNegativeValueValidator;
 import org.apache.pulsar.admin.cli.utils.validators.PositiveIntegerValueValidator;
@@ -1551,7 +1552,8 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in "
                 + "seconds, topics that are inactive for longer than this value will be deleted "
                 + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true,
-                converter = TimeUnitToSecondsConverter.class)
+                converter = TimeUnitToSecondsConverter.class,
+                validateValueWith = IntegerMaxValueLongValidator.class)
         private Long maxInactiveDurationInSeconds;
 
         @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic, Valid options are: "

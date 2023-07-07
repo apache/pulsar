@@ -88,7 +88,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Getter
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -1815,7 +1814,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second "
                 + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
                         + "allowed range from 1 to Integer.MAX_VALUE", required = true,
-                converter = TimeUnitToSecondsConverter.class, 
+                converter = TimeUnitToSecondsConverter.class,
                 validateValueWith = {NonNegativeValueValidator.class, IntegerMaxValueLongValidator.class})
         private Long messageTTLInSecond;
 
@@ -2108,7 +2107,7 @@ public class CmdTopics extends CmdBase {
                 + "s3 and google-cloud-storage requires this parameter",
                 required = false,
                 converter = ByteUnitIntegerConverter.class,
-                validateValueWith = PositiveIntegerValueValidator.class)   
+                validateValueWith = PositiveIntegerValueValidator.class)
         private Integer readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
         @Parameter(names = {"-t", "--offloadThresholdInBytes", "--offloadAfterThreshold", "-oat"}
@@ -2120,7 +2119,7 @@ public class CmdTopics extends CmdBase {
                   description = "Offload after threshold seconds (or minutes,hours,days,weeks eg: 100m, 3h, 2d, 5w).",
                     converter = TimeUnitToSecondsConverter.class)
         private Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
-                
+
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis", "--offloadAfterElapsed", "-oae"}
                 , description = "Delay time in Millis for deleting the bookkeeper ledger after offload "
               + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).",
