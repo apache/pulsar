@@ -77,4 +77,13 @@ public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
                 });
     }
 
+    @Test(groups = {"python_function", "function"})
+    public void testRetainKeyOrderingTest() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, false, false,
+                false, generator -> {
+                    System.out.println("calling generator.setRetainKeyOrdering(true);");
+                    generator.setRetainKeyOrdering(true);
+                });
+    }
+
 }

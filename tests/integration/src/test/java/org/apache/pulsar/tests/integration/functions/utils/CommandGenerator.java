@@ -65,6 +65,7 @@ public class CommandGenerator {
     private String schemaType;
     private SubscriptionInitialPosition subscriptionInitialPosition;
     private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -230,6 +231,9 @@ public class CommandGenerator {
         }
         if (retainOrdering != null) {
             commandBuilder.append(" --retain-ordering ");
+        }
+        if (retainKeyOrdering != null) {
+            commandBuilder.append(" --retain-key-ordering ");
         }
 
         switch (runtime){

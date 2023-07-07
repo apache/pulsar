@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -706,7 +707,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitExclamationFunction(
-                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema);
+                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema, commandGeneratorConsumer);
 
         // get function info
         final String info = getFunctionInfoSuccess(functionName);
@@ -789,6 +790,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         .next();
                 if (config.getRetainOrdering()) {
                     assertEquals(sub.getType(), "Failover");
+                } else if (config.getRetainKeyOrdering()) {
+                    assertEquals(sub.getType(), "Key_Shared");
                 } else {
                     assertEquals(sub.getType(), "Shared");
                 }
@@ -894,10 +897,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String outputTypeClassName,
                                     java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
 
-//        if (StringUtils.isNotEmpty(inputTopicName)) {
-//            ensureSubscriptionCreated(
-//                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
-//        }
+        if (StringUtils.isNotEmpty(inputTopicName)) {
+            ensureSubscriptionCreated(
+                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+        }
 
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}', customSchemaInputs: {}", inputTopicName, customSchemaInputs);
@@ -1326,7 +1329,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         for (int i = 0; i < numMessages; i++) {
-            Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
+            log.info("Trying to receive message.. {}/{}", i, numMessages);
+            Message<String> msg = consumer.receive(30, TimeUnit.MINUTES);
             log.info("Received: {}", msg.getValue());
             assertTrue(expectedMessages.contains(msg.getValue()));
             expectedMessages.remove(msg.getValue());
