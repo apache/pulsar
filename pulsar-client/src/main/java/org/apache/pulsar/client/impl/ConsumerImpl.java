@@ -385,10 +385,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return connectionHandler;
     }
 
-    public UnAckedMessageTracker getUnAckedMessageTracker() {
-        return unAckedMessageTracker;
-    }
-
     @VisibleForTesting
     NegativeAcksTracker getNegativeAcksTracker() {
         return negativeAcksTracker;
