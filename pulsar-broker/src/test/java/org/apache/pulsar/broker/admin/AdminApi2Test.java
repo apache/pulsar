@@ -1561,7 +1561,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // verify namespace can be deleted even without topic policy events
         admin.namespaces().deleteNamespace(namespace, true);
 
-        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        Set<String> permissions = new HashSet<>();
+        permissions.add("test");
+        admin.namespaces().createNamespace(namespace, permissions);
+
         // create topic
         String topic = namespace + "/test-topic2";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
