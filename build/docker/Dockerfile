@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM ubuntu:22.04
+FROM ubuntu:20.04
 
 # prepare the directory for pulsar related files
 RUN mkdir /pulsar
