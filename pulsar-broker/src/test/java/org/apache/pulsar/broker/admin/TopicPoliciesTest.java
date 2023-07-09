@@ -25,6 +25,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -45,12 +46,14 @@ import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -64,6 +67,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -3015,6 +3019,55 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
+
+    @Test
+    public void testGetTopicPoliciesWithCleanCache() throws IOException, PulsarAdminException, InterruptedException {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        SystemTopicBasedTopicPoliciesService topicPoliciesService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(topicPoliciesService.getTopicPolicies(TopicName.get(topic))).isNull();
+        });
+
+        admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
+        Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
+            });
+
+        Thread thread = new Thread(() -> {
+            for (int i = 0; i < 10; i++) {
+                CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                        topicPoliciesService.readerCaches.get(TopicName.get(topic).getNamespaceObject());
+                if (readerCompletableFuture != null) {
+                    readerCompletableFuture.join().closeAsync().join();
+                }
+            }
+        });
+        thread.start();
+
+        Thread thread2 = new Thread(() -> {
+            TopicPolicies topicPolicies = null;
+            try {
+                for (int i = 0; i < 20; i++) {
+                    topicPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
+                    assertNotNull(topicPolicies);
+                    Thread.sleep(500);
+                }
+            } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                log.warn("TopicPoliciesCacheNotInitException: ", e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        thread2.start();
+
+        thread.join();
+        thread2.join();
+    }
+
     @Test
     public void testGlobalTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();

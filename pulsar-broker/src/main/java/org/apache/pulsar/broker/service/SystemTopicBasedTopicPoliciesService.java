@@ -75,7 +75,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private final Map<NamespaceName, AtomicInteger> ownedBundlesCountPerNamespace = new ConcurrentHashMap<>();
 
-    private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
+    @VisibleForTesting
+    public final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
             readerCaches = new ConcurrentHashMap<>();
     @VisibleForTesting
     final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
@@ -220,12 +221,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             NamespaceName namespace = topicName.getNamespaceObject();
             prepareInitPoliciesCache(namespace, new CompletableFuture<>());
         }
-        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
-                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
-            throw new TopicPoliciesCacheNotInitException();
+        synchronized (this) {
+            if (!policyCacheInitMap.getOrDefault(topicName.getNamespaceObject(), false)) {
+                throw new TopicPoliciesCacheNotInitException();
+            }
+            return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
+                    : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
         }
-        return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
-                : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override
@@ -386,7 +388,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+    private synchronized void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace,
+                                                       boolean cleanOwnedBundlesCount) {
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
         policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
         if (cleanOwnedBundlesCount) {
