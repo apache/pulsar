@@ -1613,7 +1613,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             producers.remove(producerId, producerFuture);
-        }).exceptionally(ex -> {
+        }).exceptionallyAsync(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                 Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar());
                 if (clusterURL.isPresent()) {
@@ -1654,7 +1654,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
             }
             return null;
-        });
+        }, ctx.executor());
 
         producerQueuedFuture.thenRun(() -> {
             // If the producer is queued waiting, we will get an immediate notification
@@ -2933,6 +2933,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void closeProducer(Producer producer) {
+        assert ctx.executor().inEventLoop();
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
