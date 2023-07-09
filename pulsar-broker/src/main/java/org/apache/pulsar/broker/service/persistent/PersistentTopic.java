@@ -214,7 +214,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
-    private volatile TopicCompactionService topicCompactionService;
+    private TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
     private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(
@@ -322,8 +322,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(newTopicCompactionService());
-        futures.add(createPersistentSubscriptions());
+        futures.add(newTopicCompactionService().thenRun(this::createPersistentSubscriptions));
 
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
@@ -420,16 +419,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return pendingWriteOps;
     }
 
-    protected CompletableFuture<Void> newTopicCompactionService() {
+    private CompletableFuture<Void> newTopicCompactionService() {
         CompactionServiceFactory compactionServiceFactory = brokerService.pulsar().getCompactionServiceFactory();
         return compactionServiceFactory.newTopicCompactionService(topic).thenAccept(topicCompactionService -> {
             PersistentTopic.this.topicCompactionService = topicCompactionService;
         });
     }
 
-    private CompletableFuture<Void> createPersistentSubscriptions() {
-        try {
-            for (ManagedCursor cursor : ledger.getCursors()) {
+    private void createPersistentSubscriptions() {
+        for (ManagedCursor cursor : ledger.getCursors()) {
                 if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
                         || cursor.getName().startsWith(replicatorPrefix)) {
                     // This is not a regular subscription, we are going to
@@ -443,12 +441,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // right now
                     subscriptions.get(subscriptionName).deactivateCursor();
                 }
-            }
-            checkReplicatedSubscriptionControllerState();
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
         }
-        return CompletableFuture.completedFuture(null);
+        checkReplicatedSubscriptionControllerState();
     }
 
     /**
