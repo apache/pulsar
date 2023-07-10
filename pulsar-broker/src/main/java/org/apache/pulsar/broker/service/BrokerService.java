@@ -1186,23 +1186,9 @@ public class BrokerService implements Closeable {
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
-        NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
         // Check whether there are auth policies for the topic
-        pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(optPolicies -> {
-            if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
-                    .containsKey(topic)) {
-                // if there is no auth policy for the topic, just complete and return
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication policies not found for topic {}", topic);
-                }
-                future.complete(null);
-                return;
-            }
-            pulsar.getPulsarResources().getNamespaceResources()
-                    .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
-                        p.auth_policies.getTopicAuthentication().remove(topic);
-                        return p;
-                    }).thenAccept(v -> {
+        authorizationService.removePermissionsAsync(TopicName.get(topic))
+                    .thenAccept(v -> {
                         log.info("Successfully delete authentication policies for topic {}", topic);
                         future.complete(null);
                     }).exceptionally(ex1 -> {
@@ -1218,11 +1204,6 @@ public class BrokerService implements Closeable {
                         }
                         return null;
                     });
-        }).exceptionally(ex -> {
-            log.error("Failed to get policies for topic {}", topic, ex);
-            future.completeExceptionally(ex);
-            return null;
-        });
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {

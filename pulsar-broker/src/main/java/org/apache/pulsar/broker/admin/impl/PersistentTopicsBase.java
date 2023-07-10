@@ -113,7 +113,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -218,36 +217,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Map<String, Set<AuthAction>>> internalGetPermissionsOnTopic() {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         return validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName)
-            .thenApply(policies -> {
-                if (!policies.isPresent()) {
-                    throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                }
-
-                Map<String, Set<AuthAction>> permissions = new HashMap<>();
-                String topicUri = topicName.toString();
-                AuthPolicies auth = policies.get().auth_policies;
-                // First add namespace level permissions
-                permissions.putAll(auth.getNamespaceAuthentication());
-
-                // Then add topic level permissions
-                if (auth.getTopicAuthentication().containsKey(topicUri)) {
-                    for (Map.Entry<String, Set<AuthAction>> entry :
-                            auth.getTopicAuthentication().get(topicUri).entrySet()) {
-                        String role = entry.getKey();
-                        Set<AuthAction> topicPermissions = entry.getValue();
-
-                        if (!permissions.containsKey(role)) {
-                            permissions.put(role, topicPermissions);
-                        } else {
-                            // Do the union between namespace and topic level
-                            Set<AuthAction> union = Sets.union(permissions.get(role), topicPermissions);
-                            permissions.put(role, union);
-                        }
-                    }
-                }
-                return permissions;
-            }));
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(topicName));
     }
 
     protected void validateCreateTopic(TopicName topicName) {
@@ -746,7 +716,7 @@ public class PersistentTopicsBase extends AdminResource {
                             if (numPartitions < 1) {
                                 return CompletableFuture.completedFuture(null);
                             }
-                            return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
+                            return internalRemovePartitionsAuthenticationPoliciesAsync()
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
@@ -788,10 +758,10 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> internalRemovePartitionsTopicAsync(int numPartitions, boolean force) {
         return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .runWithMarkDeleteAsync(topicName,
-                    () -> internalRemovePartitionsTopicNoAutocreationDisableAsync(numPartitions, force));
+                    () -> internalRemovePartitionsTopicNoAutoCreationDisableAsync(numPartitions, force));
     }
 
-    private CompletableFuture<Void> internalRemovePartitionsTopicNoAutocreationDisableAsync(int numPartitions,
+    private CompletableFuture<Void> internalRemovePartitionsTopicNoAutoCreationDisableAsync(int numPartitions,
                                                                                             boolean force) {
         return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
                 .mapToObj(i -> {
@@ -833,16 +803,9 @@ public class PersistentTopicsBase extends AdminResource {
                 }).collect(Collectors.toList()));
     }
 
-    private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync(int numPartitions) {
+    private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        pulsar().getPulsarResources().getNamespaceResources()
-                .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
-                    IntStream.range(0, numPartitions)
-                            .forEach(i -> p.auth_policies.getTopicAuthentication()
-                                    .remove(topicName.getPartition(i).toString()));
-                    p.auth_policies.getTopicAuthentication().remove(topicName.toString());
-                    return p;
-                })
+        getAuthorizationService().removePermissionsAsync(topicName)
                 .whenComplete((r, ex) -> {
                     if (ex != null){
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
