@@ -259,7 +259,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 60_000)
     public void testRegexSubscriptionWithTopicDiscovery() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
@@ -269,6 +269,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 .topicsPattern(regexSubscriptionPattern)
                 .subscriptionName(subName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .patternAutoDiscoveryPeriod(10, TimeUnit.MINUTES)
                 .subscribe()) {
             final int topics = 10;
             final String topicPrefix = "persistent://sample/test/local/regex-topic-";
