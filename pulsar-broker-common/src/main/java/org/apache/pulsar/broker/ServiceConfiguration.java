@@ -488,6 +488,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerShutdownTimeoutMs = 60000;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The max bundle unload concurrency limit when broker shutdown. Set to 0 means no limit."
+    )
+    private int brokerShutdownMaxBundleUnloadPerMinute = 0;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Flag to skip broker shutdown when broker handles Out of memory error"

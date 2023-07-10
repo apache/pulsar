@@ -553,7 +553,8 @@ public class BrokersBase extends AdminResource {
 
     private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
                                             boolean forcedTerminateTopic) {
-        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(
+                maxConcurrentUnloadPerSec * 60, forcedTerminateTopic);
         pulsar().closeAsync();
     }
 }
