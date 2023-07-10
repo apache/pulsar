@@ -24,11 +24,19 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.Consumer;
 
 public interface CompactedTopic {
     CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId);
     CompletableFuture<Void> deleteCompactedLedger(long compactedLedgerId);
+
+    /**
+     * Read entries from compacted topic.
+     *
+     * @deprecated Use {@link AbstractBaseDispatcher#readCompactedEntries(TopicCompactionService, ManagedCursor,
+     * int, boolean, ReadEntriesCallback, Consumer)} instead.
+     */
     @Deprecated
     void asyncReadEntriesOrWait(ManagedCursor cursor,
                                 int numberOfEntriesToRead,

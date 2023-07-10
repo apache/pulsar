@@ -18,19 +18,25 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
@@ -38,17 +44,21 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
@@ -403,6 +413,63 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         } else {
             consumers.forEach(Consumer::reachedEndOfTopic);
         }
+    }
+
+    public static void readCompactedEntries(TopicCompactionService topicCompactionService, ManagedCursor cursor,
+                                            int numberOfEntriesToRead, boolean isFirstRead,
+                                            AsyncCallbacks.ReadEntriesCallback callback, Consumer consumer) {
+        Objects.requireNonNull(topicCompactionService);
+        Objects.requireNonNull(cursor);
+        checkArgument(numberOfEntriesToRead > 0);
+        Objects.requireNonNull(callback);
+
+        final PositionImpl readPosition;
+        if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())) {
+            readPosition = PositionImpl.EARLIEST;
+        } else {
+            readPosition = (PositionImpl) cursor.getReadPosition();
+        }
+
+        // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
+        PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
+                PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
+
+        CompletableFuture<Position> lastCompactedPositionFuture = topicCompactionService.getLastCompactedPosition();
+
+        lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
+            if (lastCompactedPosition == null
+                    || readPosition.compareTo(
+                    lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId()) > 0) {
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
+                return CompletableFuture.completedFuture(null);
+            }
+
+            return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
+                    .thenAccept(entries -> {
+                        if (CollectionUtils.isEmpty(entries)) {
+                            Position seekToPosition = lastCompactedPosition.getNext();
+                            if (readPosition.compareTo(seekToPosition.getLedgerId(), seekToPosition.getEntryId()) > 0) {
+                                seekToPosition = readPosition;
+                            }
+                            cursor.seek(seekToPosition);
+                            callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+                        }
+
+                        Entry lastEntry = entries.get(entries.size() - 1);
+                        cursor.seek(lastEntry.getPosition().getNext(), true);
+                        callback.readEntriesComplete(entries, readEntriesCtx);
+                    });
+        }).exceptionally((exception) -> {
+            exception = FutureUtil.unwrapCompletionException(exception);
+            ManagedLedgerException managedLedgerException;
+            if (exception instanceof ManagedLedgerException) {
+                managedLedgerException = (ManagedLedgerException) exception;
+            } else {
+                managedLedgerException = new ManagedLedgerException(exception);
+            }
+            callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
+            return null;
+        });
     }
 
     @Override
