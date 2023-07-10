@@ -194,8 +194,12 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             // Subscription doesn't exist. We need to force the creation of the subscription in this cluster, because
             log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subcription",
                     topic, update.getSubscriptionName(), updatedMessageId.getLedgerId(), pos);
-            topic.createSubscription(update.getSubscriptionName(),
-                    InitialPosition.Latest, true /* replicateSubscriptionState */, null);
+            topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
+                            true /* replicateSubscriptionState */, null)
+                    .thenAccept(subscriptionCreated -> {
+                        subscriptionCreated.acknowledgeMessage(Collections.singletonList(pos),
+                                AckType.Cumulative, Collections.emptyMap());
+                    });
         }
     }
 
