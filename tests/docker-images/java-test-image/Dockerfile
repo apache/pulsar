@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
