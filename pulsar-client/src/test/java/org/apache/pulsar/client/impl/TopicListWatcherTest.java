@@ -57,15 +57,17 @@ public class TopicListWatcherTest {
         when(client.getConnectionToServiceUrl()).thenReturn(clientCnxFuture);
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
+        String topic = "persistent://tenant/ns/topic\\d+";
+        when(client.getConnection(topic)).thenReturn(clientCnxFuture);
         watcherFuture = new CompletableFuture<>();
         watcher = new TopicListWatcher(listener, client,
-                Pattern.compile("persistent://tenant/ns/topic\\d+"), 7,
+                Pattern.compile(topic), 7,
                 NamespaceName.get("tenant/ns"), null, watcherFuture);
     }
 
     @Test
     public void testWatcherGrabsConnection() {
-        verify(client).getConnectionToServiceUrl();
+        verify(client).getConnection(any());
     }
 
     @Test
