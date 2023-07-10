@@ -30,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -221,20 +222,24 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             prepareInitPoliciesCache(namespace, new CompletableFuture<>());
         }
 
-        CompletableFuture<TopicPolicies> result = new CompletableFuture<>();
+        MutablePair<TopicPoliciesCacheNotInitException, TopicPolicies> result = new MutablePair<>();
         policyCacheInitMap.compute(topicName.getNamespaceObject(), (k, initialized) -> {
             if (initialized == null || !initialized) {
-                result.completeExceptionally(new TopicPoliciesCacheNotInitException());
+                result.setLeft(new TopicPoliciesCacheNotInitException());
             } else {
                 TopicPolicies topicPolicies =
                         isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
                                 : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
-                result.complete(topicPolicies);
+                result.setRight(topicPolicies);
             }
             return initialized;
         });
 
-        return result.join();
+        if (result.getLeft() != null) {
+            throw result.getLeft();
+        } else {
+            return result.getRight();
+        }
     }
 
     @Override
