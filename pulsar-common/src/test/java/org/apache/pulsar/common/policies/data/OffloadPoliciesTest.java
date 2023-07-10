@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Properties;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -367,17 +375,61 @@ public class OffloadPoliciesTest {
     }
 
     @Test
-    public void testSupportExtraOffloadDrivers() {
-        System.setProperty("pulsar.extra.offload.drivers", "driverA,driverB");
-        OffloadPoliciesImpl newPolicies = new OffloadPoliciesImpl();
-        newPolicies.setManagedLedgerOffloadDriver("driverA");
-        Assert.assertTrue(newPolicies.driverSupported());
-        Assert.assertEquals(newPolicies.getManagedLedgerOffloadDriver(), "driverA");
-        newPolicies.setManagedLedgerOffloadDriver("driverB");
-        Assert.assertTrue(newPolicies.driverSupported());
-        Assert.assertEquals(newPolicies.getManagedLedgerOffloadDriver(), "driverB");
-        newPolicies.setManagedLedgerOffloadDriver("aws-s3");
-        Assert.assertTrue(newPolicies.driverSupported());
-        Assert.assertEquals(newPolicies.getManagedLedgerOffloadDriver(), "aws-s3");
+    public void testSupportExtraOffloadDrivers() throws Exception {
+        System.setProperty("pulsar.extra.offload.drivers", "driverA, driverB");
+        // using the custom classloader to reload the offload policies class to read the
+        // system property correctly.
+        TestClassLoader loader = new TestClassLoader();
+        Class<?> clazz = loader.loadClass("org.apache.pulsar.common.policies.data.OffloadPoliciesImpl");
+        Object o = clazz.getDeclaredConstructor().newInstance();
+        clazz.getDeclaredMethod("setManagedLedgerOffloadDriver", String.class).invoke(o, "driverA");
+        Method method = clazz.getDeclaredMethod("driverSupported");
+        Assert.assertEquals(method.invoke(o), true);
+        clazz.getDeclaredMethod("setManagedLedgerOffloadDriver", String.class).invoke(o, "driverB");
+        Assert.assertEquals(method.invoke(o), true);
+        clazz.getDeclaredMethod("setManagedLedgerOffloadDriver", String.class).invoke(o, "driverC");
+        Assert.assertEquals(method.invoke(o), false);
+        clazz.getDeclaredMethod("setManagedLedgerOffloadDriver", String.class).invoke(o, "aws-s3");
+        Assert.assertEquals(method.invoke(o), true);
     }
+
+    // this is used for the testSupportExtraOffloadDrivers. Because we need to change the system property,
+    // we need to reload the class to read the system property.
+    static class TestClassLoader extends ClassLoader {
+        @Override
+        public Class<?> loadClass(String name) throws ClassNotFoundException {
+            if (name.contains("OffloadPoliciesImpl")) {
+                return getClass(name);
+            }
+            return super.loadClass(name);
+        }
+
+        private Class<?> getClass(String name) {
+            String file = name.replace('.', File.separatorChar) + ".class";
+            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
+            file = Paths.get(targetPath.toString(), "classes", file).toString();
+            byte[] byteArr = null;
+            try {
+                byteArr = loadClassData(file);
+                Class<?> c = defineClass(name, byteArr, 0, byteArr.length);
+                resolveClass(c);
+                return c;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        private byte[] loadClassData(String name) throws IOException {
+            InputStream stream = Files.newInputStream(Paths.get(name));
+            int size = stream.available();
+            byte buff[] = new byte[size];
+            DataInputStream in = new DataInputStream(stream);
+            // Reading the binary data
+            in.readFully(buff);
+            in.close();
+            return buff;
+        }
+    }
+
 }

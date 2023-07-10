@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,8 +70,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         if (extraDrivers.trim().isEmpty()) {
             DRIVER_NAMES = INTERNAL_SUPPORTED_DRIVER;
         } else {
-            DRIVER_NAMES = ImmutableList.<String>builder().addAll(INTERNAL_SUPPORTED_DRIVER)
-                    .addAll(Arrays.asList(StringUtils.split(extraDrivers, ','))).build();
+            DRIVER_NAMES = ImmutableList.<String>builder()
+                .addAll(INTERNAL_SUPPORTED_DRIVER)
+                .addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
+                    .map(String::trim).collect(Collectors.toSet())).build();
         }
     }
 
