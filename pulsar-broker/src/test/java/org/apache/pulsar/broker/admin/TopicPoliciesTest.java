@@ -3021,7 +3021,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetTopicPoliciesWithCleanCache() throws IOException, PulsarAdminException, InterruptedException {
+    public void testGetTopicPoliciesWithCleanCache()
+            throws IOException, PulsarAdminException, InterruptedException, NoSuchFieldException,
+            IllegalAccessException {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
 
@@ -3037,10 +3039,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
             });
 
+
+        Field readerCaches = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("readerCaches");
+        readerCaches.setAccessible(true);
+        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers =
+                (Map) readerCaches.get(topicPoliciesService);
+
         Thread thread = new Thread(() -> {
             for (int i = 0; i < 10; i++) {
                 CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                        topicPoliciesService.readerCaches.get(TopicName.get(topic).getNamespaceObject());
+                        readers.get(TopicName.get(topic).getNamespaceObject());
                 if (readerCompletableFuture != null) {
                     readerCompletableFuture.join().closeAsync().join();
                 }
