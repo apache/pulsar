@@ -140,10 +140,6 @@ public class NamespaceService implements AutoCloseable {
     private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
-
-    private final List<NamespaceBundleSplitListener> bundleSplitListeners;
-
-
     private final RedirectManager redirectManager;
 
 
@@ -172,7 +168,6 @@ public class NamespaceService implements AutoCloseable {
         this.namespaceClients =
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
-        this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.redirectManager = new RedirectManager(pulsar);
     }
@@ -1005,7 +1000,6 @@ public class NamespaceService implements AutoCloseable {
                                 // affect the split operation which is already safely completed
                                 r.forEach(this::unloadNamespaceBundle);
                             }
-                            onNamespaceBundleSplit(bundle);
                         })
                         .exceptionally(e -> {
                             String msg1 = format(
@@ -1246,19 +1240,6 @@ public class NamespaceService implements AutoCloseable {
             }
         }
     }
-
-    public void onNamespaceBundleSplit(NamespaceBundle bundle) {
-        for (NamespaceBundleSplitListener bundleSplitListener : bundleSplitListeners) {
-            try {
-                if (bundleSplitListener.test(bundle)) {
-                    bundleSplitListener.onSplit(bundle);
-                }
-            } catch (Throwable t) {
-                LOG.error("Call bundle {} split listener {} error", bundle, bundleSplitListener, t);
-            }
-        }
-    }
-
     public void addNamespaceBundleOwnershipListener(NamespaceBundleOwnershipListener... listeners) {
         Objects.requireNonNull(listeners);
         for (NamespaceBundleOwnershipListener listener : listeners) {
@@ -1267,15 +1248,6 @@ public class NamespaceService implements AutoCloseable {
             }
         }
         getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
-    }
-
-    public void addNamespaceBundleSplitListener(NamespaceBundleSplitListener... listeners) {
-        Objects.requireNonNull(listeners);
-        for (NamespaceBundleSplitListener listener : listeners) {
-            if (listener != null) {
-                bundleSplitListeners.add(listener);
-            }
-        }
     }
 
     private void notifyNamespaceBundleOwnershipListener(NamespaceBundle bundle,
