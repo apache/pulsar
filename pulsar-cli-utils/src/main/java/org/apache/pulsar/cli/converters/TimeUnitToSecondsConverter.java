@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.emptyCheck;
+import static org.apache.pulsar.cli.ValueValidationUtils.emptyCheck;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.converters.BaseConverter;
 import java.util.concurrent.TimeUnit;

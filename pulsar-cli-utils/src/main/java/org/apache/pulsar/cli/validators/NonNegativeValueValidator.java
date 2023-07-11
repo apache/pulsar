@@ -20,7 +20,7 @@ package org.apache.pulsar.cli.validators;
 
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.admin.cli.utils.ValueValidationUtils;
+import org.apache.pulsar.cli.ValueValidationUtils;
 
 public class NonNegativeValueValidator implements IValueValidator<Long> {
     @Override

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import static org.apache.pulsar.admin.cli.utils.ValueValidationUtils.emptyCheck;
-import static org.apache.pulsar.admin.cli.utils.converters.ByteUnitUtil.validateSizeString;
+import static org.apache.pulsar.cli.ValueValidationUtils.emptyCheck;
+import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
 import com.beust.jcommander.converters.BaseConverter;
 
 public class ByteUnitIntegerConverter extends BaseConverter<Integer> {
