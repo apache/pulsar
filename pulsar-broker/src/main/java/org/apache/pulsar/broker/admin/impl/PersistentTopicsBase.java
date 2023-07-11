@@ -932,7 +932,7 @@ public class PersistentTopicsBase extends AdminResource {
                 if (applied) {
                     OffloadPoliciesImpl namespacePolicy =
                             (OffloadPoliciesImpl) getNamespacePolicies(namespaceName).offload_policies;
-                    offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(offloadPolicies
+                    offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(topicName, offloadPolicies
                             , namespacePolicy, pulsar().getConfiguration().getProperties());
                 }
                 return offloadPolicies;

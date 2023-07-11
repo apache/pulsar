@@ -336,7 +336,7 @@ public final class FieldParser {
         }).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {
+    public static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {
         String[] tokens = trim(strValue).split(",");
         Map<K, V> map = new HashMap<>();
         for (String token : tokens) {

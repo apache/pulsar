@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -2045,6 +2046,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The threshold to triggering automatic offload to long term storage"
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of bytes of namespaces before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadNamespaceThresholdInBytes;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of bytes of topics before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadTopicThresholdInBytes;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of seconds of namespaces before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadNamespaceThresholdInSeconds;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of seconds of topics before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadTopicThresholdInSeconds;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
