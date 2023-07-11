@@ -72,7 +72,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -162,7 +161,6 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RateLimiter;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
@@ -3104,7 +3102,7 @@ public class BrokerService implements Closeable {
                                         log.error("Failed to create persistent topic {}, "
                                                 + "exceed maximum number of topics in namespace", topicName);
                                         return FutureUtil.failedFuture(
-                                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                                new NotAllowedException(
                                                         "Exceed maximum number of topics in namespace."));
                                     } else {
                                         return CompletableFuture.completedFuture(null);

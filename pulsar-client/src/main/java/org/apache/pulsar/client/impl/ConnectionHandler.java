@@ -84,7 +84,7 @@ public class ConnectionHandler {
 
         try {
             state.client.getConnection(state.topic) //
-                    .thenAccept(cnx -> connection.connectionOpened(cnx)) //
+                    .thenCompose(cnx -> connection.connectionOpened(cnx)) //
                     .thenAccept(__ -> duringConnect.set(false))
                     .exceptionally(this::handleConnectionError);
         } catch (Throwable t) {
