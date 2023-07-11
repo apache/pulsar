@@ -2,101 +2,48 @@ package org.apache.pulsar.cli;
 
 import static org.testng.Assert.assertThrows;
 import com.beust.jcommander.ParameterException;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ValueValidationUtilsTest {
 
-    @DataProvider(name = "maxValueCheckData")
-    public static Object[][] maxValueCheckData() {
-        return new Object[][]{
-                {"param1", 11L, 10L},  // value > max
-                {"param2", 10L, 10L},  // value = max
-                {"param3", 9L, 10L}    // value < max
-        };
+    @Test
+    public void testMaxValueCheck() {
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.maxValueCheck("param1", 11L, 10L));
+        ValueValidationUtils.maxValueCheck("param2", 10L, 10L);
+        ValueValidationUtils.maxValueCheck("param3", 9L, 10L);
     }
 
-    @Test(dataProvider = "maxValueCheckData")
-    public void maxValueCheckTest(String param, long value, long max) {
-        if (value > max) {
-            assertThrows(ParameterException.class, () -> ValueValidationUtils.maxValueCheck(param, value, max));
-        } else {
-            ValueValidationUtils.maxValueCheck(param, value, max);  // should not throw exception
-        }
+    @Test
+    public void testPositiveCheck() {
+        // Long
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck("param1", 0L));
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck("param2", -1L));
+        ValueValidationUtils.positiveCheck("param3", 1L);
+
+        // Integer
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck("param4", 0));
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck("param5", -1));
+        ValueValidationUtils.positiveCheck("param6", 1);
     }
 
-    @DataProvider(name = "positiveCheckData")
-    public static Object[][] positiveCheckData() {
-        return new Object[][]{
-                {"param1", 0L},     // value = 0
-                {"param2", -1L},    // value < 0
-                {"param3", 1L},     // value > 0
-                {"param4", 0},      // value = 0
-                {"param5", -1},     // value < 0
-                {"param6", 1}       // value > 0
-        };
+    @Test
+    public void testEmptyCheck() {
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.emptyCheck("param1", ""));
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.emptyCheck("param2", null));
+        ValueValidationUtils.emptyCheck("param3", "nonEmpty");
     }
 
-    @Test(dataProvider = "positiveCheckData")
-    public void positiveCheckTest(String param, long value) {
-        if (value <= 0) {
-            assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck(param, value));
-        } else {
-            ValueValidationUtils.positiveCheck(param, value);  // should not throw exception
-        }
+    @Test
+    public void testMinValueCheck() {
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.minValueCheck("param1", 9L, 10L));
+        ValueValidationUtils.minValueCheck("param2", 10L, 10L);
+        ValueValidationUtils.minValueCheck("param3", 11L, 10L);
     }
 
-    @DataProvider(name = "emptyCheckData")
-    public static Object[][] emptyCheckData() {
-        return new Object[][]{
-                {"param1", ""},         // value is empty string
-                {"param2", null},       // value is null
-                {"param3", "nonEmpty"}  // value is not empty
-        };
-    }
-
-    @Test(dataProvider = "emptyCheckData")
-    public void emptyCheckTest(String param, String value) {
-        if (value == null || value.isEmpty()) {
-            assertThrows(ParameterException.class, () -> ValueValidationUtils.emptyCheck(param, value));
-        } else {
-            ValueValidationUtils.emptyCheck(param, value);  // should not throw exception
-        }
-    }
-
-    @DataProvider(name = "minValueCheckData")
-    public static Object[][] minValueCheckData() {
-        return new Object[][]{
-                {"param1", 9L, 10L},   // value < min
-                {"param2", 10L, 10L},  // value = min
-                {"param3", 11L, 10L}   // value > min
-        };
-    }
-
-    @Test(dataProvider = "minValueCheckData")
-    public void minValueCheckTest(String param, long value, long min) {
-        if (value < min) {
-            assertThrows(ParameterException.class, () -> ValueValidationUtils.minValueCheck(param, value, min));
-        } else {
-            ValueValidationUtils.minValueCheck(param, value, min);  // should not throw exception
-        }
-    }
-
-    @DataProvider(name = "positiveCheckIntData")
-    public static Object[][] positiveCheckIntData() {
-        return new Object[][]{
-                {"param1", 0},      // value = 0
-                {"param2", -1},     // value < 0
-                {"param3", 1}       // value > 0
-        };
-    }
-
-    @Test(dataProvider = "positiveCheckIntData")
-    public void positiveCheckIntTest(String param, int value) {
-        if (value <= 0) {
-            assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck(param, value));
-        } else {
-            ValueValidationUtils.positiveCheck(param, value);  // should not throw exception
-        }
+    @Test
+    public void testPositiveCheckInt() {
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck("param1", 0));
+        assertThrows(ParameterException.class, () -> ValueValidationUtils.positiveCheck("param2", -1));
+        ValueValidationUtils.positiveCheck("param3", 1);
     }
 }
