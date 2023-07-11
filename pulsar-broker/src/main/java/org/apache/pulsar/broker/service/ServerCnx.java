@@ -2733,7 +2733,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                     return;
                 }
-                // we only accept super user becase this endpoint is reserved for tc to broker communication
+                // we only accept super user because this endpoint is reserved for tc to broker communication
                 isSuperUser()
                         .thenCompose(isOwner -> {
                             if (!isOwner) {
