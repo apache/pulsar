@@ -169,7 +169,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
-import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.compaction.PulsarTopicCompactionService;
@@ -322,7 +321,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(newTopicCompactionService().thenRun(this::createPersistentSubscriptions));
+        futures.add(brokerService.getPulsar().newTopicCompactionService(topic).thenAccept(service -> {
+            PersistentTopic.this.topicCompactionService = service;
+            this.createPersistentSubscriptions();
+        }));
 
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
@@ -417,13 +419,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @VisibleForTesting
     public AtomicLong getPendingWriteOps() {
         return pendingWriteOps;
-    }
-
-    private CompletableFuture<Void> newTopicCompactionService() {
-        CompactionServiceFactory compactionServiceFactory = brokerService.pulsar().getCompactionServiceFactory();
-        return compactionServiceFactory.newTopicCompactionService(topic).thenAccept(topicCompactionService -> {
-            PersistentTopic.this.topicCompactionService = topicCompactionService;
-        });
     }
 
     private void createPersistentSubscriptions() {

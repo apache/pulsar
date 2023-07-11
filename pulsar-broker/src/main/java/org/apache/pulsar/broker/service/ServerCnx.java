@@ -2133,6 +2133,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
                 }
             });
+        }).exceptionally(e -> {
+            writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, e.getMessage()));
+            return null;
         });
     }
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,

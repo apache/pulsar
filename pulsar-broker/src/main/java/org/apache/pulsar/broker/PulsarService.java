@@ -151,6 +151,7 @@ import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -1489,6 +1490,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     // This method is used for metrics, which is allowed to as null
     // Because it's no operation on the compactor, so let's remove the  synchronized on this method
     // to avoid unnecessary lock competition.
+    // Only the pulsar's compaction service provides the compaction stats. The compaction service plugin,
+    // it should be done by the plugin itself to expose the compaction metrics.
     public Compactor getNullableCompactor() {
         if (this.compactionServiceFactory instanceof PulsarCompactionServiceFactory pulsarCompactedServiceFactory) {
             return pulsarCompactedServiceFactory.getNullableCompactor();
@@ -1919,5 +1922,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         Thread.currentThread().getContextClassLoader());
         compactionServiceFactory.initialize(this).join();
         return compactionServiceFactory;
+    }
+
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+        CompactionServiceFactory compactionServiceFactory = this.getCompactionServiceFactory();
+        return compactionServiceFactory.newTopicCompactionService(topic);
     }
 }
