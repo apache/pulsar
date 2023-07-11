@@ -73,6 +73,10 @@ public class MessageRedeliveryController {
         messagesToRedeliver.add(ledgerId, entryId);
     }
 
+    public boolean contains(long ledgerId, long entryId) {
+        return messagesToRedeliver.contains(ledgerId, entryId);
+    }
+
     public void remove(long ledgerId, long entryId) {
         if (!allowOutOfOrderDelivery) {
             removeFromHashBlocker(ledgerId, entryId);

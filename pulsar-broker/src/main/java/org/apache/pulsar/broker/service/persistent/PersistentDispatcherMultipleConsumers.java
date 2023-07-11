@@ -635,6 +635,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }
+        if (readType == ReadType.Replay) {
+            entries.removeIf(entry -> !redeliveryMessages.contains(entry.getLedgerId(), entry.getEntryId()));
+        }
 
         int entriesToDispatch = entries.size();
         // Trigger read more messages
