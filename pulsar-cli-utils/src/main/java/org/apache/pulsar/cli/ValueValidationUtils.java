@@ -19,12 +19,12 @@
 package org.apache.pulsar.cli;
 
 import com.beust.jcommander.ParameterException;
+import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 
+@UtilityClass
 public class ValueValidationUtils {
-    private ValueValidationUtils() {
-    }
-
+    
     public static void maxValueCheck(String paramName, long value, long maxValue) {
         if (value > maxValue) {
             throw new ParameterException(paramName + " cannot be bigger than <" + maxValue + ">!");

@@ -22,7 +22,6 @@ import static org.apache.pulsar.cli.ValueValidationUtils.emptyCheck;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.converters.BaseConverter;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 public class TimeUnitToSecondsConverter extends BaseConverter<Long> {
 

@@ -19,12 +19,17 @@
 package org.apache.pulsar.cli.converters;
 
 import com.beust.jcommander.ParameterException;
-import com.google.common.collect.Sets;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
+import lombok.experimental.UtilityClass;
 
+@UtilityClass
 class ByteUnitUtil {
 
-    private static Set<Character> sizeUnit = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
+    private static Set<Character> sizeUnit = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList('k', 'K', 'm', 'M', 'g', 'G', 't', 'T')));
 
     static long validateSizeString(String s) {
         char last = s.charAt(s.length() - 1);
