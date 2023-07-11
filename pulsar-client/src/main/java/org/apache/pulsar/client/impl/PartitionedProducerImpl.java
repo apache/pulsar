@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.client.api.TopicStatsProvider;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -71,6 +72,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
+    private final PartitionedTopicStatsProviderImpl statsProvider;
 
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                                    int numPartitions, CompletableFuture<Producer<T>> producerCreatedFuture,
@@ -100,6 +102,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             indexList = IntStream.range(0, topicMetadata.numPartitions()).boxed().collect(Collectors.toList());
         }
 
+        this.statsProvider = new PartitionedTopicStatsProviderImpl(topic);
         firstPartitionIndex = indexList.get(0);
         start(indexList);
 
@@ -212,8 +215,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private ProducerImpl<T> createProducer(final int partitionIndex, final Optional<String> overrideProducerName) {
         return producers.computeIfAbsent(partitionIndex, (idx) -> {
             String partitionName = TopicName.get(topic).getPartition(idx).toString();
-            return client.newProducerImpl(partitionName, idx,
+            ProducerImpl<T> producer = client.newProducerImpl(partitionName, idx,
                     conf, schema, interceptors, new CompletableFuture<>(), overrideProducerName);
+            statsProvider.addStatsProvider(partitionName, producer.getTopicStatsProvider());
+            return producer;
         });
     }
 
@@ -408,10 +413,13 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                 .stream()
                                 .map(partitionName -> {
                                     int partitionIndex = TopicName.getPartitionIndex(partitionName);
-                                    return producers.computeIfAbsent(partitionIndex, (idx) -> new ProducerImpl<>(
-                                            client, partitionName, conf, new CompletableFuture<>(),
-                                            idx, schema, interceptors,
-                                            Optional.ofNullable(overrideProducerName))).producerCreatedFuture();
+                                    return producers.computeIfAbsent(partitionIndex, (idx) -> {
+                                        ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf,
+                                                new CompletableFuture<>(), idx, schema, interceptors,
+                                                Optional.ofNullable(overrideProducerName));
+                                        statsProvider.addStatsProvider(partitionName, producer.getTopicStatsProvider());
+                                        return producer;
+                                    }).producerCreatedFuture();
                                 }).collect(Collectors.toList());
 
                         FutureUtil.waitForAll(futureList)
@@ -503,6 +511,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     @Override
     public int getNumOfPartitions() {
         return topicMetadata.numPartitions();
+    }
+
+    @Override
+    public TopicStatsProvider getTopicStatsProvider() {
+        return statsProvider;
     }
 
 }

@@ -72,6 +72,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicStatsProvider;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -169,6 +170,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     private boolean errorState;
+    private TopicStatsProvider statsProvider;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -275,6 +277,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .create(),
             this);
 
+        this.statsProvider = new TopicStatsProviderImpl(client, connectionHandler, topic);
         grabCnx();
     }
 
@@ -2352,6 +2355,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     public String getProducerName() {
         return producerName;
+    }
+
+    @Override
+    public TopicStatsProvider getTopicStatsProvider() {
+        return statsProvider;
     }
 
     // wrapper for connection methods

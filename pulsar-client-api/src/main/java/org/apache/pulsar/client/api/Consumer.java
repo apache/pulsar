@@ -435,6 +435,13 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     ConsumerStats getStats();
 
     /**
+     * Returns {@link TopicStatsProvider} using which client can fetch topic stats and internal-stats.
+     *
+     * @return {@link TopicStatsProvider}
+     */
+    TopicStatsProvider getTopicStatsProvider();
+
+    /**
      * Close the consumer and stop the broker to push more messages.
      */
     @Override

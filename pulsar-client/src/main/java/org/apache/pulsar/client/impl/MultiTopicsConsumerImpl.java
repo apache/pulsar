@@ -62,6 +62,7 @@ import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.api.TopicStatsProvider;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -100,6 +101,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
     private final MultiTopicConsumerStatsRecorderImpl stats;
     private final ConsumerConfigurationData<T> internalConfig;
+    private final PartitionedTopicStatsProviderImpl statsProvider;
 
     private volatile MessageIdAdv startMessageId;
     private final long startMessageRollbackDurationInSec;
@@ -148,6 +150,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0
                 ? new MultiTopicConsumerStatsRecorderImpl(this)
                 : null;
+        this.statsProvider = new PartitionedTopicStatsProviderImpl(topic);
 
         // start track and auto subscribe partition increment
         if (conf.isAutoUpdatePartitions()) {
@@ -852,6 +855,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return stats;
     }
 
+    @Override
+    public TopicStatsProvider getTopicStatsProvider() {
+        return statsProvider;
+    }
+
     public UnAckedMessageTracker getUnAckedMessageTracker() {
         return unAckedMessageTracker;
     }
@@ -1120,12 +1128,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .timeout(1, TimeUnit.MILLISECONDS)
                 .build();
         configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
+
         configurationData = configurationData.clone();
-        return ConsumerImpl.newConsumerImpl(client, partitionName,
+        ConsumerImpl<T> consumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, interceptors,
                 createIfDoesNotExist, startMessageRollbackDurationInSec);
+        statsProvider.addStatsProvider(partitionName, consumer.getTopicStatsProvider());
+        return consumer;
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions

@@ -82,6 +82,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.api.TopicStatsProvider;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -205,6 +206,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
+    private TopicStatsProvider statsProvider;
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
@@ -377,6 +379,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
+
+        this.statsProvider = new TopicStatsProviderImpl(client, connectionHandler, topic);
 
         grabCnx();
     }
@@ -2530,6 +2534,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public ConsumerStatsRecorder getStats() {
         return stats;
+    }
+
+    @Override
+    public TopicStatsProvider getTopicStatsProvider() {
+        return statsProvider;
     }
 
     void setTerminated() {

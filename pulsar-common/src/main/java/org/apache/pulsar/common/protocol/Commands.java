@@ -87,6 +87,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
+import org.apache.pulsar.common.api.proto.CommandTopicStats.StatsType;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -914,6 +915,24 @@ public class Commands {
         if (StringUtils.isNotBlank(listenerName)) {
             lookup.setAdvertisedListenerName(listenerName);
         }
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newStats(String topic, StatsType type, long requestId) {
+        BaseCommand cmd = localCmd(Type.TOPIC_STATS);
+        cmd.setTopicStats().setTopicName(topic).setStatsType(type).setRequestId(requestId);
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newStatsResponse(long requestId, String topic, String response) {
+        BaseCommand cmd = localCmd(Type.TOPIC_STATS_RESPONSE);
+        cmd.setTopicStatsResponse().setRequestId(requestId).setStatsJson(response);
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newStatsResponse(long requestId, ServerError code, String errorMsg) {
+        BaseCommand cmd = localCmd(Type.TOPIC_STATS_RESPONSE);
+        cmd.setTopicStatsResponse().setRequestId(requestId).setErrorCode(code).setErrorMessage(errorMsg);
         return serializeWithSize(cmd);
     }
 

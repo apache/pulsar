@@ -78,6 +78,8 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
+import org.apache.pulsar.common.api.proto.CommandTopicStats;
+import org.apache.pulsar.common.api.proto.CommandTopicStatsResponse;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
@@ -477,6 +479,16 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleCommandWatchTopicListClose(cmd.getWatchTopicListClose());
                 break;
 
+            case TOPIC_STATS:
+                checkArgument(cmd.hasTopicStats());
+                handleTopicStats(cmd.getTopicStats());
+                break;
+
+            case TOPIC_STATS_RESPONSE:
+                checkArgument(cmd.hasTopicStatsResponse());
+                handleTopicStatsResponse(cmd.getTopicStatsResponse());
+                break;
+
             default:
                 break;
             }
@@ -735,6 +747,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleCommandWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTopicStats(CommandTopicStats topicStats) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTopicStatsResponse(CommandTopicStatsResponse topicStatsResponse) {
         throw new UnsupportedOperationException();
     }
 

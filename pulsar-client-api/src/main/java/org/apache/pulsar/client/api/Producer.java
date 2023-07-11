@@ -164,6 +164,12 @@ public interface Producer<T> extends Closeable {
     ProducerStats getStats();
 
     /**
+     * Returns {@link TopicStatsProvider} using which client can fetch topic stats and internal-stats.
+     *
+     * @return {@link TopicStatsProvider}
+     */
+    TopicStatsProvider getTopicStatsProvider();
+    /**
      * Close the producer and releases resources allocated.
      *
      * <p>No more writes will be accepted from this producer. Waits until all pending write request are persisted.

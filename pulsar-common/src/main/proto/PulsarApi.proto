@@ -693,6 +693,23 @@ message CommandPing {
 message CommandPong {
 }
 
+message CommandTopicStats {
+    enum StatsType {
+        STATS = 0;
+        STATS_INTERNAL = 1;
+    }
+    required uint64 request_id    = 1;
+    required string topic_name    = 2;
+    required StatsType stats_type = 3;
+}
+
+message CommandTopicStatsResponse {
+    required uint64 request_id    = 1;
+    optional ServerError error_code    = 2;
+    optional string error_message = 3;
+    optional string stats_json    = 4;
+}
+
 message CommandConsumerStats {
         required uint64 request_id         = 1;
         // required string topic_name         = 2;
@@ -1044,6 +1061,9 @@ message BaseCommand {
         WATCH_TOPIC_LIST_CLOSE = 67;
 
         TOPIC_MIGRATED = 68;
+        
+        TOPIC_STATS = 69;
+        TOPIC_STATS_RESPONSE = 70;
     }
 
 
@@ -1127,4 +1147,7 @@ message BaseCommand {
     optional CommandWatchTopicListClose watchTopicListClose = 67;
     
     optional CommandTopicMigrated topicMigrated = 68;
+    
+    optional CommandTopicStats topicStats = 69;
+    optional CommandTopicStatsResponse topicStatsResponse = 70;
 }
