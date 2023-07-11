@@ -24,7 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 
 @UtilityClass
 public class ValueValidationUtils {
-    
+
     public static void maxValueCheck(String paramName, long value, long maxValue) {
         if (value > maxValue) {
             throw new ParameterException(paramName + " cannot be bigger than <" + maxValue + ">!");
