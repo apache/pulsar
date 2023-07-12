@@ -72,10 +72,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
+    @Deprecated
     public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor,
                                           PersistentSubscription subscription) {
         this.topicName = topicName;
-        this.topic = subscription.topic;
+        this.topic = (subscription == null) ? null : (PersistentTopic) subscription.getTopic();
         this.cursor = cursor;
         this.subName = subscriptionName;
         this.subscription = subscription;
