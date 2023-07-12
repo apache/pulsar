@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.transaction;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;

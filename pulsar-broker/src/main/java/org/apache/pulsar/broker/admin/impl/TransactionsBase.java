@@ -456,7 +456,8 @@ public abstract class TransactionsBase extends AdminResource {
                                             snapshotSystemTopicInternalStats;
                                     return transactionBufferInternalStats;
                                 }).thenCompose(ignore -> {
-                                    TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
+                                    TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(),
+                                            namespaceName,
                                             SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
                                     return getTxnSnapshotInternalStats(indexTopic, metadata)
                                             .thenApply(indexStats -> {
