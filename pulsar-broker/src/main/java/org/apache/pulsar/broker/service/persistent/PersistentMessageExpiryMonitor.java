@@ -72,6 +72,20 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
+    public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor,
+                                          PersistentSubscription subscription) {
+        this.topicName = topicName;
+        this.topic = subscription.topic;
+        this.cursor = cursor;
+        this.subName = subscriptionName;
+        this.subscription = subscription;
+        this.msgExpired = new Rate();
+        this.totalMsgExpired = new LongAdder();
+        // check to avoid test failures
+        this.autoSkipNonRecoverableData = this.cursor.getManagedLedger() != null
+                && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
+    }
+
     public boolean expireMessages(int messageTTLInSeconds) {
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
