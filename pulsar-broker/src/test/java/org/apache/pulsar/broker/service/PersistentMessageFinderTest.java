@@ -62,6 +62,7 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -230,7 +231,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
                 });
         assertTrue(ex.get());
 
-        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor("topicname", c1.getName(), c1, null);
+        PersistentTopic mock = mock(PersistentTopic.class);
+        when(mock.getName()).thenReturn("topicname");
+        when(mock.getLastPosition()).thenReturn(PositionImpl.EARLIEST);
+
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         monitor.findEntryFailed(new ManagedLedgerException.ConcurrentFindCursorPositionException("failed"),
                 Optional.empty(), null);
         Field field = monitor.getClass().getDeclaredField("expirationCheckInProgress");
@@ -407,7 +412,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         bkc.deleteLedger(ledgers.get(1).getLedgerId());
         bkc.deleteLedger(ledgers.get(2).getLedgerId());
 
-        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor("topicname", c1.getName(), c1, null);
+        PersistentTopic mock = mock(PersistentTopic.class);
+        when(mock.getName()).thenReturn("topicname");
+        when(mock.getLastPosition()).thenReturn(PositionImpl.EARLIEST);
+
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         Position previousMarkDelete = null;
         for (int i = 0; i < totalEntries; i++) {
             monitor.expireMessages(1);
@@ -444,15 +453,16 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
 
         PersistentSubscription subscription = mock(PersistentSubscription.class);
-        Topic topic = mock(Topic.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
         when(subscription.getTopic()).thenReturn(topic);
+        when(topic.getName()).thenReturn("topicname");
 
         for (int i = 0; i < totalEntries; i++) {
             positions.add(ledger.addEntry(createMessageWrittenToLedger("msg" + i)));
         }
         when(topic.getLastPosition()).thenReturn(positions.get(positions.size() - 1));
 
-        PersistentMessageExpiryMonitor monitor = spy(new PersistentMessageExpiryMonitor("topicname",
+        PersistentMessageExpiryMonitor monitor = spy(new PersistentMessageExpiryMonitor(topic,
                 cursor.getName(), cursor, subscription));
         assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(0).getLedgerId(), -1));
         boolean issued;
@@ -491,7 +501,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         clearInvocations(monitor);
 
         ManagedCursorImpl mockCursor = mock(ManagedCursorImpl.class);
-        PersistentMessageExpiryMonitor mockMonitor = spy(new PersistentMessageExpiryMonitor("topicname",
+        PersistentMessageExpiryMonitor mockMonitor = spy(new PersistentMessageExpiryMonitor(topic,
                 cursor.getName(), mockCursor, subscription));
         // Not calling findEntryComplete to clear expirationCheckInProgress condition, so following call to
         // expire message shouldn't issue.
