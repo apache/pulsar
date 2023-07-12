@@ -1485,6 +1485,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
         }
 
+        if (topicCompactionService != null) {
+            try {
+                topicCompactionService.close();
+            } catch (Exception e) {
+                log.warn("Error close topicCompactionService ", e);
+            }
+        }
+
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
                 ? CompletableFuture.completedFuture(null)
                 : FutureUtil.waitForAll(futures);

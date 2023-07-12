@@ -2080,7 +2080,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Position> compactionHorizonFuture =
                 persistentTopic.getTopicCompactionService().getLastCompactedPosition();
 
-        compactionHorizonFuture.thenAccept(compactionHorizon -> {
+        compactionHorizonFuture.whenComplete((compactionHorizon, ex) -> {
+            if (ex != null) {
+                log.error("Failed to get compactionHorizon.", ex);
+                writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, ex.getMessage()));
+                return;
+            }
+
             if (lastPosition.getEntryId() == -1 || (compactionHorizon != null
                     && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0)) {
                 handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
@@ -2133,9 +2139,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
                 }
             });
-        }).exceptionally(e -> {
-            writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, e.getMessage()));
-            return null;
         });
     }
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,

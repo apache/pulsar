@@ -28,7 +28,7 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 
 @Beta
 @InterfaceAudience.Public
-public interface TopicCompactionService {
+public interface TopicCompactionService extends AutoCloseable {
     /**
      * Compact the topic.
      * Topic Compaction is a key-based retention mechanism. It keeps the most recent value for a given key and
