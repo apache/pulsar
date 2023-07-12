@@ -1158,7 +1158,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, getPrincipal());
                 }
 
-                log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+                log.info("[{}] Subscribing on topic {} / {}. consumerId: {}", this.ctx().channel().toString(),
+                        topicName, subscriptionName, consumerId);
                 try {
                     Metadata.validateMetadata(metadata,
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
@@ -1782,6 +1783,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 return null;
             });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Consumer future is not complete(not complete or error), but received command ack. so discard"
+                                + " this command. consumerId: {}, cnx: {}, messageIdCount: {}", ack.getConsumerId(),
+                        this.ctx().channel().toString(), ack.getMessageIdsCount());
+            }
         }
     }
 
