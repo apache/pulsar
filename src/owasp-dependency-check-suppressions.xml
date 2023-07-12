@@ -184,8 +184,9 @@
     <suppress>
         <notes><![CDATA[
         file name: clickhouse-jdbc-0.4.6-all.jar
-        CVE cannot take effect, as covered by
-        See(PR) https://github.com/apache/pulsar/pull/20699
+        file link: https://github.com/ClickHouse/clickhouse-java/releases/tag/v0.4.6
+        CVE cannot take effect
+        Already covered by PR https://github.com/apache/pulsar/pull/20699
     ]]></notes>
         <sha1>6efc73bb044a64add5555d676a8074b8389632e6</sha1>
         <cve>CVE-2023-2976</cve>
