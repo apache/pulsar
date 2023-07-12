@@ -225,29 +225,20 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
                 .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
 
-        // Consume the messages which not acked.
-        Thread consumeTask2 = new Thread(() -> {
-            while (true) {
-                try {
-                    PersistentTopic t2 = topic2;
-                    Message message = consumer2.receive(2, TimeUnit.SECONDS);
-                    if (message != null) {
-                        receivedMessages.add(message.getValue().toString());
-                        consumer2.acknowledge(message);
-                    }
-                } catch (PulsarClientException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        consumeTask2.start();
-
         // Verify all messages will be consumed.
         Awaitility.await().untilAsserted(() -> {
+            while (true) {
+                Message message = consumer2.receive(2, TimeUnit.SECONDS);
+                if (message != null) {
+                    receivedMessages.add(message.getValue().toString());
+                    consumer2.acknowledge(message);
+                } else {
+                    break;
+                }
+            }
             assertEquals(receivedMessages.size(), sentMessages.size());
         });
 
-        consumeTask2.stop();
         consumer2.close();
         producer1.close();
         client1.close();
