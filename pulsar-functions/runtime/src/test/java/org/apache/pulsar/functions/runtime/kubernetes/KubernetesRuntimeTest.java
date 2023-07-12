@@ -18,6 +18,25 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
+import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -72,24 +91,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
-import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link ThreadRuntime}.
@@ -1351,5 +1352,19 @@ public class KubernetesRuntimeTest {
         
         verify(coreApi).listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
                 eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    public void testSanitizingJarFileName() throws Exception {
+        String originalCodeFileName = "code(1).jar";
+        String originalTransformFunctionFileName = "transform(1).jar";
+        KubernetesRuntime kubernetesRuntime =
+                createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(), "/download", null, null)
+                        .createContainer(createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false),
+                                "/test/code", originalCodeFileName, "/test/transforms",
+                                originalTransformFunctionFileName,
+                                Long.MIN_VALUE);
+        List<String> processArgs = kubernetesRuntime.getProcessArgs();
+        assertThat(processArgs).contains("/download/code_1_.jar", "/download/transform_1_.jar");
     }
 }
