@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.testcontext;
 
+import java.io.IOException;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -37,11 +38,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  */
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
-    protected final MetadataStoreExtended localMetadataStore;
-    protected final MetadataStoreExtended configurationMetadataStore;
-    protected final Compactor compactor;
-    protected final BrokerInterceptor brokerInterceptor;
-    protected final BookKeeperClientFactory bookKeeperClientFactory;
+    private boolean compactorExists;
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
@@ -50,53 +47,59 @@ abstract class AbstractTestPulsarService extends PulsarService {
                                      BookKeeperClientFactory bookKeeperClientFactory) {
         super(config);
         this.spyConfig = spyConfig;
-        this.localMetadataStore =
-                NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class);
-        this.configurationMetadataStore =
-                NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class);
-        this.compactor = compactor;
-        this.brokerInterceptor = brokerInterceptor;
-        this.bookKeeperClientFactory = bookKeeperClientFactory;
+        setLocalMetadataStore(
+                NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class));
+        setConfigurationMetadataStore(
+                NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class));
+        setCompactor(compactor);
+        setBrokerInterceptor(brokerInterceptor);
+        setBkClientFactory(bookKeeperClientFactory);
     }
 
     @Override
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException {
         if (synchronizer != null) {
-            synchronizer.registerSyncListener(configurationMetadataStore::handleMetadataEvent);
+            synchronizer.registerSyncListener(
+                    ((MetadataStoreExtended) getConfigurationMetadataStore())::handleMetadataEvent);
         }
-        return configurationMetadataStore;
+        return getConfigurationMetadataStore();
     }
 
     @Override
     public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException, PulsarServerException {
         if (synchronizer != null) {
-            synchronizer.registerSyncListener(localMetadataStore::handleMetadataEvent);
+            synchronizer.registerSyncListener(
+                    getLocalMetadataStore()::handleMetadataEvent);
         }
-        return localMetadataStore;
+        return getLocalMetadataStore();
+    }
+
+    @Override
+    protected void setCompactor(Compactor compactor) {
+        if (compactor != null) {
+            compactorExists = true;
+        }
+        super.setCompactor(compactor);
     }
 
     @Override
     public Compactor newCompactor() throws PulsarServerException {
-        if (compactor != null) {
-            return compactor;
+        if (compactorExists) {
+            return getCompactor();
         } else {
             return spyConfig.getCompactor().spy(super.newCompactor());
         }
     }
 
     @Override
-    public BrokerInterceptor getBrokerInterceptor() {
-        if (brokerInterceptor != null) {
-            return brokerInterceptor;
-        } else {
-            return super.getBrokerInterceptor();
-        }
+    public BookKeeperClientFactory newBookKeeperClientFactory() {
+        return getBkClientFactory();
     }
 
     @Override
-    public BookKeeperClientFactory newBookKeeperClientFactory() {
-        return bookKeeperClientFactory;
+    protected BrokerInterceptor newBrokerInterceptor() throws IOException {
+        return getBrokerInterceptor() != null ? getBrokerInterceptor() : super.newBrokerInterceptor();
     }
 }
