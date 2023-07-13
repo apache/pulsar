@@ -37,6 +37,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  */
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
+    private boolean compactorExists;
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
@@ -75,8 +76,16 @@ abstract class AbstractTestPulsarService extends PulsarService {
     }
 
     @Override
+    protected void setCompactor(Compactor compactor) {
+        if (compactor != null) {
+            compactorExists = true;
+        }
+        super.setCompactor(compactor);
+    }
+
+    @Override
     public Compactor newCompactor() throws PulsarServerException {
-        if (getCompactor() != null) {
+        if (compactorExists) {
             return getCompactor();
         } else {
             return spyConfig.getCompactor().spy(super.newCompactor());
