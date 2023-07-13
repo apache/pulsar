@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.testcontext;
 
+import java.io.IOException;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -95,5 +96,10 @@ abstract class AbstractTestPulsarService extends PulsarService {
     @Override
     public BookKeeperClientFactory newBookKeeperClientFactory() {
         return getBkClientFactory();
+    }
+
+    @Override
+    protected BrokerInterceptor newBrokerInterceptor() throws IOException {
+        return getBrokerInterceptor() != null ? getBrokerInterceptor() : super.newBrokerInterceptor();
     }
 }
