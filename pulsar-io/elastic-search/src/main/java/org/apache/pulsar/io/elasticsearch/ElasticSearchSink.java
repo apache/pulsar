@@ -373,13 +373,22 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         return node;
     }
 
-    public static JsonNode extractJsonNode(Schema<?> schema, Object val) {
+    public JsonNode extractJsonNode(Schema<?> schema, Object val) throws JsonProcessingException {
         if (val == null) {
             return null;
         }
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
-                return (JsonNode) ((GenericRecord) val).getNativeObject();
+                Object nativeObject = ((GenericRecord) val).getNativeObject();
+                if (nativeObject instanceof String) {
+                    try {
+                        return objectMapper.readTree((String) nativeObject);
+                    } catch (JsonProcessingException e) {
+                        log.error("Failed to read JSON string: {}", nativeObject, e);
+                        throw e;
+                    }
+                }
+                return (JsonNode) nativeObject;
             case AVRO:
                 org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord)
                         ((GenericRecord) val).getNativeObject();
