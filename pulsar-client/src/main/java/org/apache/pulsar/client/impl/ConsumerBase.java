@@ -193,7 +193,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         initReceiverQueueSize();
     }
 
-    public UnAckedMessageTracker getUnAckedMessageTracker() {
+    protected UnAckedMessageTracker getUnAckedMessageTracker() {
         return unAckedMessageTracker;
     }
 
