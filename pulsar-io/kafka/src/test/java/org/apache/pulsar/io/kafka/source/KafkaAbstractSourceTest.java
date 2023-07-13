@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
 import org.apache.pulsar.io.kafka.KafkaSourceConfig;
-import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -158,9 +157,16 @@ public class KafkaAbstractSourceTest {
         assertEquals(config.getSslTruststorePassword(), "cert_pwd");
     }
 
-    @Test
-    public final void closeConnectorWhenUnexpectedExceptionThrownTest() throws Exception {
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Uncaught exception")
+    public final void whenUnexpectedExceptionThrownOnReadTest() throws Exception {
         KafkaAbstractSource source = new DummySource();
+
+        KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
+        kafkaSourceConfig.setTopic("test-topic");
+        Field kafkaSourceConfigField = KafkaAbstractSource.class.getDeclaredField("kafkaSourceConfig");
+        kafkaSourceConfigField.setAccessible(true);
+        kafkaSourceConfigField.set(source, kafkaSourceConfig);
+
         Consumer consumer = mock(Consumer.class);
         Mockito.doThrow(new RuntimeException("Uncaught exception")).when(consumer)
                 .subscribe(Mockito.any(Collection.class));
@@ -168,16 +174,9 @@ public class KafkaAbstractSourceTest {
         Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
         consumerField.setAccessible(true);
         consumerField.set(source, consumer);
-
         source.start();
-
-        Field runningField = KafkaAbstractSource.class.getDeclaredField("running");
-        runningField.setAccessible(true);
-
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse((boolean) runningField.get(source));
-            Assert.assertNull(consumerField.get(source));
-        });
+        // will throw RuntimeException.
+        source.read();
     }
 
     private File getFile(String name) {
