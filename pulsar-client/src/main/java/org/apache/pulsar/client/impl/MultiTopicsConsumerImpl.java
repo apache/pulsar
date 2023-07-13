@@ -854,10 +854,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return stats;
     }
 
-    public UnAckedMessageTracker getUnAckedMessageTracker() {
-        return unAckedMessageTracker;
-    }
-
     private void removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
         Message<T> peek = incomingMessages.peek();
         if (peek != null) {
