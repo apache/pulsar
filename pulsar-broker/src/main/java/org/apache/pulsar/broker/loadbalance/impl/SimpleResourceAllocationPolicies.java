@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadReport;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -51,6 +52,20 @@ public class SimpleResourceAllocationPolicies {
             LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies", e);
             return Optional.empty();
         }
+    }
+
+    private CompletableFuture<Optional<NamespaceIsolationPolicies>> getIsolationPoliciesAsync(String clusterName) {
+        return this.pulsar.getPulsarResources().getNamespaceResources()
+                .getIsolationPolicies().getIsolationDataPoliciesAsync(clusterName);
+    }
+
+    public CompletableFuture<Boolean> areIsolationPoliciesPresentAsync(NamespaceName namespace) {
+        return getIsolationPoliciesAsync(pulsar.getConfiguration().getClusterName())
+                .thenApply(policies -> {
+                    return policies.filter(isolationPolicies ->
+                                    isolationPolicies.getPolicyByNamespace(namespace) != null)
+                            .isPresent();
+                });
     }
 
     public boolean areIsolationPoliciesPresent(NamespaceName namespace) {

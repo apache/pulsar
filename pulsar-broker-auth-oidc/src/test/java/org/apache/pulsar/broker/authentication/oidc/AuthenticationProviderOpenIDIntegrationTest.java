@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import com.google.common.io.Resources;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.io.Decoders;
@@ -69,6 +70,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     AuthenticationProviderOpenID provider;
     PrivateKey privateKey;
+    String caCert = Resources.getResource("certificate-authority/jks/broker.truststore.pem").getPath();
 
     // These are the kid values for JWKs in the /keys endpoint
     String validJwk = "valid";
@@ -89,7 +91,11 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         // Port matches the port supplied in the fakeKubeConfig.yaml resource, which makes the k8s integration
         // tests work correctly.
-        server = new WireMockServer(wireMockConfig().port(0));
+        server = new WireMockServer(wireMockConfig().dynamicHttpsPort()
+                .keystorePath(Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath())
+                .keystoreType("JKS")
+                .keyManagerPassword("111111")
+                .keystorePassword("111111"));
         server.start();
         issuer = server.baseUrl();
         issuerWithTrailingSlash = issuer + "/trailing-slash/";
@@ -235,7 +241,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer + "," + issuerWithTrailingSlash
                 + "," + issuerThatFails);
@@ -328,7 +334,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         // Allows us to retrieve the JWK immediately after the cache miss of the KID
         props.setProperty(AuthenticationProviderOpenID.KEY_ID_CACHE_MISS_REFRESH_SECONDS, "0");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
@@ -348,7 +354,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         // This value is high enough that the provider will not refresh the JWK
         props.setProperty(AuthenticationProviderOpenID.KEY_ID_CACHE_MISS_REFRESH_SECONDS, "100");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
@@ -375,7 +381,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         // Test requires that k8sIssuer is not in the allowed token issuers
@@ -409,7 +415,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
@@ -434,7 +440,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         // Test requires that k8sIssuer is not in the allowed token issuers
@@ -465,7 +471,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
@@ -527,7 +533,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         // Use the leeway to allow the token to pass validation and then fail expiration
@@ -557,7 +563,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName(),
                 AuthenticationProviderToken.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
 
@@ -602,7 +608,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "test");
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
         provider.initialize(config);
@@ -622,7 +628,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "test");
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
         provider.initialize(config);

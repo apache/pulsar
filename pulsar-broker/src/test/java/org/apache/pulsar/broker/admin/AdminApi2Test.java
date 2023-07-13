@@ -156,6 +156,36 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         setupClusters();
     }
 
+    @Test
+    public void testExceptionOfMaxTopicsPerNamespaceCanBeHanle() throws Exception {
+        super.internalCleanup();
+        conf.setMaxTopicsPerNamespace(3);
+        super.internalSetup();
+        String topic = "persistent://testTenant/ns1/test_create_topic_v";
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
+                Sets.newHashSet("test"));
+        // check producer/consumer auto create non-partitioned topic
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+
+        pulsarClient.newProducer().topic(topic + "1").create().close();
+        pulsarClient.newProducer().topic(topic + "2").create().close();
+        pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
+        try {
+            pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub")
+                    .subscribeAsync().get(5, TimeUnit.SECONDS);
+            Assert.fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // reset configuration
+        conf.setMaxTopicsPerNamespace(0);
+        conf.setDefaultNumPartitions(1);
+    }
+
     @Override
     protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration conf = super.getDefaultConf();
@@ -3303,5 +3333,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
         admin.namespaces().deleteNamespace(ns, true);
         Assert.assertFalse(admin.namespaces().getNamespaces(defaultTenant).contains(ns));
+    }
+
+    @Test
+    private void testSetBacklogQuotasNamespaceLevelIfRetentionExists() throws Exception {
+        final String ns = defaultTenant + "/ns-testSetBacklogQuotasNamespaceLevel";
+        final long backlogQuotaLimitSize = 100000002;
+        final int backlogQuotaLimitTime = 2;
+        admin.namespaces().createNamespace(ns, 2);
+        // create retention.
+        admin.namespaces().setRetention(ns, new RetentionPolicies(1800, 10000));
+        // set backlog quota.
+        admin.namespaces().setBacklogQuota(ns, BacklogQuota.builder()
+                .limitSize(backlogQuotaLimitSize).limitTime(backlogQuotaLimitTime).build());
+        // Verify result.
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> map = admin.namespaces().getBacklogQuotaMap(ns);
+        assertEquals(map.size(), 1);
+        assertTrue(map.containsKey(BacklogQuota.BacklogQuotaType.destination_storage));
+        BacklogQuota backlogQuota = map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        assertEquals(backlogQuota.getLimitSize(), backlogQuotaLimitSize);
+        assertEquals(backlogQuota.getLimitTime(), backlogQuotaLimitTime);
+        // cleanup.
+        admin.namespaces().deleteNamespace(ns);
     }
 }

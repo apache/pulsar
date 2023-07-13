@@ -6,6 +6,9 @@ RULES
 PROPOSAL HEALTH CHECK
 I can read the design document and understand the problem statement and what you plan to change *without* resorting to a couple of hours of code reading just to start having a high level understanding of the change.
 
+IMAGES
+If you need diagrams, avoid attaching large files. You can use [MermaidJS]([url](https://mermaid.js.org/)) as a simple language to describe many types of diagrams.
+
 THIS COMMENTS
 Please remove them when done.
 -->

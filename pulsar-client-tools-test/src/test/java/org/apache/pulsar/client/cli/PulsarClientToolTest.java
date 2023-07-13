@@ -20,8 +20,11 @@ package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.io.File;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
@@ -30,18 +33,24 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class PulsarClientToolTest extends BrokerTestBase {
@@ -393,6 +402,154 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
     private static String getTopicWithRandomSuffix(String localNameBase) {
         return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
+    }
+
+
+    @Test(timeOut = 20000)
+    public void testProducePartitioningKey() throws Exception {
+
+        Properties properties = initializeToolProperties();
+
+        final String topicName = getTopicWithRandomSuffix("key-topic");
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"produce", "-m", "test", "-k", "partition-key1", topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        final Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertTrue(message.hasKey());
+        Assert.assertEquals(message.getKey(), "partition-key1");
+    }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TestKey {
+        public String key_a;
+        public int key_b;
+
+    }
+
+    @Test
+    public void testProduceKeyValueSchemaInlineValue() throws Exception {
+
+        Properties properties = initializeToolProperties();
+
+        final String topicName = getTopicWithRandomSuffix("key-topic");
+
+
+        @Cleanup
+        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.JSON(
+                TestKey.class), Schema.STRING)).topic(topicName).subscriptionName("sub").subscribe();
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        final Schema<TestKey> keySchema = Schema.JSON(TestKey.class);
+
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"produce",
+                        "-kvet", "inline",
+                        "-ks", String.format("json:%s", keySchema.getSchemaInfo().getSchemaDefinition()),
+                        "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(new TestKey("my-key", Integer.MAX_VALUE)),
+                        "-vs", "string",
+                        "-m", "test",
+                        topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        final Message<KeyValue<TestKey, String>> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertFalse(message.hasKey());
+        Assert.assertEquals(message.getValue().getKey().key_a, "my-key");
+        Assert.assertEquals(message.getValue().getKey().key_b, Integer.MAX_VALUE);
+        Assert.assertEquals(message.getValue().getValue(), "test");
+    }
+
+    @DataProvider(name = "keyValueKeySchema")
+    public static Object[][] keyValueKeySchema() {
+        return new Object[][]{
+                {"json"},
+                {"avro"}
+        };
+    }
+
+    @Test(dataProvider = "keyValueKeySchema")
+    public void testProduceKeyValueSchemaFileValue(String schema) throws Exception {
+
+        Properties properties = initializeToolProperties();
+
+        final String topicName = getTopicWithRandomSuffix("key-topic");
+
+
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        File file = Files.createTempFile("", "").toFile();
+        final Schema<TestKey> keySchema;
+        if (schema.equals("json")) {
+           keySchema = Schema.JSON(TestKey.class);
+        } else if (schema.equals("avro")) {
+            keySchema = Schema.AVRO(TestKey.class);
+        } else {
+            throw new IllegalStateException();
+        }
+
+
+        Files.write(file.toPath(), keySchema.encode(new TestKey("my-key", Integer.MAX_VALUE)));
+
+        @Cleanup
+        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient.newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
+                .topic(topicName).subscriptionName("sub").subscribe();
+
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"produce",
+                        "-k", "partitioning-key",
+                        "-kvet", "inline",
+                        "-ks", String.format("%s:%s", schema, keySchema.getSchemaInfo().getSchemaDefinition()),
+                        "-kvkf", file.getAbsolutePath(),
+                        "-vs", "string",
+                        "-m", "test",
+                        topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        final Message<KeyValue<TestKey, String>> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        // -k should not be considered
+        assertFalse(message.hasKey());
+        Assert.assertEquals(message.getValue().getKey().key_a, "my-key");
+        Assert.assertEquals(message.getValue().getKey().key_b, Integer.MAX_VALUE);
+    }
+
+    private Properties initializeToolProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+        return properties;
     }
 
 }

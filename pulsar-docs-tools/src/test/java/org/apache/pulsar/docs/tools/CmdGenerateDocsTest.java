@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.docs.tools;
 
 import static org.testng.Assert.assertEquals;
 import com.beust.jcommander.Parameter;
@@ -86,8 +86,8 @@ public class CmdGenerateDocsTest {
                     + "\n"
                     + "|Flag|Description|Default|\n"
                     + "|---|---|---|\n"
-                    + "| `-n, --name` | Name|null|\n"
                     + "| `-h, --help` | Show this help message|false|\n"
+                    + "| `-n, --name` | Name|null|\n"
                     + System.lineSeparator();
             assertEquals(rightMsg, message);
         } finally {

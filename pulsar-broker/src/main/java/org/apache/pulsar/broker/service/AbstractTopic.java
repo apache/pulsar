@@ -1273,7 +1273,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         synchronized (topicPublishRateLimiterLock) {
             PublishRate publishRate = topicPolicies.getPublishRate().get();
             if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
-                log.info("Enabling publish rate limiting {} ", publishRate);
+                log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
                 if (!preciseTopicPublishRateLimitingEnable) {
                     this.brokerService.setupTopicPublishRateLimiterMonitor();
                 }

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -152,7 +152,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
         Queue queue = (Queue) taskQueueField.get(persistentWorker);
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(queue.size(), 0));
+        Awaitility.await().untilAsserted(() -> assertEquals(queue.size(), 0));
     }
 
     private void verifyAbortedTxnIDAndSegmentIndex(AbortedTxnProcessor processor, int begin, int txnIdSize)
@@ -170,8 +170,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         indexField.setAccessible(true);
         LinkedList<TxnID> unsealedSegment = (LinkedList<TxnID>) unsealedSegmentField.get(processor);
         LinkedMap<PositionImpl, TxnID> indexes = (LinkedMap<PositionImpl, TxnID>) indexField.get(processor);
-        Assert.assertEquals(unsealedSegment.size(), txnIdSize % SEGMENT_SIZE);
-        Assert.assertEquals(indexes.size(), txnIdSize / SEGMENT_SIZE);
+        assertEquals(unsealedSegment.size(), txnIdSize % SEGMENT_SIZE);
+        assertEquals(indexes.size(), txnIdSize / SEGMENT_SIZE);
     }
 
     // Verify the update index future can be completed when the queue has other tasks.
@@ -269,7 +269,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 segmentCount++;
             }
         }
-        Assert.assertEquals(segmentCount, size);
+        assertEquals(segmentCount, size);
     }
 
     private void verifySnapshotSegmentsIndexSize(String topic, int size) throws Exception {
@@ -286,7 +286,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
             }
             System.out.printf("message.getValue().getTopicName() :" + message.getValue().getTopicName());
         }
-        Assert.assertEquals(indexCount, size);
+        assertEquals(indexCount, size);
     }
 
     private void doCompaction(TopicName topic) throws Exception {

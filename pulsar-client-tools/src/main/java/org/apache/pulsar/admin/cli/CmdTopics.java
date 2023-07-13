@@ -23,6 +23,7 @@ import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -67,6 +69,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1001,7 +1004,7 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to reset position on", required = true)
+                "--subscription" }, description = "Name of subscription to be created", required = true)
         private String subscriptionName;
 
         @Parameter(names = { "-m" , "--messageId" }, description = "messageId where to create the subscription. "
@@ -2143,27 +2146,32 @@ public class CmdTopics extends CmdBase {
                 , description = "S3 role session name used for STSAssumeRoleSessionCredentialsProvider")
         private String s3RoleSessionName;
 
-        @Parameter(names = {"-m", "--maxBlockSizeInBytes"},
-                description = "ManagedLedger offload max block Size in bytes,"
-                + "s3 and google-cloud-storage requires this parameter")
-        private int maxBlockSizeInBytes;
+        @Parameter(
+                names = {"-m", "--maxBlockSizeInBytes", "--maxBlockSize", "-mbs"},
+                description = "Max block size (eg: 32M, 64M), default is 64MB"
+                + "s3 and google-cloud-storage requires this parameter",
+                required = false)
+        private String maxBlockSizeStr;
 
-        @Parameter(names = {"-rb", "--readBufferSizeInBytes"},
-                description = "ManagedLedger offload read buffer size in bytes,"
-                + "s3 and google-cloud-storage requires this parameter")
-        private int readBufferSizeInBytes;
+        @Parameter(
+                names = {"-rb", "--readBufferSizeInBytes", "--readBufferSize", "-rbs"},
+                description = "Read buffer size (eg: 1M, 5M), default is 1MB"
+                + "s3 and google-cloud-storage requires this parameter",
+                required = false)
+        private String readBufferSizeStr;
 
-        @Parameter(names = {"-t", "--offloadThresholdInBytes"}
-                , description = "ManagedLedger offload threshold in bytes", required = true)
-        private long offloadThresholdInBytes;
+        @Parameter(names = {"-t", "--offloadThresholdInBytes", "--offloadAfterThreshold", "-oat"}
+                , description = "Offload after threshold size (eg: 1M, 5M)", required = false)
+        private String offloadAfterThresholdStr;
 
-        @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
-                , description = "ManagedLedger offload threshold in seconds")
-        private Long offloadThresholdInSeconds;
+        @Parameter(names = {"-ts", "--offloadThresholdInSeconds", "--offloadAfterThresholdInSeconds", "-oats"},
+          description = "Offload after threshold seconds (or minutes,hours,days,weeks eg: 100m, 3h, 2d, 5w).")
+        private String offloadAfterThresholdInSecondsStr;
 
-        @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
-                , description = "ManagedLedger offload deletion lag in bytes")
-        private Long offloadDeletionLagInMillis;
+        @Parameter(names = {"-dl", "--offloadDeletionLagInMillis", "--offloadAfterElapsed", "-oae"}
+                , description = "Delay time in Millis for deleting the bookkeeper ledger after offload "
+          + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).")
+        private String offloadAfterElapsedStr;
 
         @Parameter(names = {"--offloadedReadPriority", "-orp"},
                 description = "Read priority for offloaded messages. "
@@ -2175,9 +2183,101 @@ public class CmdTopics extends CmdBase {
         )
         private String offloadReadPriorityStr;
 
+        public final List<String> driverNames = OffloadPoliciesImpl.DRIVER_NAMES;
+
+        public boolean driverSupported(String driver) {
+            return driverNames.stream().anyMatch(d -> d.equalsIgnoreCase(driver));
+        }
+
+        public boolean isS3Driver(String driver) {
+            if (StringUtils.isEmpty(driver)) {
+                return false;
+            }
+            return driver.equalsIgnoreCase(driverNames.get(0)) || driver.equalsIgnoreCase(driverNames.get(1));
+        }
+
+        public boolean positiveCheck(String paramName, long value) {
+            if (value <= 0) {
+                throw new ParameterException(paramName + " cannot be less than or equal to 0!");
+            }
+            return true;
+        }
+
+        public boolean maxValueCheck(String paramName, long value, long maxValue) {
+            if (value > maxValue) {
+                throw new ParameterException(paramName + " cannot be greater than " + maxValue + "!");
+            }
+            return true;
+        }
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
+
+            if (!driverSupported(driver)) {
+                throw new ParameterException(
+                  "The driver " + driver + " is not supported, "
+                    + "(Possible values: " + String.join(",", driverNames) + ").");
+            }
+            if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+                throw new ParameterException(
+                  "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                    + " if s3 offload enabled");
+            }
+
+            int maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
+                long maxBlockSize = validateSizeString(maxBlockSizeStr);
+                if (positiveCheck("MaxBlockSize", maxBlockSize)
+                  && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
+                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
+                }
+            }
+
+            int readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(readBufferSizeStr)) {
+                long readBufferSize = validateSizeString(readBufferSizeStr);
+                if (positiveCheck("ReadBufferSize", readBufferSize)
+                  && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
+                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
+                }
+            }
+
+            Long offloadAfterElapsedInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+            if (StringUtils.isNotEmpty(offloadAfterElapsedStr)) {
+                Long offloadAfterElapsed;
+                try {
+                    offloadAfterElapsed = TimeUnit.SECONDS.toMillis(
+                      RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
+                if (maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
+                    offloadAfterElapsedInMillis = offloadAfterElapsed;
+                }
+            }
+
+            Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
+                long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
+                if (maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                    offloadAfterThresholdInBytes = offloadAfterThreshold;
+                }
+            }
+
+            Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdInSecondsStr)) {
+                Long offloadThresholdInSeconds0;
+                try {
+                    offloadThresholdInSeconds0 = TimeUnit.SECONDS.toSeconds(
+                      RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterThresholdInSecondsStr.trim()));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
+                if (maxValueCheck("OffloadAfterThresholdInSeconds", offloadThresholdInSeconds0, Long.MAX_VALUE)) {
+                    offloadThresholdInSeconds = offloadThresholdInSeconds0;
+                }
+            }
 
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 
@@ -2193,12 +2293,11 @@ public class CmdTopics extends CmdBase {
                 }
             }
 
-            OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(driver, region, bucket, endpoint,
+            OffloadPolicies offloadPolicies = OffloadPoliciesImpl.create(driver, region, bucket, endpoint,
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
-                    maxBlockSizeInBytes,
-                    readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
-                    offloadDeletionLagInMillis, offloadedReadPriority);
+                    maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
+                    offloadThresholdInSeconds, offloadAfterElapsedInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
