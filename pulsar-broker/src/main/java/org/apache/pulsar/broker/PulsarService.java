@@ -348,7 +348,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
-        this.compactionServiceFactory = loadCompactionServiceFactory();
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
@@ -825,6 +824,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
+            if (this.compactionServiceFactory == null) {
+                this.compactionServiceFactory = loadCompactionServiceFactory();
+            }
 
             if (null != this.webSocketService) {
                 ClusterDataImpl clusterData = ClusterDataImpl.builder()
@@ -1925,7 +1927,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
-        CompactionServiceFactory compactionServiceFactory = this.getCompactionServiceFactory();
-        return compactionServiceFactory.newTopicCompactionService(topic);
+        try {
+            CompactionServiceFactory compactionServiceFactory = this.getCompactionServiceFactory();
+            return compactionServiceFactory.newTopicCompactionService(topic);
+        } catch (Throwable e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }

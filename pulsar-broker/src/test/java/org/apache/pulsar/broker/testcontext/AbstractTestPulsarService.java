@@ -38,7 +38,6 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  */
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
-    private boolean compactionServiceFactoryExists;
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
@@ -75,23 +74,6 @@ abstract class AbstractTestPulsarService extends PulsarService {
                     getLocalMetadataStore()::handleMetadataEvent);
         }
         return getLocalMetadataStore();
-    }
-
-    @Override
-    protected void setCompactionServiceFactory(CompactionServiceFactory compactionServiceFactory) {
-        if (compactionServiceFactory != null) {
-            compactionServiceFactoryExists = true;
-        }
-        super.setCompactionServiceFactory(compactionServiceFactory);
-    }
-
-    @Override
-    public CompactionServiceFactory getCompactionServiceFactory() {
-        if (compactionServiceFactory != null) {
-            return compactionServiceFactory;
-        } else {
-            return super.getCompactionServiceFactory();
-        }
     }
 
     @Override

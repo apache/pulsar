@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-@Beta
 @InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface TopicCompactionService extends AutoCloseable {
     /**
      * Compact the topic.

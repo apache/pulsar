@@ -24,7 +24,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.Consumer;
 
 public interface CompactedTopic {
@@ -34,7 +33,7 @@ public interface CompactedTopic {
     /**
      * Read entries from compacted topic.
      *
-     * @deprecated Use {@link AbstractBaseDispatcher#readCompactedEntries(TopicCompactionService, ManagedCursor,
+     * @deprecated Use {@link CompactedTopicUtils#readCompactedEntries(TopicCompactionService, ManagedCursor,
      * int, boolean, ReadEntriesCallback, Consumer)} instead.
      */
     @Deprecated
