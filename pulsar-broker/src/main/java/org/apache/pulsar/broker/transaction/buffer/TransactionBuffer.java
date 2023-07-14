@@ -182,6 +182,12 @@ public interface TransactionBuffer {
     TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats);
 
     /**
+     * Get transaction stats in buffer.
+     * @return the transaction stats in buffer.
+     */
+    TransactionBufferStats getStats(boolean lowWaterMarks);
+
+    /**
      * Wait TransactionBuffer Recovers completely.
      * Take snapshot after TB Recovers completely.
      * @param isTxn

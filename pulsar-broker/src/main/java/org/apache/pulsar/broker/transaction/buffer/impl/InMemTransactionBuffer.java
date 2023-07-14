@@ -391,6 +391,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+        return getStats(lowWaterMarks, false);
+    }
+
+
+    @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
     }

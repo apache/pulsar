@@ -535,6 +535,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+        return getStats(lowWaterMarks, false);
+    }
+
+    @Override
     public void run(Timeout timeout) {
         if (checkIfReady()) {
             synchronized (TopicTransactionBuffer.this) {

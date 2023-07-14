@@ -110,6 +110,11 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+        return null;
+    }
+
+    @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
     }
