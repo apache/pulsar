@@ -451,20 +451,18 @@ public abstract class TransactionsBase extends AdminResource {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
                         TopicName segmentTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-                        return getTxnSnapshotInternalStats(segmentTopic, metadata)
-                                .thenApply(snapshotSystemTopicInternalStats -> {
-                                    transactionBufferInternalStats.segmentInternalStats =
-                                            snapshotSystemTopicInternalStats;
+                        CompletableFuture<SnapshotSystemTopicInternalStats> segmentInternalStatsFuture =
+                                getTxnSnapshotInternalStats(segmentTopic, metadata);
+                        TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(),
+                                namespaceName,
+                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+                        CompletableFuture<SnapshotSystemTopicInternalStats> segmentIndexInternalStatsFuture =
+                                getTxnSnapshotInternalStats(indexTopic, metadata);
+                        segmentIndexInternalStatsFuture
+                                .thenCombine(segmentInternalStatsFuture, (indexStats, segmentStats) -> {
+                                    transactionBufferInternalStats.segmentIndexInternalStats = indexStats;
+                                    transactionBufferInternalStats.segmentInternalStats = segmentStats;
                                     return transactionBufferInternalStats;
-                                }).thenCompose(ignore -> {
-                                    TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(),
-                                            namespaceName,
-                                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-                                    return getTxnSnapshotInternalStats(indexTopic, metadata)
-                                            .thenApply(indexStats -> {
-                                                transactionBufferInternalStats.segmentIndexInternalStats = indexStats;
-                                                return transactionBufferInternalStats;
-                                            });
                                 });
                     } else if (snapshotType == AbortedTxnProcessor.SnapshotType.Single) {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
@@ -490,16 +488,14 @@ public abstract class TransactionsBase extends AdminResource {
         } catch (PulsarServerException e) {
             return FutureUtil.failedFuture(new RestException(e));
         }
-        NamespaceService ns = pulsar().getNamespaceService();
-        return ns.isServiceUnitOwnedAsync(topicName)
-                .thenCompose(isOwner -> admin.topics().getInternalStatsAsync(topicName.toString(), metadata)
+        return admin.topics().getInternalStatsAsync(topicName.toString(), metadata)
                         .thenApply(persistentTopicInternalStats -> {
                             SnapshotSystemTopicInternalStats
                                     snapshotSystemTopicInternalStats = new SnapshotSystemTopicInternalStats();
                             snapshotSystemTopicInternalStats.managedLedgerInternalStats = persistentTopicInternalStats;
                             snapshotSystemTopicInternalStats.managedLedgerName = topicName.getEncodedLocalName();
                             return snapshotSystemTopicInternalStats;
-                        }));
+                        });
     }
 
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
