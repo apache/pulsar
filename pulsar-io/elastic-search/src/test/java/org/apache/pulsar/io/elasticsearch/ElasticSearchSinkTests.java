@@ -220,7 +220,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-                return null;
+                return Optional.empty();
             }
         });
 
