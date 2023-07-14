@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy that unloads bundles from the highest loaded brokers.
- * This strategy is only configurable in the broker load balancer extenstions introduced by
+ * This strategy is only configurable in the broker load balancer extensions introduced by
  * PIP-192[https://github.com/apache/pulsar/issues/16691].
  *
  * This load shedding strategy has the following goals:

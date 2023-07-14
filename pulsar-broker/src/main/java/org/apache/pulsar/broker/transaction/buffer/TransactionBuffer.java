@@ -141,7 +141,7 @@ public interface TransactionBuffer {
     /**
      * Close the buffer asynchronously.
      * @param txnID {@link TxnID} txnId.
-     * @param readPosition the persitent position of the txn message.
+     * @param readPosition the persistent position of the txn message.
      * @return the txnId is aborted.
      */
     boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
