@@ -19,11 +19,12 @@
 package org.apache.pulsar.utils;
 
 import io.netty.buffer.ByteBuf;
-import java.util.Stack;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class StatsOutputStream extends SimpleTextOutputStream {
-    private final Stack<Boolean> separators = new Stack<>();
+    private final Deque<Boolean> separators = new ArrayDeque<>();
 
     public StatsOutputStream(ByteBuf buffer) {
         super(buffer);
@@ -124,7 +125,8 @@ public class StatsOutputStream extends SimpleTextOutputStream {
         } else if (separators.peek() == Boolean.TRUE) {
             write(",");
         } else {
-            separators.set(separators.size() - 1, Boolean.TRUE);
+            separators.pollLast();
+            separators.addLast(Boolean.TRUE);     
         }
     }
 }
