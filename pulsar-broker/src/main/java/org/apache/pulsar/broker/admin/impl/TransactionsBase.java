@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -442,11 +443,11 @@ public abstract class TransactionsBase extends AdminResource {
         TransactionBufferInternalStats transactionBufferInternalStats = new TransactionBufferInternalStats();
         return getExistingPersistentTopicAsync(authoritative)
                 .thenCompose(topic -> {
-                    TransactionBuffer.SnapshotType snapshotType = topic.getTransactionBuffer().getSnapshotType();
+                    AbortedTxnProcessor.SnapshotType snapshotType = topic.getTransactionBuffer().getSnapshotType();
                     if (snapshotType == null) {
                         return FutureUtil.failedFuture(new RestException(NOT_FOUND,
                                 "Transaction buffer Snapshot for the topic does not exist"));
-                    } else if (snapshotType == TransactionBuffer.SnapshotType.Segment) {
+                    } else if (snapshotType == AbortedTxnProcessor.SnapshotType.Segment) {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
                         TopicName segmentTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
@@ -465,7 +466,7 @@ public abstract class TransactionsBase extends AdminResource {
                                                 return transactionBufferInternalStats;
                                             });
                                 });
-                    } else if (snapshotType == TransactionBuffer.SnapshotType.Single) {
+                    } else if (snapshotType == AbortedTxnProcessor.SnapshotType.Single) {
                         transactionBufferInternalStats.snapshotType = snapshotType.toString();
                         TopicName singleSnapshotTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);

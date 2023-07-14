@@ -26,6 +26,11 @@ import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
 public interface AbortedTxnProcessor {
 
+    enum SnapshotType {
+        Single,
+        Segment,
+    }
+
     /**
      * After the transaction buffer writes a transaction aborted marker to the topic,
      * the transaction buffer will put the aborted txnID and the aborted marker position to AbortedTxnProcessor.

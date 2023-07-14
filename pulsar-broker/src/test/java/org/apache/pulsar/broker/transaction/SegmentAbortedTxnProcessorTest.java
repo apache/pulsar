@@ -302,7 +302,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         assertNotNull(statsWithoutSegmentStats);
         assertNotNull(statsWithoutSegmentStats.segmentsStats);
         assertNull(statsWithoutSegmentStats.segmentsStats.segmentStats);
-        assertEquals(statsWithoutSegmentStats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
+        assertEquals(statsWithoutSegmentStats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
 
         // Verify the segment stats
         assertEquals(statsWithoutSegmentStats.segmentsStats.segmentsSize, 1L);

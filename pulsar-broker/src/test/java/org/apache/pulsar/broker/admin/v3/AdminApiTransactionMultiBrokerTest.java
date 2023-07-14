@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Producer;
@@ -118,7 +119,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic1).create();
         TransactionBufferInternalStats stats = admin.transactions()
                 .getTransactionBufferInternalStatsAsync(topic1, true).get();
-        assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
+        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
         assertNull(stats.singleSnapshotSystemTopicInternalStats);
         assertNotNull(stats.segmentInternalStats);
         assertTrue(stats.segmentInternalStats.managedLedgerName

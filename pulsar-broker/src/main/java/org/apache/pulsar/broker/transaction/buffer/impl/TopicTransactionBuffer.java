@@ -101,7 +101,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final AbortedTxnProcessor snapshotAbortedTxnProcessor;
 
-    private final SnapshotType snapshotType;
+    private final AbortedTxnProcessor.SnapshotType snapshotType;
 
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
@@ -114,10 +114,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()) {
             snapshotAbortedTxnProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
-            snapshotType = SnapshotType.Segment;
+            snapshotType = AbortedTxnProcessor.SnapshotType.Segment;
         } else {
             snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
-            snapshotType = SnapshotType.Single;
+            snapshotType = AbortedTxnProcessor.SnapshotType.Single;
         }
         this.recover();
     }
@@ -494,7 +494,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public SnapshotType getSnapshotType() {
+    public AbortedTxnProcessor.SnapshotType getSnapshotType() {
         return snapshotType;
     }
 

@@ -51,11 +51,6 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 @Beta
 public interface TransactionBuffer {
 
-    enum SnapshotType {
-        Single,
-        Segment,
-    }
-
     /**
      * Return the metadata of a transaction in the buffer.
      *
@@ -172,7 +167,7 @@ public interface TransactionBuffer {
      *
      * @return the snapshot type
      */
-    SnapshotType getSnapshotType();
+    AbortedTxnProcessor.SnapshotType getSnapshotType();
 
     /**
      * Get transaction in buffer stats.

@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -620,7 +621,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         // Get transaction buffer internal stats and verify single snapshot stats
         TransactionBufferInternalStats stats = admin.transactions()
                 .getTransactionBufferInternalStatsAsync(topic2, true).get();
-        assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Single.toString());
+        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Single.toString());
         assertNotNull(stats.singleSnapshotSystemTopicInternalStats);
 
         // Get managed ledger internal stats for the transaction buffer snapshot topic
@@ -645,7 +646,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         // Get transaction buffer internal stats and verify segmented snapshot stats
         stats = admin.transactions().getTransactionBufferInternalStatsAsync(topic3, true).get();
-        assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
+        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
         assertNull(stats.singleSnapshotSystemTopicInternalStats);
         assertNotNull(stats.segmentInternalStats);
 

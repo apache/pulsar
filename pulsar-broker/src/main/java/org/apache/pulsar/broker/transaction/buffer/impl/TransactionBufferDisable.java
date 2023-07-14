@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -94,7 +95,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public SnapshotType getSnapshotType() {
+    public AbortedTxnProcessor.SnapshotType getSnapshotType() {
         return null;
     }
 
