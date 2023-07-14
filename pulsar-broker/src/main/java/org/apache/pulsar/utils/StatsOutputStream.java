@@ -126,7 +126,7 @@ public class StatsOutputStream extends SimpleTextOutputStream {
             write(",");
         } else {
             separators.pollLast();
-            separators.addLast(Boolean.TRUE);     
+            separators.addLast(Boolean.TRUE);
         }
     }
 }
