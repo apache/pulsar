@@ -23,6 +23,7 @@ import static java.util.concurrent.CompletableFuture.*;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.Sets;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -332,23 +334,14 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     }
 
     private @Nonnull CompletableFuture<TableView<PulsarEvent>> getOrInitViewAsync(@Nonnull NamespaceName ns) {
-        // Don't move listenerProcessor into lambada. because we rely on map lock to avoid race condition
-        // with registerListener method. :)
-        // See  if (viewFuture == null || !viewFuture.isDone() || viewFuture.isCompletedExceptionally()) {
-        final MutableBoolean updatedView = new MutableBoolean(false);
-        var viewFuture = views.computeIfAbsent(ns, (namespace) -> {
-            updatedView.setTrue();
-            return internalClient.get().newTableView(Schema.AVRO(PulsarEvent.class))
-                    .topic(getEventTopic(namespace))
-                    .createAsync();
-        });
-        if (updatedView.isFalse()) {
-            return viewFuture;
-        }
-        return viewFuture.thenApply(view -> {
-            view.forEachAndListen(this::listenerProcessor);
-            return view;
-        });
+        return views.computeIfAbsent(ns, (namespace) ->
+                internalClient.get().newTableView(Schema.AVRO(PulsarEvent.class))
+                        .topic(getEventTopic(namespace))
+                        .createAsync()
+                        .thenApply(view -> {
+                            view.forEachAndListen(this::listenerProcessor);
+                            return view;
+                        }));
     }
 
     private @Nonnull CompletableFuture<Producer<PulsarEvent>> getOrInitWriterAsync(@Nonnull NamespaceName ns) {
