@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
@@ -33,9 +35,6 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nonnull;
-
-import static java.util.concurrent.CompletableFuture.*;
 
 /**
  * Topic policies service.
