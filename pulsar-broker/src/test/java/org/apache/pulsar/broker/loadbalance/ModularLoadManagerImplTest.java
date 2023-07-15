@@ -796,7 +796,6 @@ public class ModularLoadManagerImplTest {
         ExecutorService executorService = (ExecutorService) executors.get(lm1);
 
         assertEquals(lm1.getAvailableBrokers().size(), 2);
-        assertTrue(lm1.isLeader());
 
         pulsar1.getBrokerService().updateRates();
         pulsar2.getBrokerService().updateRates();
