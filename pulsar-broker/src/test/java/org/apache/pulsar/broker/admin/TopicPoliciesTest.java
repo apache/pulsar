@@ -1296,7 +1296,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // check inactive topic policies and retention policies.
         Awaitility.await()
-                .atMost(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
                     ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();

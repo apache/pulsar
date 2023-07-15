@@ -19,11 +19,9 @@
 package org.apache.pulsar.broker.service.policies;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.CompletableFuture.*;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,10 +33,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.Sets;
-import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -100,7 +96,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
             return failedFuture(new NullPointerException());
         }
         final var ns = topicName.getNamespaceObject();
-        if (NamespaceService.isHeartbeatNamespace(ns)) {
+        if (NamespaceService.isHeartbeatNamespace(ns) || SystemTopicNames.isSystemTopic(topicName)) {
             return completedFuture(null);
         }
         final CompletableFuture<Void> updateFuture = getOrInitWriterAsync(ns)
@@ -149,7 +145,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     @Override
     public @Nullable TopicPolicies getTopicPoliciesIfExists(@Nonnull TopicName topicName) {
         requireNonNull(topicName);
-        var policiesFuture = getTopicPoliciesAsync(topicName);
+        final var policiesFuture = getTopicPoliciesAsync(topicName, false);
         if (!policiesFuture.isDone() || policiesFuture.isCompletedExceptionally()) {
             return null;
         }
@@ -159,19 +155,12 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     @Override
     public @Nullable TopicPolicies getTopicPolicies(@Nonnull TopicName topicName, boolean isGlobal)
             throws BrokerServiceException.TopicPoliciesCacheNotInitException {
-        final var policiesFuture = getTopicPoliciesAsync(topicName);
+        final var policiesFuture = getTopicPoliciesAsync(topicName, isGlobal);
         // using retry to implement async-like logic
         if (!policiesFuture.isDone() || policiesFuture.isCompletedExceptionally()) {
             throw new BrokerServiceException.TopicPoliciesCacheNotInitException();
         }
-        var topicPolicies = policiesFuture.join().orElse(null);
-        if (topicPolicies == null) {
-            return null;
-        }
-        if (topicPolicies.isGlobalPolicies() != isGlobal) {
-            return null;
-        }
-        return topicPolicies;
+        return policiesFuture.join().orElse(null);
     }
 
     @Override
@@ -179,27 +168,33 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
         if (topicName == null) {
             return failedFuture(new NullPointerException());
         }
-        return getTopicPoliciesAsync(topicName)
+        return getTopicPoliciesAsync(topicName, false)
                 .thenApply(topicPolicies -> topicPolicies.orElse(null));
     }
 
 
-    private @Nonnull CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName) {
-        var ns = topicName.getNamespaceObject();
-        if (NamespaceService.isHeartbeatNamespace(ns)) {
+    @Override
+    public @Nonnull CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName,
+                                                                                      boolean isGlobal) {
+        final var ns = topicName.getNamespaceObject();
+        if (NamespaceService.isHeartbeatNamespace(ns) || SystemTopicNames.isSystemTopic(topicName)) {
             return completedFuture(Optional.empty());
         }
-        var viewFuture = getOrInitViewAsync(ns);
+        final var viewFuture = getOrInitViewAsync(ns);
         final CompletableFuture<Optional<TopicPolicies>> policiesFuture = viewFuture.thenApply(view -> {
-            var event = view.get(topicName.getPartitionedTopicName());
+            final var event = view.get(topicName.getPartitionedTopicName());
             if (event == null || event.getEventType() != EventType.TOPIC_POLICY) {
                 return Optional.empty();
             }
-            var topicPoliciesEvent = event.getTopicPoliciesEvent();
-            if (topicPoliciesEvent == null) {
+            final var topicPoliciesEvent = event.getTopicPoliciesEvent();
+            final TopicPolicies policies;
+            if (topicPoliciesEvent == null || (policies = topicPoliciesEvent.getPolicies()) == null) {
                 return Optional.empty();
             }
-            return Optional.ofNullable(topicPoliciesEvent.getPolicies());
+            if (policies.isGlobalPolicies() != isGlobal) {
+                return Optional.empty();
+            }
+            return Optional.of(policies);
         });
         policiesFuture.exceptionally(ex -> {
             cleanupView(ns).exceptionally(innerEx -> {
