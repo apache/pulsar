@@ -27,7 +27,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -133,7 +132,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             throw new IllegalArgumentException("Unable to instantiate Kafka consumer", ex);
         }
         this.start();
-        running = true;
     }
 
     protected Properties beforeCreateConsumer(Properties props) {
@@ -158,47 +156,36 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     @SuppressWarnings("unchecked")
     public void start() {
+        LOG.info("Starting subscribe kafka source on {}", kafkaSourceConfig.getTopic());
+        consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
         runnerThread = new Thread(() -> {
-            LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
-            consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
-                CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
-                int index = 0;
-                for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
-                    KafkaRecord record = buildRecord(consumerRecord);
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                try {
+                    ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
+                    CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
+                    int index = 0;
+                    for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
+                        KafkaRecord record = buildRecord(consumerRecord);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                        }
+                        consume(record);
+                        futures[index] = record.getCompletableFuture();
+                        index++;
                     }
-                    consume(record);
-                    futures[index] = record.getCompletableFuture();
-                    index++;
-                }
-                if (!kafkaSourceConfig.isAutoCommitEnabled()) {
-                    try {
+                    if (!kafkaSourceConfig.isAutoCommitEnabled()) {
                         CompletableFuture.allOf(futures).get();
                         consumer.commitSync();
-                    } catch (InterruptedException ex) {
-                        break;
-                    } catch (ExecutionException ex) {
-                        LOG.error("Error while processing records", ex);
-                        break;
                     }
+                } catch (Exception e) {
+                    LOG.error("Error while processing records", e);
+                    notifyError(e);
+                    break;
                 }
             }
         });
-        runnerThread.setUncaughtExceptionHandler(
-                (t, e) -> {
-                    new Thread(() -> {
-                        LOG.error("[{}] Error while consuming records", t.getName(), e);
-                        try {
-                            this.close();
-                        } catch (Exception ex) {
-                            LOG.error("[{}] Close kafka source error", t.getName(), e);
-                        }
-                    }, "Kafka Source Close Task Thread").start();
-                });
+        running = true;
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
     }

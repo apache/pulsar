@@ -18,22 +18,26 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.functions.api.Record;
+import java.util.Map;
+import org.testng.annotations.Test;
 
-/**
- * Pulsar's Batch Push Source interface. Batch Push Sources have the same lifecycle
- * as the regular BatchSource, aka discover, prepare. The reason its called Push is
- * because BatchPushSource can emit a record using the consume method that they
- * invoke whenever they have data to be published to Pulsar.
- */
-@InterfaceAudience.Public
-@InterfaceStability.Evolving
-public abstract class BatchPushSource<T> extends AbstractPushSource<T> implements BatchSource<T> {
+public class PushSourceTest {
+
+  PushSource testBatchSource = new PushSource() {
+    @Override
+    public void open(Map config, SourceContext context) throws Exception {
+
+    }
 
     @Override
-    public Record<T> readNext() throws Exception {
-        return super.readNext();
+    public void close() throws Exception {
+
     }
+  };
+
+  @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "test exception")
+  public void testNotifyErrors() throws Exception {
+    testBatchSource.notifyError(new RuntimeException("test exception"));
+    testBatchSource.readNext();
+  }
 }

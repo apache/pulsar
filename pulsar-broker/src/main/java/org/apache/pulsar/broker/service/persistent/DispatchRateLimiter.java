@@ -192,8 +192,8 @@ public class DispatchRateLimiter {
         if (type == Type.BROKER) {
             log.info("configured broker message-dispatch rate {}", dispatchRate);
         } else {
-            log.info("[{}] configured {} message-dispatch rate at broker {}",
-                this.topicName, type, dispatchRate);
+            log.info("[{}] configured {} message-dispatch rate at broker {} subscriptionName [{}]",
+                    this.topicName, type, subscriptionName == null ? "null" : subscriptionName, dispatchRate);
         }
         updateDispatchRate(dispatchRate);
     }

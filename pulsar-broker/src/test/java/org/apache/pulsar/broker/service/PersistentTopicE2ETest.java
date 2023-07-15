@@ -1499,7 +1499,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
         Metrics metric = null;
 
-        // sleep 1 sec to caclulate metrics per second
+        // sleep 1 sec to calculate metrics per second
         Thread.sleep(1000);
         brokerService.updateRates();
         List<Metrics> metrics = brokerService.getTopicMetrics();

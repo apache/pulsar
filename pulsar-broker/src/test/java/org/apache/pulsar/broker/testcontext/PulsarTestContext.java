@@ -83,7 +83,7 @@ import org.mockito.internal.util.MockUtil;
  * There are few motivations for PulsarTestContext:
  * <ul>
  * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the behavior of some
- * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issuess: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
+ * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
  * <li>Since the Mockito issue causes test flakiness, this change will improve reliability.</li>
  * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
  * deep test base cases hierarchies.</li>
