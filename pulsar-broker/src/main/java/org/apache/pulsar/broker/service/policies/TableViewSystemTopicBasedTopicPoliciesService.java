@@ -1,12 +1,40 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.broker.service.policies;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
-import com.google.common.collect.Lists;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.Sets;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -27,22 +55,14 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Topic policies service based on system topic with table view.
  */
 @Slf4j
 public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
-    private final PulsarClient internalClient;
+    private final ScheduledExecutorService asyncExecutor;
+    private final Supplier<PulsarClient> internalClient;
     private final NamespaceService namespaceService;
     // todo support key filter view to reduce memory cost
     private final Map<NamespaceName, CompletableFuture<TableView<PulsarEvent>>> views;
@@ -50,15 +70,21 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     private final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners;
     private final String localCluster;
 
-    public TableViewSystemTopicBasedTopicPoliciesService(@Nonnull PulsarService pulsarService)
-            throws PulsarServerException {
+    public TableViewSystemTopicBasedTopicPoliciesService(@Nonnull PulsarService pulsarService) {
         requireNonNull(pulsarService);
-        this.internalClient = pulsarService.getClient();
+        this.internalClient = () -> {
+            try {
+                return pulsarService.getClient();
+            } catch (Throwable ex) {
+                throw new RuntimeException(ex);
+            }
+        };
         this.namespaceService = pulsarService.getNamespaceService();
         this.views = new ConcurrentHashMap<>();
         this.writers = new ConcurrentHashMap<>();
         this.listeners = new ConcurrentHashMap<>();
         this.localCluster = pulsarService.getConfiguration().getClusterName();
+        this.asyncExecutor = pulsarService.getExecutor();
     }
 
     @Override
@@ -73,6 +99,9 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
             return failedFuture(new NullPointerException());
         }
         final var ns = topicName.getNamespaceObject();
+        if (NamespaceService.isHeartbeatNamespace(ns)) {
+            return completedFuture(null);
+        }
         final CompletableFuture<Void> updateFuture = getOrInitWriterAsync(ns)
                 .thenCompose(writer -> {
                     final var key = topicName.getPartitionedTopicName();
@@ -112,7 +141,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
         requireNonNull(topicName);
         final var policiesFuture = getTopicPoliciesAsync(topicName);
         // using retry to implement async-like logic
-        if (!policiesFuture.isDone() && policiesFuture.isCompletedExceptionally()) {
+        if (!policiesFuture.isDone() || policiesFuture.isCompletedExceptionally()) {
             throw new BrokerServiceException.TopicPoliciesCacheNotInitException();
         }
         return policiesFuture.join().orElse(null);
@@ -122,7 +151,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     public @Nullable TopicPolicies getTopicPoliciesIfExists(@Nonnull TopicName topicName) {
         requireNonNull(topicName);
         var policiesFuture = getTopicPoliciesAsync(topicName);
-        if (!policiesFuture.isDone() && policiesFuture.isCompletedExceptionally()) {
+        if (!policiesFuture.isDone() || policiesFuture.isCompletedExceptionally()) {
             return null;
         }
         return policiesFuture.join().orElse(null);
@@ -151,8 +180,11 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     }
 
 
-    private @NotNull CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName) {
+    private @Nonnull CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName) {
         var ns = topicName.getNamespaceObject();
+        if (NamespaceService.isHeartbeatNamespace(ns)) {
+            return completedFuture(Optional.empty());
+        }
         var viewFuture = getOrInitViewAsync(ns);
         final CompletableFuture<Optional<TopicPolicies>> policiesFuture = viewFuture.thenApply(view -> {
             var event = view.get(topicName.getPartitionedTopicName());
@@ -178,6 +210,10 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
             return failedFuture(new NullPointerException());
         }
         final var ns = bundle.getNamespaceObject();
+
+        if (NamespaceService.isHeartbeatNamespace(ns)) {
+            return completedFuture(null);
+        }
         return getOrInitViewAsync(ns).thenApply(__ -> null);
     }
 
@@ -191,7 +227,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
                         // don't need to clean up view
                         return completedFuture(null);
                     }
-                    final List<CompletableFuture<Void>> container = Lists.newArrayListWithCapacity(2);
+                    final List<CompletableFuture<Void>> container = new ArrayList<>(2);
                     container.add(cleanupView(ns));
                     container.add(cleanupWriter(ns));
                     return FutureUtil.waitForAll(container);
@@ -204,18 +240,23 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
                 new NamespaceBundleOwnershipListener() {
                     @Override
                     public void onLoad(NamespaceBundle bundle) {
-                        addOwnedNamespaceBundleAsync(bundle)
+                        // switch thread to avoid deadlock causing topic load timeout
+                        supplyAsync(() -> null)
+                                .thenComposeAsync(__ -> addOwnedNamespaceBundleAsync(bundle), asyncExecutor)
                                 .exceptionally(ex -> {
                                     log.warn("Exception occur while trying init "
                                                     + "topic policies by namespace onload event. namespace: {}",
                                             bundle.getNamespaceObject(), ex);
                                     return null;
                                 });
+
                     }
 
                     @Override
                     public void unLoad(NamespaceBundle bundle) {
-                        removeOwnedNamespaceBundleAsync(bundle)
+                        // switch thread to avoid deadlock causing topic load timeout
+                        supplyAsync(() -> null)
+                                .thenComposeAsync(__ -> removeOwnedNamespaceBundleAsync(bundle), asyncExecutor)
                                 .exceptionally(ex -> {
                                     log.warn("Exception occur while trying cleanup "
                                                     + "topic policies by namespace unloading event. namespace: {}",
@@ -253,11 +294,14 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
 
     private @Nonnull CompletableFuture<Void> cleanupView(@Nonnull NamespaceName ns) {
         final var viewFuture = views.remove(ns);
+        if (viewFuture == null) {
+            return completedFuture(null);
+        }
         if (!viewFuture.isDone()) {
             viewFuture.cancel(true);
             return completedFuture(null);
         }
-        if (!viewFuture.isCompletedExceptionally()) {
+        if (viewFuture.isCompletedExceptionally()) {
             // don't need to close the resource of view
             return completedFuture(null);
         }
@@ -267,11 +311,14 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
 
     private @Nonnull CompletableFuture<Void> cleanupWriter(@Nonnull NamespaceName ns) {
         final var writerFuture = writers.remove(ns);
+        if (writerFuture == null) {
+            return completedFuture(null);
+        }
         if (!writerFuture.isDone()) {
             writerFuture.cancel(true);
             return completedFuture(null);
         }
-        if (!writerFuture.isCompletedExceptionally()) {
+        if (writerFuture.isCompletedExceptionally()) {
             // don't need to close the resource of writer
             return completedFuture(null);
         }
@@ -280,15 +327,21 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     }
 
     private @Nonnull CompletableFuture<TableView<PulsarEvent>> getOrInitViewAsync(@Nonnull NamespaceName ns) {
-        return views.computeIfAbsent(ns, (namespace) -> internalClient.newTableView(Schema.AVRO(PulsarEvent.class))
-                .topic(getEventTopic(namespace))
-                .createAsync())
+        return views.computeIfAbsent(ns, (namespace) -> internalClient.get().newTableView(Schema.AVRO(PulsarEvent.class))
+                        .topic(getEventTopic(namespace))
+                        .createAsync())
                 .thenApply(view -> {
                     view.forEachAndListen(this::listenerProcessor);
                     return view;
                 });
     }
 
+    private @Nonnull CompletableFuture<Producer<PulsarEvent>> getOrInitWriterAsync(@Nonnull NamespaceName ns) {
+        return writers.computeIfAbsent(ns, (namespace) -> internalClient.get().newProducer(Schema.AVRO(PulsarEvent.class))
+                .topic(getEventTopic(namespace))
+                .enableBatching(false)
+                .createAsync());
+    }
 
     private void listenerProcessor(@Nonnull String key, @Nullable PulsarEvent event) {
 
@@ -311,8 +364,8 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
                     listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
                 } catch (Throwable ex) {
                     // avoid listener affect all of listeners
-                    log.warn("Error occur while trying callback listener. event_key: {}," +
-                                    " event: {} listener :{}", key, event, listener.toString());
+                    log.warn("Error occur while trying callback listener. event_key: {},"
+                            + " event: {} listener :{}", key, event, listener.toString());
                 }
             });
         } catch (Throwable ex) {
@@ -322,14 +375,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
         }
     }
 
-    private @Nonnull CompletableFuture<Producer<PulsarEvent>> getOrInitWriterAsync(@Nonnull NamespaceName ns) {
-        return writers.computeIfAbsent(ns, (namespace) -> internalClient.newProducer(Schema.AVRO(PulsarEvent.class))
-                .topic(getEventTopic(namespace))
-                .enableBatching(false)
-                .createAsync());
-    }
-
     private static @Nonnull String getEventTopic(@Nonnull NamespaceName namespace) {
-        return "persistent://" + namespace + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        return "persistent://" + namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
     }
 }
