@@ -104,6 +104,7 @@ import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
+import org.apache.pulsar.broker.service.policies.TableViewSystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -840,7 +841,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Start topic level policies service
             if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
-                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
+                this.topicPoliciesService = new TableViewSystemTopicBasedTopicPoliciesService(this);
             }
 
             this.topicPoliciesService.start();
