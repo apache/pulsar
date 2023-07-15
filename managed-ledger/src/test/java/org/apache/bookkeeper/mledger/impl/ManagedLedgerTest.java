@@ -2878,6 +2878,96 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void onlyTrimCursorAfterLazyRecoverFinished() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(10);
+        managedLedgerConfig.setRetentionTime(0, TimeUnit.SECONDS);
+
+        // set for cursor to store state in ledger.
+        managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(3);
+
+        String ledgerName = "testLedgerLazyRecover";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
+
+        String cursorNamePrefix = "testCursor_";
+
+        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor(cursorNamePrefix + 1);
+        ManagedCursorImpl cursor2 = (ManagedCursorImpl) ledger.openCursor(cursorNamePrefix + 2);
+
+        int entryNumber = 30;
+        List<Position> entryPositions = new ArrayList<>(entryNumber);
+
+        for (int i = 0; i < entryNumber; i++) {
+            entryPositions.add(ledger.addEntry("entry-1".getBytes()));
+        }
+
+        for (ManagedCursorImpl cursor : Set.of(cursor1, cursor2)) {
+            // read all data
+            List<Entry> entries = cursor.readEntries(entryNumber);
+            entries.forEach(Entry::release);
+
+            // ack some record.
+            cursor.delete(List.of(
+                    entryPositions.get(0), entryPositions.get(entryNumber / 4),
+                    entryPositions.get(entryNumber / 2),
+                    entryPositions.get(entryNumber * 3 / 4), entryPositions.get(entryNumber - 1))
+            );
+
+            assertEquals(entryPositions.get(0), cursor.getMarkDeletedPosition());
+
+            // trigger cursor persist state.
+            cursor.flush();
+        }
+
+        Position cursor2MarkDeletedPosition = cursor2.getMarkDeletedPosition();
+        long cursor2LedgerId = cursor2.getCursorLedger();
+
+        ledger.close();
+
+
+        // add delay when recover from ledger
+        bkc.readEntryDelay(cursor2LedgerId, 1, TimeUnit.HOURS);
+
+        managedLedgerConfig.setLazyCursorRecovery(true);
+        ManagedLedgerImpl reOpenedLedger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
+
+        int totalLedgerNumber = reOpenedLedger.ledgers.size();
+        ManagedCursorImpl reOpnedCursor1 = (ManagedCursorImpl)
+                reOpenedLedger.openCursor(cursorNamePrefix + 1);
+
+        reOpnedCursor1.markDelete(entryPositions.get(entryPositions.size() - 1));
+
+        CompletableFuture<Void> trimCf = new CompletableFuture<>();
+        reOpenedLedger.trimConsumedLedgersInBackground(trimCf);
+
+        try {
+            trimCf.get();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.CursorRecoveryInProgressException);
+        }
+
+        int totalLedgerNumberAfterTrim = reOpenedLedger.ledgers.size();
+
+        // the ledger should not be trimmed
+        assertEquals(totalLedgerNumberAfterTrim, totalLedgerNumber);
+
+        reOpenedLedger.close();
+
+        managedLedgerConfig.setLazyCursorRecovery(true);
+        ManagedLedgerImpl reOpenedLedgerSecondTime = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
+        ManagedCursorImpl reOpenedCursor2SecondTime =
+                (ManagedCursorImpl) reOpenedLedgerSecondTime.openCursor(cursorNamePrefix + 2);
+
+        assertEquals(cursor2MarkDeletedPosition, reOpenedCursor2SecondTime.getMarkDeletedPosition());
+
+        Thread.sleep(1000);
+        long lazyRecoveryInProcess = ManagedLedgerImpl.LAZY_RECOVERY_IN_PROCESS.get(reOpenedLedgerSecondTime);
+
+        // normal after recovery finished this variable should be zero.
+        assertEquals(lazyRecoveryInProcess, 0);
+    }
+
+    @Test
     public void testConcurrentOpenCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testConcurrentOpenCursor");
 
