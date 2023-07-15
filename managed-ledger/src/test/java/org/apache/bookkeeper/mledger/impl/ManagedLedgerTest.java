@@ -2907,10 +2907,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             entries.forEach(Entry::release);
 
             // ack some record.
+            // 0, 1/4 pos, 1/2 pos, 3/4 pos, last pos
             cursor.delete(List.of(
-                    entryPositions.get(0), entryPositions.get(entryNumber / 4),
+                    entryPositions.get(0),
+                    entryPositions.get(entryNumber / 4),
                     entryPositions.get(entryNumber / 2),
-                    entryPositions.get(entryNumber * 3 / 4), entryPositions.get(entryNumber - 1))
+                    entryPositions.get(entryNumber * 3 / 4),
+                    entryPositions.get(entryNumber - 1))
             );
 
             assertEquals(entryPositions.get(0), cursor.getMarkDeletedPosition());
@@ -2924,10 +2927,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.close();
 
+        // prepare finished.
 
-        // add delay when recover from ledger
+        // add delay when recover from ledger, to mock one of the cursor recover is slow
         bkc.readEntryDelay(cursor2LedgerId, 1, TimeUnit.HOURS);
 
+
+        // use lazy recovery and open ledger again.
+        // cursor2 should not finish recover.
         managedLedgerConfig.setLazyCursorRecovery(true);
         ManagedLedgerImpl reOpenedLedger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
 
@@ -2935,14 +2942,17 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl reOpnedCursor1 = (ManagedCursorImpl)
                 reOpenedLedger.openCursor(cursorNamePrefix + 1);
 
+        // before cursor2 recover finished cursor1 move markDelete pos
         reOpnedCursor1.markDelete(entryPositions.get(entryPositions.size() - 1));
 
+        // trigger ml trim
         CompletableFuture<Void> trimCf = new CompletableFuture<>();
         reOpenedLedger.trimConsumedLedgersInBackground(trimCf);
 
         try {
             trimCf.get();
         } catch (Exception e) {
+            // trim should fail with exception
             assertTrue(e.getCause() instanceof ManagedLedgerException.CursorRecoveryInProgressException);
         }
 
@@ -2953,6 +2963,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         reOpenedLedger.close();
 
+        // check LAZY_RECOVERY_IN_PROCESS will become 0 when recover finished.
         managedLedgerConfig.setLazyCursorRecovery(true);
         ManagedLedgerImpl reOpenedLedgerSecondTime = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
         ManagedCursorImpl reOpenedCursor2SecondTime =
