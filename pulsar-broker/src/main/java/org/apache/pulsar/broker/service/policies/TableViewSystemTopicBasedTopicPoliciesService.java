@@ -128,7 +128,10 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
                 }).thenApply(__ -> null);
         updateFuture.exceptionally(ex -> {
             // auto-recovery
-            cleanupWriter(ns);
+            cleanupWriter(ns).exceptionally(innerEx -> {
+                log.warn("Exception occur while trying auto-cleanup bad status writer. namespace: {}", ns, ex);
+                return null;
+            });
             return null;
         });
         return updateFuture;
@@ -197,7 +200,10 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
             return Optional.ofNullable(topicPoliciesEvent.getPolicies());
         });
         policiesFuture.exceptionally(ex -> {
-            cleanupView(ns);
+            cleanupView(ns).exceptionally(innerEx -> {
+                log.warn("Exception occur while trying auto-cleanup bad status view. namespace: {}", ns, ex);
+                return null;
+            });
             return Optional.empty();
         });
         return policiesFuture;
@@ -275,28 +281,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     public void registerListener(@Nonnull TopicName topicName, @Nonnull TopicPolicyListener<TopicPolicies> listener) {
         requireNonNull(topicName);
         requireNonNull(listener);
-        var listenerList = listeners.computeIfAbsent(topicName, (tp) -> new CopyOnWriteArrayList<>());
-        listenerList.add(listener);
-        //  synchronize listener list by topic name to avoid ABA problems with the existing callback.
-        var viewFuture = views.get(topicName.getNamespaceObject());
-        if (viewFuture == null || !viewFuture.isDone() || viewFuture.isCompletedExceptionally()) {
-            // we don't need compensation measures
-            return;
-        }
-        var view = viewFuture.join();
-        synchronized (listenerList) {
-            var event = view.get(topicName.getPartitionedTopicName());
-            if (event == null || event.getTopicPoliciesEvent() == null) {
-                return;
-            }
-            try {
-                listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
-            } catch (Throwable ex) {
-                // avoid listener affect topic creation
-                log.warn("Error occur while trying callback listener. event_key: {},"
-                        + " event: {} listener :{}", topicName.getPartitionedTopicName(), event, listener);
-            }
-        }
+        listeners.computeIfAbsent(topicName, (tp) -> new CopyOnWriteArrayList<>()).add(listener);
     }
 
     @Override
@@ -388,17 +373,15 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
             if (listenerList == null || listenerList.isEmpty()) {
                 return;
             }
-            synchronized (listenerList) {
-                listenerList.forEach(listener -> {
-                    try {
-                        listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
-                    } catch (Throwable ex) {
-                        // avoid listener affect all of listeners
-                        log.warn("Error occur while trying callback listener. event_key: {},"
-                                + " event: {} listener :{}", key, event, listener.toString());
-                    }
-                });
-            }
+            listenerList.forEach(listener -> {
+                try {
+                    listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
+                } catch (Throwable ex) {
+                    // avoid listener affect all of listeners
+                    log.warn("Error occur while trying callback listener. event_key: {},"
+                            + " event: {} listener :{}", key, event, listener.toString());
+                }
+            });
         } catch (Throwable ex) {
             // avoid listener affect broker
             log.warn("Error occur while trying callback listener. event_key: {}, event: {}",
