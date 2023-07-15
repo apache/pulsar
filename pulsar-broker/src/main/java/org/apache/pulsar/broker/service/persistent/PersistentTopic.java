@@ -294,7 +294,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .build();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        registerTopicPolicyListener();
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -333,6 +332,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             shadowSourceTopic = null;
         }
+        registerTopicPolicyListener();
     }
 
     @Override

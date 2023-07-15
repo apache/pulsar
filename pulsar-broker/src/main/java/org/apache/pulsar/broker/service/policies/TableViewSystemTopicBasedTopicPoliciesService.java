@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.policies;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.CompletableFuture.*;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
@@ -35,6 +36,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.Sets;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -56,9 +58,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 
-/**
- * Topic policies service based on system topic with table view.
- */
 @Slf4j
 public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
     private final ScheduledExecutorService asyncExecutor;
@@ -276,7 +275,28 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     public void registerListener(@Nonnull TopicName topicName, @Nonnull TopicPolicyListener<TopicPolicies> listener) {
         requireNonNull(topicName);
         requireNonNull(listener);
-        listeners.computeIfAbsent(topicName, (tp) -> new CopyOnWriteArrayList<>()).add(listener);
+        var listenerList = listeners.computeIfAbsent(topicName, (tp) -> new CopyOnWriteArrayList<>());
+        listenerList.add(listener);
+        //  synchronize listener list by topic name to avoid ABA problems with the existing callback.
+        var viewFuture = views.get(topicName.getNamespaceObject());
+        if (viewFuture == null || !viewFuture.isDone() || viewFuture.isCompletedExceptionally()) {
+            // we don't need compensation measures
+            return;
+        }
+        var view = viewFuture.join();
+        synchronized (listenerList) {
+            var event = view.get(topicName.getPartitionedTopicName());
+            if (event == null || event.getTopicPoliciesEvent() == null) {
+                return;
+            }
+            try {
+                listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
+            } catch (Throwable ex) {
+                // avoid listener affect topic creation
+                log.warn("Error occur while trying callback listener. event_key: {},"
+                        + " event: {} listener :{}", topicName.getPartitionedTopicName(), event, listener);
+            }
+        }
     }
 
     @Override
@@ -327,14 +347,23 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     }
 
     private @Nonnull CompletableFuture<TableView<PulsarEvent>> getOrInitViewAsync(@Nonnull NamespaceName ns) {
-        return views.computeIfAbsent(ns, (namespace) -> internalClient.get().newTableView(Schema.AVRO(PulsarEvent.class))
-                .topic(getEventTopic(namespace))
-                .createAsync()
-                .thenApply(view -> {
-                    view.forEachAndListen(this::listenerProcessor);
-                    return view;
-                }));
-
+        // Don't move listenerProcessor into lambada. because we rely on map lock to avoid race condition
+        // with registerListener method. :)
+        // See  if (viewFuture == null || !viewFuture.isDone() || viewFuture.isCompletedExceptionally()) {
+        final MutableBoolean updatedView = new MutableBoolean(false);
+        var viewFuture = views.computeIfAbsent(ns, (namespace) -> {
+            updatedView.setTrue();
+            return internalClient.get().newTableView(Schema.AVRO(PulsarEvent.class))
+                    .topic(getEventTopic(namespace))
+                    .createAsync();
+        });
+        if (updatedView.isFalse()) {
+            return viewFuture;
+        }
+        return viewFuture.thenApply(view -> {
+            view.forEachAndListen(this::listenerProcessor);
+            return view;
+        });
     }
 
     private @Nonnull CompletableFuture<Producer<PulsarEvent>> getOrInitWriterAsync(@Nonnull NamespaceName ns) {
@@ -345,7 +374,6 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     }
 
     private void listenerProcessor(@Nonnull String key, @Nullable PulsarEvent event) {
-
         // Note: Table view will call this method internally, If there are performance problem, we can try
         //       moving the listener out of table view then use multi thread to invoke callback.
         try {
@@ -360,15 +388,17 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
             if (listenerList == null || listenerList.isEmpty()) {
                 return;
             }
-            listenerList.forEach(listener -> {
-                try {
-                    listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
-                } catch (Throwable ex) {
-                    // avoid listener affect all of listeners
-                    log.warn("Error occur while trying callback listener. event_key: {},"
-                            + " event: {} listener :{}", key, event, listener.toString());
-                }
-            });
+            synchronized (listenerList) {
+                listenerList.forEach(listener -> {
+                    try {
+                        listener.onUpdate(event.getTopicPoliciesEvent().getPolicies());
+                    } catch (Throwable ex) {
+                        // avoid listener affect all of listeners
+                        log.warn("Error occur while trying callback listener. event_key: {},"
+                                + " event: {} listener :{}", key, event, listener.toString());
+                    }
+                });
+            }
         } catch (Throwable ex) {
             // avoid listener affect broker
             log.warn("Error occur while trying callback listener. event_key: {}, event: {}",
