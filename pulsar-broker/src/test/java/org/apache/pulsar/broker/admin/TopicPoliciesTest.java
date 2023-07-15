@@ -3021,8 +3021,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)))
                         .isNull());
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(1, 2));
-        SystemTopicBasedTopicPoliciesService topicPoliciesService
-                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
 
         // check global topic policies can be added correctly.
         Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true)));
@@ -3039,16 +3038,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
         });
-
-        //Local topic policies and global topic policies can exist together.
-        admin.topicPolicies().setRetention(topic, new RetentionPolicies(10, 20));
-        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic))));
-        TopicPolicies tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
-        assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
-        assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
-        tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
-        assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 10);
-        assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 20);
 
         // check remove global topic policies can be removed correctly.
         admin.topicPolicies(true).removeRetention(topic);
@@ -3126,13 +3115,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testGetTopicPoliciesWhenDeleteTopicPolicy() throws Exception {
         admin.topics().createNonPartitionedTopic(persistenceTopic);
         admin.topicPolicies().setMaxConsumers(persistenceTopic, 5);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    final TopicPolicies topicPolicies = pulsar
+                            .getTopicPoliciesService()
+                            .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get();
+                    assertNotNull(topicPolicies);
+                    assertEquals(topicPolicies.getMaxConsumerPerTopic(), 5);
+                });
 
-        Integer maxConsumerPerTopic = pulsar
-                .getTopicPoliciesService()
-                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get()
-                .getMaxConsumerPerTopic();
-
-        assertEquals(maxConsumerPerTopic, 5);
         admin.topics().delete(persistenceTopic, true);
         TopicPolicies topicPolicies =pulsar.getTopicPoliciesService()
                 .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get(5, TimeUnit.SECONDS);

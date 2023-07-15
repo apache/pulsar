@@ -143,12 +143,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     public @Nullable TopicPolicies getTopicPolicies(@Nonnull TopicName topicName)
             throws BrokerServiceException.TopicPoliciesCacheNotInitException {
         requireNonNull(topicName);
-        final var policiesFuture = getTopicPoliciesAsync(topicName);
-        // using retry to implement async-like logic
-        if (!policiesFuture.isDone() || policiesFuture.isCompletedExceptionally()) {
-            throw new BrokerServiceException.TopicPoliciesCacheNotInitException();
-        }
-        return policiesFuture.join().orElse(null);
+        return getTopicPolicies(topicName, false);
     }
 
     @Override
@@ -164,7 +159,12 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     @Override
     public @Nullable TopicPolicies getTopicPolicies(@Nonnull TopicName topicName, boolean isGlobal)
             throws BrokerServiceException.TopicPoliciesCacheNotInitException {
-        var topicPolicies = getTopicPolicies(topicName);
+        final var policiesFuture = getTopicPoliciesAsync(topicName);
+        // using retry to implement async-like logic
+        if (!policiesFuture.isDone() || policiesFuture.isCompletedExceptionally()) {
+            throw new BrokerServiceException.TopicPoliciesCacheNotInitException();
+        }
+        var topicPolicies = policiesFuture.join().orElse(null);
         if (topicPolicies == null) {
             return null;
         }

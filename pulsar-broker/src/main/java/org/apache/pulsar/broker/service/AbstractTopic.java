@@ -1367,4 +1367,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         return Optional.empty();
     }
+
+    protected CompletableFuture<Void> initTopicPolicy() {
+        if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
+                && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return CompletableFuture.runAsync(() -> onUpdate(
+                            brokerService.getPulsar().getTopicPoliciesService()
+                                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
+                    brokerService.getTopicOrderedExecutor());
+        }
+        return CompletableFuture.completedFuture(null);
+    }
 }

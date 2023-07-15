@@ -3508,17 +3508,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return FutureUtil.waitForAll(subscriptionCheckFutures);
     }
 
-    protected CompletableFuture<Void> initTopicPolicy() {
-        if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
-                && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
-                            brokerService.getPulsar().getTopicPoliciesService()
-                                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
-                    brokerService.getTopicOrderedExecutor());
-        }
-        return CompletableFuture.completedFuture(null);
-    }
-
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {
         return messageDeduplication;
