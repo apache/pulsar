@@ -304,6 +304,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata, encryptedPayload);
 
+        if (log.isInfoEnabled()) {
+            log.info("[{}] [{}] Build batch msg seq:{}, highest-seq:{}, numMessagesInBatch: {}, uncompressedSize: {},"
+                            + " payloadSize: {}", topicName, producerName, messageMetadata.getSequenceId(),
+                    messageMetadata.getNumMessagesInBatch(), messageMetadata.getHighestSequenceId(),
+                    messageMetadata.getUncompressedSize(), encryptedPayload.readableBytes());
+        }
+
         OpSendMsg op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), firstCallback, batchAllocatedSizeBytes);
 
@@ -311,6 +318,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         op.setBatchSizeByte(currentBatchSizeBytes);
         lowestSequenceId = -1L;
         return op;
+    }
+
+    @Override
+    public void updateProducerName() {
+        if (producer.getProducerName() != null && !producer.getProducerName().equals(producerName)) {
+            this.producerName = producer.getProducerName();
+        }
     }
 
     protected void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {

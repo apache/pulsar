@@ -100,6 +100,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -117,6 +118,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -3824,6 +3826,28 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertNull(consumer2.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS));
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+
+    @Test(timeOut = 100000)
+    public void testVariableProducerNameOfBatchContainerNonNull() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(true)
+            .create();
+
+        BatchMessageContainer batchMessageContainer = WhiteboxImpl.getInternalState(producer, "batchMessageContainer");
+        String variableProducerNameOfBatchContainer =
+                WhiteboxImpl.getInternalState(batchMessageContainer, "producerName");
+        assertEquals(producer.getProducerName(), variableProducerNameOfBatchContainer);
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
     }
 
     @Test(timeOut = 100000, dataProvider = "variationsForExpectedPos")
