@@ -19,13 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -65,7 +65,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Verify there has one item in the attribute "publishers" or "replications"
         TopicStats topicStats2 = admin2.topics().getStats(topicName);
-        Assert.assertTrue(topicStats2.getPublishers().size() + topicStats2.getReplication().size() > 0);
+        assertTrue(topicStats2.getPublishers().size() + topicStats2.getReplication().size() > 0);
 
         // cleanup.
         consumer2.close();

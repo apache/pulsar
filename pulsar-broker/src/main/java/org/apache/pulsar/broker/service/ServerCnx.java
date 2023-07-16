@@ -1160,7 +1160,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, getPrincipal());
                 }
 
-                log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+                log.info("[{}] Subscribing on topic {} / {}. consumerId: {}", this.ctx().channel().toString(),
+                        topicName, subscriptionName, consumerId);
                 try {
                     Metadata.validateMetadata(metadata,
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
@@ -1191,7 +1192,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 "Consumer that failed is already present on the connection");
                     } else {
                         Consumer consumer = existingConsumerFuture.getNow(null);
-                        log.info("[{}] Consumer with the same id is already created:"
+                        log.warn("[{}] Consumer with the same id is already created:"
                                         + " consumerId={}, consumer={}",
                                 remoteAddress, consumerId, consumer);
                         commandSender.sendSuccessResponse(requestId);
@@ -1613,7 +1614,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             producers.remove(producerId, producerFuture);
-        }).exceptionally(ex -> {
+        }).exceptionallyAsync(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                 Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar());
                 if (clusterURL.isPresent()) {
@@ -1654,7 +1655,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
             }
             return null;
-        });
+        }, ctx.executor());
 
         producerQueuedFuture.thenRun(() -> {
             // If the producer is queued waiting, we will get an immediate notification
@@ -1783,6 +1784,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 return null;
             });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Consumer future is not complete(not complete or error), but received command ack. so discard"
+                                + " this command. consumerId: {}, cnx: {}, messageIdCount: {}", ack.getConsumerId(),
+                        this.ctx().channel().toString(), ack.getMessageIdsCount());
+            }
         }
     }
 
@@ -2733,7 +2740,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                     return;
                 }
-                // we only accept super user becase this endpoint is reserved for tc to broker communication
+                // we only accept super user because this endpoint is reserved for tc to broker communication
                 isSuperUser()
                         .thenCompose(isOwner -> {
                             if (!isOwner) {
@@ -2933,6 +2940,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void closeProducer(Producer producer) {
+        assert ctx.executor().inEventLoop();
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
