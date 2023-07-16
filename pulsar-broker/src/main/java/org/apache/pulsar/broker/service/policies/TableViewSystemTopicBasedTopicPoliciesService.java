@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.Sets;
 import org.apache.pulsar.broker.PulsarService;
@@ -175,7 +177,7 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
 
     @Override
     public @Nonnull CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName,
-                                                                                      boolean isGlobal) {
+                                                                                     boolean isGlobal) {
         final var ns = topicName.getNamespaceObject();
         if (NamespaceService.isHeartbeatNamespace(ns) || SystemTopicNames.isSystemTopic(topicName)) {
             return completedFuture(Optional.empty());
@@ -340,10 +342,11 @@ public class TableViewSystemTopicBasedTopicPoliciesService implements TopicPolic
     }
 
     private @Nonnull CompletableFuture<Producer<PulsarEvent>> getOrInitWriterAsync(@Nonnull NamespaceName ns) {
-        return writers.computeIfAbsent(ns, (namespace) -> internalClient.get().newProducer(Schema.AVRO(PulsarEvent.class))
-                .topic(getEventTopic(namespace))
-                .enableBatching(false)
-                .createAsync());
+        return writers.computeIfAbsent(ns, (namespace) ->
+                internalClient.get().newProducer(Schema.AVRO(PulsarEvent.class))
+                        .topic(getEventTopic(namespace))
+                        .enableBatching(false)
+                        .createAsync());
     }
 
     private void listenerProcessor(@Nonnull String key, @Nullable PulsarEvent event) {
