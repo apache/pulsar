@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.client.admin.internal.BaseResource.getApiException;
 import com.beust.jcommander.DefaultUsageFormatter;
 import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
@@ -26,10 +27,15 @@ import com.beust.jcommander.ParameterException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public abstract class CmdBase {
     protected final JCommander jcommander;
@@ -124,6 +130,28 @@ public abstract class CmdBase {
         return admin;
     }
 
+    protected long getReadTimeoutMs() {
+        PulsarAdmin pulsarAdmin = getAdmin();
+        if (pulsarAdmin instanceof PulsarAdminImpl) {
+            return ((PulsarAdminImpl) pulsarAdmin).getClientConfigData().getReadTimeoutMs();
+        }
+        return 60000;
+    }
+
+    protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
+        try {
+            return executor.get().get(getReadTimeoutMs(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        } catch (ExecutionException e) {
+            throw PulsarAdminException.wrap(getApiException(e.getCause()));
+        } catch (Exception e) {
+            throw PulsarAdminException.wrap(getApiException(e));
+        }
+    }
 
     static Map<String, String> parseListKeyValueMap(List<String> metadata) {
         Map<String, String> map = null;

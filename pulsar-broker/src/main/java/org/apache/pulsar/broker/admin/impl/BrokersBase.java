@@ -548,21 +548,22 @@ public class BrokersBase extends AdminResource {
             @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
             @Suspended final AsyncResponse asyncResponse
     ) {
-        validateSuperUserAccessAsync()
-                .thenCompose(__ -> doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic))
-                .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
-                    asyncResponse.resume(Response.noContent().build());
-                })
+        validateSuperUserAccess();
+        CompletableFuture.runAsync(
+                        () -> doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
+                                .thenAccept(__ -> {
+                                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                                    asyncResponse.resume(Response.noContent().build());
+                                }))
                 .exceptionally(ex -> {
                     LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+        asyncResponse.resume(Response.noContent().build());
     }
 
     private CompletableFuture<Void> doShutDownBrokerGracefullyAsync(int maxConcurrentUnloadPerSec,
-                                            boolean forcedTerminateTopic) {
+                                                                    boolean forcedTerminateTopic) {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
         return pulsar().closeAsync();
     }
