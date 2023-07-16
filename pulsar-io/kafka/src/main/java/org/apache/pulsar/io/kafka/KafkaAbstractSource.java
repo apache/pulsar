@@ -27,7 +27,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -45,7 +44,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +51,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
-public abstract class KafkaAbstractSource<V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<V> extends KafkaPushSource<V> {
     public static final String HEADER_KAFKA_TOPIC_KEY = "__kafka_topic";
     public static final String HEADER_KAFKA_PTN_KEY = "__kafka_partition";
     public static final String HEADER_KAFKA_OFFSET_KEY = "__kafka_offset";
@@ -133,7 +131,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             throw new IllegalArgumentException("Unable to instantiate Kafka consumer", ex);
         }
         this.start();
-        running = true;
     }
 
     protected Properties beforeCreateConsumer(Properties props) {
@@ -158,47 +155,36 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     @SuppressWarnings("unchecked")
     public void start() {
+        LOG.info("Starting subscribe kafka source on {}", kafkaSourceConfig.getTopic());
+        consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
         runnerThread = new Thread(() -> {
-            LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
-            consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
-                CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
-                int index = 0;
-                for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
-                    KafkaRecord record = buildRecord(consumerRecord);
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                try {
+                    ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
+                    CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
+                    int index = 0;
+                    for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
+                        KafkaRecord record = buildRecord(consumerRecord);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                        }
+                        consume(record);
+                        futures[index] = record.getCompletableFuture();
+                        index++;
                     }
-                    consume(record);
-                    futures[index] = record.getCompletableFuture();
-                    index++;
-                }
-                if (!kafkaSourceConfig.isAutoCommitEnabled()) {
-                    try {
+                    if (!kafkaSourceConfig.isAutoCommitEnabled()) {
                         CompletableFuture.allOf(futures).get();
                         consumer.commitSync();
-                    } catch (InterruptedException ex) {
-                        break;
-                    } catch (ExecutionException ex) {
-                        LOG.error("Error while processing records", ex);
-                        break;
                     }
+                } catch (Exception e) {
+                    LOG.error("Error while processing records", e);
+                    notifyError(e);
+                    break;
                 }
             }
         });
-        runnerThread.setUncaughtExceptionHandler(
-                (t, e) -> {
-                    new Thread(() -> {
-                        LOG.error("[{}] Error while consuming records", t.getName(), e);
-                        try {
-                            this.close();
-                        } catch (Exception ex) {
-                            LOG.error("[{}] Close kafka source error", t.getName(), e);
-                        }
-                    }, "Kafka Source Close Task Thread").start();
-                });
+        running = true;
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
     }
