@@ -116,7 +116,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 brokerService, replicationClient);
         this.topic = localTopic;
         this.cursor = cursor;
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopicName,
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
                 Codec.decode(cursor.getName()), cursor, null);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
@@ -624,8 +624,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void initializeDispatchRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiterLock) {
             if (!dispatchRateLimiter.isPresent()
-                && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
+                    && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
+                this.dispatchRateLimiter = Optional.of(
+                        new DispatchRateLimiter(topic, Codec.decode(cursor.getName()), Type.REPLICATOR));
             }
         }
     }

@@ -22,8 +22,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.ShutdownUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 
 /**
  * A starter to start function worker.

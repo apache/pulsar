@@ -483,7 +483,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             boolean replicated, Map<String, String> subscriptionProperties) {
         Objects.requireNonNull(compactedTopic);
         if (isCompactionSubscription(subscriptionName)) {
-            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
+            return new PulsarCompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
             return new PersistentSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties);
         }
