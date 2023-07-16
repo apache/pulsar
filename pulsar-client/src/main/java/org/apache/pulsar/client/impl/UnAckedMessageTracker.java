@@ -192,7 +192,7 @@ public class UnAckedMessageTracker implements Closeable {
         if (messageId == null) {
             return false;
         }
-        messageId = MessageIdAdvUtils.discardBatch(messageId);
+
         writeLock.lock();
         try {
             HashSet<MessageId> partition = timePartitions.peekLast();
@@ -224,7 +224,7 @@ public class UnAckedMessageTracker implements Closeable {
         if (messageId == null) {
             return false;
         }
-        messageId = MessageIdAdvUtils.discardBatch(messageId);
+
         writeLock.lock();
         try {
             boolean removed = false;
