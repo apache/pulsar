@@ -514,7 +514,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
-        // 2. Create consumer, this should success, but with empty sub-consumser internal
+        // 2. Create consumer, this should success, but with empty sub-consumer internal
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
             .patternAutoDiscoveryPeriod(2)

@@ -106,6 +106,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.awaitility.Awaitility;
@@ -267,11 +268,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
+            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
+                                                                           ServiceUnitId serviceUnit,
+                                                                           LoadManagerContext context) {
                 brokers.remove(pulsar1.getLookupServiceAddress());
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
 
         })).when(primaryLoadManager).getBrokerFilterPipeline();
@@ -288,11 +289,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
         doReturn(List.of(new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                brokers.clear();
-                throw new BrokerFilterException("Test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
+                                                                           ServiceUnitId serviceUnit,
+                                                                           LoadManagerContext context) {
+                brokers.remove(brokers.keySet().iterator().next());
+                return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
@@ -531,19 +532,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
         doReturn(List.of(new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
+            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
+                                                                           ServiceUnitId serviceUnit,
+                                                                           LoadManagerContext context) {
                 brokers.remove(lookupServiceAddress1);
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
         },new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                brokers.clear();
-                throw new BrokerFilterException("Test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
+                                                                           ServiceUnitId serviceUnit,
+                                                                           LoadManagerContext context) {
+                return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
@@ -964,7 +964,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setLoadBalancerDebugModeEnabled(true);
+        defaultConf.setTopicLevelPoliciesEnabled(false);
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
             ExtensibleLoadManagerImpl ternaryLoadManager = spy((ExtensibleLoadManagerImpl)
@@ -1005,7 +1008,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30 * 1000)
     public void testListTopic() throws Exception {
         final String namespace = "public/testListTopic";
-        admin.namespaces().createNamespace(namespace, 3);
+        admin.namespaces().createNamespace(namespace, 9);
 
         final String persistentTopicName = TopicName.get(
                 "persistent", NamespaceName.get(namespace),
@@ -1014,8 +1017,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         final String nonPersistentTopicName = TopicName.get(
                 "non-persistent", NamespaceName.get(namespace),
                 "get_topics_mode_" + UUID.randomUUID()).toString();
-        admin.topics().createPartitionedTopic(persistentTopicName, 3);
-        admin.topics().createPartitionedTopic(nonPersistentTopicName, 3);
+        admin.topics().createPartitionedTopic(persistentTopicName, 9);
+        admin.topics().createPartitionedTopic(nonPersistentTopicName, 9);
         pulsarClient.newProducer().topic(persistentTopicName).create().close();
         pulsarClient.newProducer().topic(nonPersistentTopicName).create().close();
 
@@ -1033,10 +1036,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertFalse(TopicName.get(s).isPersistent());
             }
         }
-        assertEquals(topicNum, 3);
+        assertEquals(topicNum, 9);
 
         List<String> list = admin.topics().getList(namespace);
-        assertEquals(list.size(), 6);
+        assertEquals(list.size(), 18);
         admin.namespaces().deleteNamespace(namespace, true);
     }
 

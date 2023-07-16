@@ -25,7 +25,6 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -2322,14 +2321,14 @@ public class CmdNamespaces extends CmdBase {
 
         public boolean positiveCheck(String paramName, long value) {
             if (value <= 0) {
-                throw new ParameterException(paramName + " is not be negative or 0!");
+                throw new ParameterException(paramName + " cannot be less than or equal to 0!");
             }
             return true;
         }
 
         public boolean maxValueCheck(String paramName, long value, long maxValue) {
             if (value > maxValue) {
-                throw new ParameterException(paramName + " is not bigger than " + maxValue + "!");
+                throw new ParameterException(paramName + " cannot be greater than " + maxValue + "!");
             }
             return true;
         }
@@ -2559,8 +2558,9 @@ public class CmdNamespaces extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String namespace = validateNamespace(params);
-            Json.prettyPrint(getAdmin().namespaces().getProperties(namespace));
+            final String namespace = validateNamespace(params);
+            final Map<String, String> properties = getAdmin().namespaces().getProperties(namespace);
+            prettyPrint(properties);
         }
     }
 
