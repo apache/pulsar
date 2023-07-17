@@ -412,7 +412,20 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
      *
      * @throws IllegalArgumentException exist illegal property.
      */
-    public void checkPropertiesIfPresent() throws IllegalArgumentException {
+     public void checkPropertiesIfPresent() throws IllegalArgumentException {
+        boolean hasServiceUrl = getServiceUrl() != null;
+        boolean hasServiceUrlTls = getServiceUrlTls() != null;
+        boolean hasBrokerServiceUrl = getBrokerServiceUrl() != null;
+        boolean hasBrokerServiceUrlTls = getBrokerServiceUrlTls() != null;
+
+        if (!hasServiceUrl && !hasServiceUrlTls) {
+                throw new IllegalArgumentException("Atleast one of ServiceUrl or ServiceUrlTls must be set.");
+        }
+
+        if (!hasBrokerServiceUrl && !hasBrokerServiceUrlTls) {
+                throw new IllegalArgumentException("Atleast one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
+        }
+             
         URIPreconditions.checkURIIfPresent(getServiceUrl(),
                 uri -> Objects.equals(uri.getScheme(), "http"),
                 "Illegal service url, example: http://pulsar.example.com:8080");
@@ -430,20 +443,5 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                         || Objects.equals(uri.getScheme(), "pulsar+ssl"),
                 "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
                         + "or pulsar://ats-proxy.example.com:4080");
-
-        warnIfUrlIsNotPresent();
-    }
-
-    private void warnIfUrlIsNotPresent() {
-        if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
-            log.warn("Service url not found, "
-                    + "please provide either service url, example: http://pulsar.example.com:8080 "
-                    + "or service tls url, example: https://pulsar.example.com:8443");
-        }
-        if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
-            log.warn("Broker service url not found, "
-                    + "please provide either broker service url, example: pulsar://pulsar.example.com:6650 "
-                    + "or broker service tls url, example: pulsar+ssl://pulsar.example.com:6651.");
-        }
     }
 }
