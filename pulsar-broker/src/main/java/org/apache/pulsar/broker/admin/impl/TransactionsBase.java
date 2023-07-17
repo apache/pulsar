@@ -456,7 +456,7 @@ public abstract class TransactionsBase extends AdminResource {
                                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
                         CompletableFuture<SnapshotSystemTopicInternalStats> segmentIndexInternalStatsFuture =
                                 getTxnSnapshotInternalStats(indexTopic, metadata);
-                        segmentIndexInternalStatsFuture
+                        return segmentIndexInternalStatsFuture
                                 .thenCombine(segmentInternalStatsFuture, (indexStats, segmentStats) -> {
                                     transactionBufferInternalStats.segmentIndexInternalStats = indexStats;
                                     transactionBufferInternalStats.segmentInternalStats = segmentStats;
