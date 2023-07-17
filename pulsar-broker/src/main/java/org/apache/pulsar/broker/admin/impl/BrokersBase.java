@@ -552,6 +552,7 @@ public class BrokersBase extends AdminResource {
         doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                    asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
             LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
