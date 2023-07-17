@@ -23,7 +23,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -62,14 +61,6 @@ public class InjectedErrorProducerConsumerTest extends ProducerConsumerBase {
         return BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
     }
 
-    private void sneakySleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private void sneakyAwait(CountDownLatch countDownLatch) {
         try {
             countDownLatch.await();
@@ -91,7 +82,6 @@ public class InjectedErrorProducerConsumerTest extends ProducerConsumerBase {
         PersistentSubscription subscription = persistentTopic.getSubscription(subscribe);
         InjectedSubscription injectedSubscription = new InjectedSubscription(persistentTopic, subscription);
         injectedSubscription.spySubscription();
-        injectedSubscription.spyDispatcher();
         return injectedSubscription;
     }
 
@@ -126,18 +116,6 @@ public class InjectedErrorProducerConsumerTest extends ProducerConsumerBase {
                     }
                 });
             }).when(spySubscription).addConsumer(any(org.apache.pulsar.broker.service.Consumer.class));
-        }
-
-        private boolean spyDispatcher() throws Exception {
-            dispatcher = subscription.getDispatcher();
-            if (dispatcher == null) {
-                return false;
-            }
-            spyDispatcher = spy(dispatcher);
-            Field fieldDispatcher = PersistentSubscription.class.getDeclaredField("dispatcher");
-            fieldDispatcher.setAccessible(true);
-            fieldDispatcher.set(subscription, spyDispatcher);
-            return true;
         }
 
         private CountDownLatch injectSubscribeControl(int times) {

@@ -827,7 +827,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         synchronized (this) {
             setClientCnx(cnx);
             final SchemaInfo finalSi = si;
-            askBrokerClearPreviousConsumer(cnx).thenCompose(ignore -> {
+            sendCloseConsumerCommand(cnx).thenCompose(ignore -> {
                 long requestId = client.newRequestId();
                 ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                         priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
@@ -882,7 +882,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // in case it was indeed created, otherwise it might prevent new create consumer operation,
                     // since we are not necessarily closing the connection.
                     if (e.getCause() instanceof PulsarClientException.TimeoutException) {
-                        askBrokerClearPreviousConsumer(cnx);
+                        sendCloseConsumerCommand(cnx);
                     }
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
@@ -918,7 +918,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return future;
     }
 
-    protected CompletableFuture<ProducerResponse> askBrokerClearPreviousConsumer(ClientCnx cnx) {
+    private CompletableFuture<ProducerResponse> sendCloseConsumerCommand(ClientCnx cnx) {
         long closeRequestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
         return cnx.sendRequestWithId(cmd, closeRequestId);
