@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -107,6 +108,12 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     @Override
     public TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
+        return this;
+    }
+
+    @Override
+    public TableViewBuilder<T> keyFilter(Predicate<String> filter) {
+        conf.setKeyFilter(filter);
         return this;
     }
 }

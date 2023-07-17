@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -137,4 +139,12 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
+
+    /**
+     * Sets the key filter, which performs a given filter on each new message
+     * will filter out all matching values.
+     *
+     * @param filter The filter to be performed for each new message
+     */
+    TableViewBuilder<T> keyFilter(Predicate<String> filter);
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Serializable;
+import java.util.function.Predicate;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -36,6 +37,7 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
 
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    private Predicate<String> keyFilter = null;
 
     @Override
     public TableViewConfigurationData clone() {

@@ -438,4 +438,31 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         });
         verify(consumer, times(msgCnt)).receiveAsync();
     }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTableViewKeyFilter() throws Exception {
+        String topic = "persistent://public/default/tableview-key-filter";
+        admin.topics().createNonPartitionedTopic(topic);
+
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().key("event_topic").value("value" + i).send();
+        }
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().key("event_namespace").value("value" + i).send();
+        }
+
+        @Cleanup
+        TableView<String> tv = pulsarClient.newTableView(Schema.STRING)
+                .topic(topic)
+                .keyFilter(key -> !key.startsWith("event_topic"))
+                .create();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(tv.get("event_topic"), "value4"));
+        Awaitility.await().untilAsserted(() -> Assert.assertNull(tv.get("event_namespace")));
+    }
+
 }

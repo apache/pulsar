@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
@@ -57,6 +58,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private final List<BiConsumer<String, T>> listeners;
     private final ReentrantLock listenersMutex;
     private final boolean isPersistentTopic;
+    private final Predicate<String> keyFilter;
     private TopicCompactionStrategy<T> compactionStrategy;
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
@@ -86,6 +88,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
         readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
 
+        this.keyFilter = conf.getKeyFilter();
         this.reader = readerBuilder.createAsync();
     }
 
@@ -179,76 +182,81 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private void handleMessage(Message<T> msg) {
-        try {
-            if (msg.hasKey()) {
-                String key = msg.getKey();
-                T cur = msg.size() > 0 ? msg.getValue() : null;
-                if (log.isDebugEnabled()) {
-                    log.debug("Applying message from topic {}. key={} value={}",
+        if (msg.hasKey()) {
+            String key = msg.getKey();
+            T cur = msg.size() > 0 ? msg.getValue() : null;
+            if (log.isDebugEnabled()) {
+                log.debug("Applying message from topic {}. key={} value={}",
+                        conf.getTopicName(),
+                        key,
+                        cur);
+            }
+
+            boolean update = true;
+            if (compactionStrategy != null) {
+                T prev = data.get(key);
+                update = !compactionStrategy.shouldKeepLeft(prev, cur);
+                if (!update) {
+                    log.info("Skipped the message from topic {}. key={} value={} prev={}",
                             conf.getTopicName(),
                             key,
-                            cur);
-                }
-
-                boolean update = true;
-                if (compactionStrategy != null) {
-                    T prev = data.get(key);
-                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
-                    if (!update) {
-                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
-                                conf.getTopicName(),
-                                key,
-                                cur,
-                                prev);
-                        compactionStrategy.handleSkippedMessage(key, cur);
-                    }
-                }
-
-                if (update) {
-                    try {
-                        listenersMutex.lock();
-                        if (null == cur) {
-                            data.remove(key);
-                        } else {
-                            data.put(key, cur);
-                        }
-
-                        for (BiConsumer<String, T> listener : listeners) {
-                            try {
-                                listener.accept(key, cur);
-                            } catch (Throwable t) {
-                                log.error("Table view listener raised an exception", t);
-                            }
-                        }
-                    } finally {
-                        listenersMutex.unlock();
-                    }
+                            cur,
+                            prev);
+                    compactionStrategy.handleSkippedMessage(key, cur);
                 }
             }
-        } finally {
-            msg.release();
+
+            if (update) {
+                try {
+                    listenersMutex.lock();
+                    if (null == cur) {
+                        data.remove(key);
+                    } else {
+                        data.put(key, cur);
+                    }
+
+                    for (BiConsumer<String, T> listener : listeners) {
+                        try {
+                            listener.accept(key, cur);
+                        } catch (Throwable t) {
+                            log.error("Table view listener raised an exception", t);
+                        }
+                    }
+                } finally {
+                    listenersMutex.unlock();
+                }
+            }
         }
     }
 
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();
-
+        final AtomicLong messagesFiltered = new AtomicLong() ;
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
-        readAllExistingMessages(reader, future, startTime, messagesRead);
+        readAllExistingMessages(reader, future, startTime, messagesRead, messagesFiltered);
         return future;
     }
 
     private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
-                                         AtomicLong messagesRead) {
+                                         AtomicLong messagesRead, AtomicLong messageFiltered) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
                    if (hasMessage) {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
-                                  messagesRead.incrementAndGet();
-                                  handleMessage(msg);
-                                  readAllExistingMessages(reader, future, startTime, messagesRead);
+                                  try {
+                                      messagesRead.incrementAndGet();
+                                      if (shouldFilterOut(msg)) {
+                                          messageFiltered.incrementAndGet();
+                                          return;
+                                      }
+                                      handleMessage(msg);
+                                  } finally {
+                                      msg.release();
+                                      readAllExistingMessages(reader, future, startTime,
+                                              messagesRead, messageFiltered);
+                                  }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                                        log.error("Reader {} was closed while reading existing messages.",
@@ -264,10 +272,12 @@ public class TableViewImpl<T> implements TableView<T> {
                        // Reached the end
                        long endTime = System.nanoTime();
                        long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                       log.info("Started table view for topic {} - Replayed {} messages in {} seconds",
+                       log.info("Started table view for topic {} - Replayed {} messages in {} seconds,"
+                                       + " filtered {} messages by key filter.",
                                reader.getTopic(),
                                messagesRead,
-                               durationMillis / 1000.0);
+                               durationMillis / 1000.0,
+                               messageFiltered);
                        future.complete(reader);
                        readTailMessages(reader);
                    }
@@ -277,8 +287,14 @@ public class TableViewImpl<T> implements TableView<T> {
     private void readTailMessages(Reader<T> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
-                    handleMessage(msg);
-                    readTailMessages(reader);
+                    try {
+                        if (!shouldFilterOut(msg)) {
+                            handleMessage(msg);
+                        }
+                    } finally {
+                        msg.release();
+                        readTailMessages(reader);
+                    }
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                         log.error("Reader {} was closed while reading tail messages.",
@@ -290,5 +306,16 @@ public class TableViewImpl<T> implements TableView<T> {
                     }
                     return null;
                 });
+    }
+
+    private boolean shouldFilterOut(Message<T> msg) {
+        if (msg.hasKey() && keyFilter != null) {
+            try {
+                return keyFilter.test(msg.getKey());
+            } catch (Throwable ex) {
+                log.error("Error occur while filtering the key {}", msg.getKey(), ex);
+            }
+        }
+        return false;
     }
 }
