@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -235,6 +236,7 @@ public class MessageDuplicationTest {
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         doReturn(mock(PulsarResources.class)).when(pulsarService).getPulsarResources();
+        doReturn(mock(CompactionServiceFactory.class)).when(pulsarService).getCompactionServiceFactory();
 
         ManagedLedger managedLedger = mock(ManagedLedger.class);
         MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
