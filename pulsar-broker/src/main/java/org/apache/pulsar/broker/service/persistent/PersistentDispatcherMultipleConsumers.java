@@ -1070,8 +1070,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             try {
                 return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
             } catch (OutOfDirectMemoryError ex) {
-                log.warn("Out of direct memory while trying add message index to delayed tracker."
-                        + " fallback to redelivery messages(heap) and waiting for enough direct memory space.");
+                log.error("Out of direct memory while trying add message index to delayed tracker."
+                        + " fallback to redelivery messages(heap) and waiting for enough direct memory space."
+                        + " error info: {}", ex.getMessage());
                 // fall back to redelivery queue(heap) waiting for enough direct memory.
                 redeliveryMessages.add(ledgerId, entryId);
                 Thread.yield(); // Avoid falling into the dead loop.
