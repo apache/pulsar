@@ -37,6 +37,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Predicate;
+
+import io.netty.util.internal.OutOfDirectMemoryError;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -1065,7 +1067,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
 
             long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
-            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
+            try {
+                return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
+            } catch (OutOfDirectMemoryError ex) {
+                log.warn("Out of direct memory while trying add message index to delayed tracker."
+                        + " fallback to redelivery messages(heap) and waiting for enough direct memory space.");
+                // fall back to redelivery queue(heap) waiting for enough direct memory.
+                redeliveryMessages.add(ledgerId, entryId);
+                Thread.yield(); // Avoid falling into the dead loop.
+                return true;
+            }
         }
     }
 
