@@ -44,7 +44,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +51,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
-public abstract class KafkaAbstractSource<V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<V> extends KafkaPushSource<V> {
     public static final String HEADER_KAFKA_TOPIC_KEY = "__kafka_topic";
     public static final String HEADER_KAFKA_PTN_KEY = "__kafka_partition";
     public static final String HEADER_KAFKA_OFFSET_KEY = "__kafka_offset";
@@ -166,7 +165,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                     CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                     int index = 0;
                     for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
-                        KafkaRecord<V> record = buildRecord(consumerRecord);
+                        KafkaRecord record = buildRecord(consumerRecord);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
                         }
