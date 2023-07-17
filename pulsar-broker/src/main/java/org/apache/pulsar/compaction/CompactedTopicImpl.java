@@ -87,6 +87,7 @@ public class CompactedTopicImpl implements CompactedTopic {
     }
 
     @Override
+    @Deprecated
     public void asyncReadEntriesOrWait(ManagedCursor cursor,
                                        int numberOfEntriesToRead,
                                        boolean isFirstRead,
