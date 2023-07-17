@@ -150,6 +150,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     }
 
+    protected UnAckedMessageTracker getUnAckedMessageTracker() {
+        return unAckedMessageTracker;
+    }
+
     protected void triggerBatchReceiveTimeoutTask() {
         if (!hasBatchReceiveTimeout() && batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,

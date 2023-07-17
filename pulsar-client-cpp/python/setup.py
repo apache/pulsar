@@ -83,7 +83,7 @@ extras_require = {}
 extras_require["functions"] = sorted(
     {
       "protobuf>=3.6.1,<=3.20.*",
-      "grpcio<1.28,>=1.8.2",
+      "grpcio>=1.60",
       "apache-bookkeeper-client>=4.9.2",
       "prometheus_client",
       "ratelimit"
