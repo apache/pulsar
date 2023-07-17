@@ -192,6 +192,10 @@ public class UnAckedMessageTracker implements Closeable {
     }
 
     public boolean add(MessageId messageId) {
+        if (messageId == null) {
+            return false;
+        }
+
         writeLock.lock();
         try {
             HashSet<MessageId> partition = timePartitions.peekLast();
@@ -220,6 +224,10 @@ public class UnAckedMessageTracker implements Closeable {
     }
 
     public boolean remove(MessageId messageId) {
+        if (messageId == null) {
+            return false;
+        }
+
         writeLock.lock();
         try {
             boolean removed = false;
