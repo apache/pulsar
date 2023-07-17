@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import io.netty.util.internal.OutOfDirectMemoryError;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,8 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Predicate;
-
-import io.netty.util.internal.OutOfDirectMemoryError;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
