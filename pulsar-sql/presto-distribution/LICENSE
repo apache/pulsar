@@ -411,7 +411,7 @@ The Apache Software License, Version 2.0
     - presto-spi-332.jar
     - presto-record-decoder-332.jar
   * RocksDB JNI
-    - rocksdbjni-6.16.4.jar
+    - rocksdbjni-6.29.4.1.jar
   * SnakeYAML
     - snakeyaml-2.0.jar
   * Bean Validation API
@@ -434,18 +434,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.14.7.jar
-    - bookkeeper-common-allocator-4.14.7.jar
-    - bookkeeper-proto-4.14.7.jar
-    - bookkeeper-server-4.14.7.jar
-    - bookkeeper-stats-api-4.14.7.jar
-    - bookkeeper-tools-framework-4.14.7.jar
-    - circe-checksum-4.14.7.jar
-    - codahale-metrics-provider-4.14.7.jar
-    - cpu-affinity-4.14.7.jar
-    - http-server-4.14.7.jar
-    - prometheus-metrics-provider-4.14.7.jar
-    - codahale-metrics-provider-4.14.7.jar
+    - bookkeeper-common-4.14.8.jar
+    - bookkeeper-common-allocator-4.14.8.jar
+    - bookkeeper-proto-4.14.8.jar
+    - bookkeeper-server-4.14.8.jar
+    - bookkeeper-stats-api-4.14.8.jar
+    - bookkeeper-tools-framework-4.14.8.jar
+    - circe-checksum-4.14.8.jar
+    - codahale-metrics-provider-4.14.8.jar
+    - cpu-affinity-4.14.8.jar
+    - http-server-4.14.8.jar
+    - prometheus-metrics-provider-4.14.8.jar
+    - codahale-metrics-provider-4.14.8.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar

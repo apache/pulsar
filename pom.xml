@@ -104,7 +104,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.14.7</bookkeeper.version>
+    <bookkeeper.version>4.14.8</bookkeeper.version>
     <zookeeper.version>3.6.4</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <snappy.version>1.1.10.1</snappy.version> <!-- ZooKeeper server -->
@@ -117,7 +117,7 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.16.4</rocksdb.version>
+    <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.18.0</log4j2.version>
@@ -2447,6 +2447,14 @@ flexible messaging model and an intuitive client API.</description>
       <id>maven.restlet.org</id>
       <name>maven.restlet.org</name>
       <url>https://maven.restlet.talend.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>bk-staging</id>
+      <name>bk-staging</name>
+      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1087/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
