@@ -304,8 +304,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata, encryptedPayload);
 
-        if (log.isInfoEnabled()) {
-            log.info("[{}] [{}] Build batch msg seq:{}, highest-seq:{}, numMessagesInBatch: {}, uncompressedSize: {},"
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Build batch msg seq:{}, highest-seq:{}, numMessagesInBatch: {}, uncompressedSize: {},"
                             + " payloadSize: {}", topicName, producer.getProducerName(),
                     messageMetadata.getSequenceId(), messageMetadata.getNumMessagesInBatch(),
                     messageMetadata.getHighestSequenceId(),
