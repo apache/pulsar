@@ -45,7 +45,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -60,13 +60,14 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
     public NonStartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                          MetadataStoreExtended localMetadataStore,
                                          MetadataStoreExtended configurationMetadataStore,
-                                         Compactor compactor, BrokerInterceptor brokerInterceptor,
+                                         CompactionServiceFactory compactionServiceFactory,
+                                         BrokerInterceptor brokerInterceptor,
                                          BookKeeperClientFactory bookKeeperClientFactory,
                                          PulsarResources pulsarResources,
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory);
+        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
+                brokerInterceptor, bookKeeperClientFactory);
         setPulsarResources(pulsarResources);
         setManagedLedgerClientFactory(managedLedgerClientFactory);
         try {
