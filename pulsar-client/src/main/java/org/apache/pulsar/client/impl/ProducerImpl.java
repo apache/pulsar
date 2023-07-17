@@ -1736,9 +1736,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
-                            if (this.batchMessageContainer != null) {
-                                batchMessageContainer.updateProducerName();
-                            }
                         }
 
                         if (this.msgIdGenerator == 0 && conf.getInitialSequenceId() == null) {
