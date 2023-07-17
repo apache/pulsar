@@ -549,17 +549,16 @@ public class BrokersBase extends AdminResource {
             @Suspended final AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        CompletableFuture.runAsync(
-                        () -> doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
-                                .thenAccept(__ -> {
-                                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
-                                    asyncResponse.resume(Response.noContent().build());
-                                }))
+        doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                    asyncResponse.resume(Response.noContent().build());
+                })
                 .exceptionally(ex -> {
-                    LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
-                    return null;
-                });
-        asyncResponse.resume(Response.noContent().build());
+            LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
     private CompletableFuture<Void> doShutDownBrokerGracefullyAsync(int maxConcurrentUnloadPerSec,
