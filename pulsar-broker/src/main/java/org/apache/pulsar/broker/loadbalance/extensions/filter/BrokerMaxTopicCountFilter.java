@@ -36,9 +36,9 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
-                                                                   ServiceUnitId serviceUnit,
-                                                                   LoadManagerContext context) {
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                        ServiceUnitId serviceUnit,
+                                                                        LoadManagerContext context) {
         int loadBalancerBrokerMaxTopics = context.brokerConfiguration().getLoadBalancerBrokerMaxTopics();
         brokers.keySet().removeIf(broker -> {
             Optional<BrokerLoadData> brokerLoadDataOpt = context.brokerLoadDataStore().get(broker);
