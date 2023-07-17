@@ -597,6 +597,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
         consumer.negativeAcknowledge(topicMessageId.getInnerMessageId());
+        unAckedMessageTracker.remove(messageId);
     }
 
     @Override
@@ -607,6 +608,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
         consumer.negativeAcknowledge(message);
+        unAckedMessageTracker.remove(messageId);
     }
 
     @Override
@@ -883,6 +885,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return stats;
     }
 
+    @Override
     public UnAckedMessageTracker getUnAckedMessageTracker() {
         return unAckedMessageTracker;
     }
