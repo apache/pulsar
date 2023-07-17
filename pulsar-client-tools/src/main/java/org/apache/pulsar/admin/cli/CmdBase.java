@@ -47,7 +47,7 @@ public abstract class CmdBase {
      * Default read timeout in milliseconds.
      * Used if not found from configuration data in {@link #getReadTimeoutMs()}
      */
-    public static final long DEFAULT_READ_TIMEOUT_IN_MILLIS = 60000;
+    private static final long DEFAULT_READ_TIMEOUT_MILLIS = 60000;
 
     @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
     private boolean help = false;
@@ -141,7 +141,7 @@ public abstract class CmdBase {
         if (pulsarAdmin instanceof PulsarAdminImpl) {
             return ((PulsarAdminImpl) pulsarAdmin).getClientConfigData().getReadTimeoutMs();
         }
-        return DEFAULT_READ_TIMEOUT_IN_MILLIS;
+        return DEFAULT_READ_TIMEOUT_MILLIS;
     }
 
     protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
