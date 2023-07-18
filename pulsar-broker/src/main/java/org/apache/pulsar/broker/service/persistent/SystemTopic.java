@@ -57,7 +57,10 @@ public class SystemTopic extends PersistentTopic {
 
     @Override
     public void checkMessageExpiry() {
-        // do nothing for system topic
+        if (NamespaceService.isHeartbeatNamespace(TopicName.get(topic))) {
+            super.checkMessageExpiry();
+        }
+        // do nothing for system topic except `HealthCheck`
     }
 
     @Override
