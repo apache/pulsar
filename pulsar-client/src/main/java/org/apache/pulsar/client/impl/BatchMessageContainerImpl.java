@@ -80,8 +80,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName, producerName,
-                    numMessagesInBatch);
+            log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName,
+                    producer.getProducerName(), numMessagesInBatch);
         }
 
         if (++numMessagesInBatch == 1) {
@@ -193,8 +193,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 firstCallback.sendComplete(ex);
             }
         } catch (Throwable t) {
-            log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
-                    lowestSequenceId, t);
+            log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName,
+                    producer.getProducerName(), lowestSequenceId, t);
         }
         clear();
     }
@@ -225,6 +225,14 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata, encryptedPayload);
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Build batch msg seq:{}, highest-seq:{}, numMessagesInBatch: {}, uncompressedSize: {},"
+                            + " payloadSize: {}", topicName, producer.getProducerName(),
+                    messageMetadata.getSequenceId(), messageMetadata.getNumMessagesInBatch(),
+                    messageMetadata.getHighestSequenceId(),
+                    messageMetadata.getUncompressedSize(), encryptedPayload.readableBytes());
+        }
 
         OpSendMsg op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), firstCallback);
