@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import lombok.Data;
@@ -118,6 +119,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Map<String, String> managedLedgerExtraConfigurations = null;
 
     // s3 config, set by service configuration or cli
     @Configuration
@@ -257,6 +261,14 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 }
             }
         });
+        Map<String, String> extraConfigurations = properties.entrySet().stream()
+            .filter(entry -> entry.getKey().toString().startsWith("managedLedgerOffloadExtraConfig"))
+            .collect(Collectors.toMap(
+                entry -> entry.getKey().toString().replaceFirst("managedLedgerOffloadExtraConfig", ""),
+                entry -> entry.getValue().toString()));
+
+        data.setManagedLedgerExtraConfigurations(extraConfigurations);
+
         data.compatibleWithBrokerConfigFile(properties);
         return data;
     }
@@ -347,6 +359,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 this.getManagedLedgerOffloadThresholdInSeconds());
         setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
+        setProperty(properties, "managedLedgerOffloadExtraConfigurations",
+                this.getManagedLedgerExtraConfigurations());
 
         if (this.isS3Driver()) {
             setProperty(properties, "s3ManagedLedgerOffloadRegion",

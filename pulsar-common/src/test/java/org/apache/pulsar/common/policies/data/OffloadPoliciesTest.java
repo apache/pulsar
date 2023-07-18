@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Properties;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -432,4 +433,16 @@ public class OffloadPoliciesTest {
         }
     }
 
+    @Test
+    public void testCreateOffloadPoliciesWithExtraConfiguration() {
+        Properties properties = new Properties();
+        properties.put("managedLedgerOffloadExtraConfigKey1", "value1");
+        properties.put("managedLedgerOffloadExtraConfigKey2", "value2");
+        OffloadPoliciesImpl policies = OffloadPoliciesImpl.create(properties);
+
+        Map<String, String> extraConfigurations = policies.getManagedLedgerExtraConfigurations();
+        Assert.assertEquals(extraConfigurations.size(), 2);
+        Assert.assertEquals(extraConfigurations.get("Key1"), "value1");
+        Assert.assertEquals(extraConfigurations.get("Key2"), "value2");
+    }
 }
