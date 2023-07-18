@@ -109,6 +109,15 @@
         <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
         <cve>CVE-2020-8908</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+        file name: canal.client-1.1.5.jar (shaded: com.google.guava:guava:32.1.1)
+        CVE cannot take effect.
+        Already covered by PR https://github.com/apache/pulsar/pull/20699
+    ]]></notes>
+        <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
+        <cve>CVE-2023-2976</cve>
+    </suppress>
 
     <!-- clickhouse: security scan matches client lib to the server CVEs -->
     <suppress>
@@ -183,12 +192,12 @@
     </suppress>
     <suppress>
         <notes><![CDATA[
-        file name: clickhouse-jdbc-0.4.6-all.jar
+        file name: clickhouse-jdbc-0.4.6.jar
         file link: https://github.com/ClickHouse/clickhouse-java/releases/tag/v0.4.6
         CVE cannot take effect
         Already covered by PR https://github.com/apache/pulsar/pull/20699
     ]]></notes>
-        <sha1>6efc73bb044a64add5555d676a8074b8389632e6</sha1>
+        <sha1>0ea8674ff292c7e093d90981241fa7874c6dd657</sha1>
         <cve>CVE-2023-2976</cve>
     </suppress>
     <suppress>
