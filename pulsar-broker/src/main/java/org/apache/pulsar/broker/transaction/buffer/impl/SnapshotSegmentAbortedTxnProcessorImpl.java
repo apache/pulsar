@@ -175,7 +175,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     /**
-     * Check werther the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
+     * Check whether the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
      * is expired. If the position is not exist in the original topic, the according transaction is an invalid
      * transaction. And the according segment is invalid, too. The transaction IDs before the transaction ID
      * in the aborts are invalid, too.
