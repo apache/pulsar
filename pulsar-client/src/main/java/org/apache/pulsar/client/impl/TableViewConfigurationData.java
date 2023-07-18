@@ -19,7 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Serializable;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -27,7 +28,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 
 @Data
 @NoArgsConstructor
-public class TableViewConfigurationData implements Serializable, Cloneable {
+public class TableViewConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private String topicName = null;
@@ -37,12 +38,12 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
 
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
-    private Predicate<String> keyFilter = null;
+    private BiPredicate<String, T> filter = null;
 
     @Override
-    public TableViewConfigurationData clone() {
+    public TableViewConfigurationData<T> clone() {
         try {
-            TableViewConfigurationData clone = (TableViewConfigurationData) super.clone();
+            TableViewConfigurationData<T> clone = (TableViewConfigurationData<T>) super.clone();
             clone.setTopicName(topicName);
             clone.setAutoUpdatePartitionsSeconds(autoUpdatePartitionsSeconds);
             clone.setSubscriptionName(subscriptionName);

@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -58,10 +59,10 @@ public class TableViewImpl<T> implements TableView<T> {
     private final List<BiConsumer<String, T>> listeners;
     private final ReentrantLock listenersMutex;
     private final boolean isPersistentTopic;
-    private final Predicate<String> keyFilter;
+    private final BiPredicate<String, T> filter;
     private TopicCompactionStrategy<T> compactionStrategy;
 
-    TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
+    TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData<T> conf) {
         this.conf = conf;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
@@ -88,7 +89,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
         readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
 
-        this.keyFilter = conf.getKeyFilter();
+        this.filter = conf.getFilter();
         this.reader = readerBuilder.createAsync();
     }
 
@@ -309,9 +310,9 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private boolean shouldFilterOut(Message<T> msg) {
-        if (msg.hasKey() && keyFilter != null) {
+        if (msg.hasKey() && filter != null) {
             try {
-                return keyFilter.test(msg.getKey());
+                return filter.test(msg.getKey(), msg.getValue());
             } catch (Throwable ex) {
                 log.error("Error occur while filtering the key {}", msg.getKey(), ex);
             }

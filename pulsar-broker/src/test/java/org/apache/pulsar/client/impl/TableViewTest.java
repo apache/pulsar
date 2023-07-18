@@ -440,7 +440,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testTableViewKeyFilter() throws Exception {
+    public void testTableViewFilter() throws Exception {
         String topic = "persistent://public/default/tableview-key-filter";
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -458,7 +458,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         TableView<String> tv = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
-                .keyFilter(key -> !key.startsWith("event_topic"))
+                .filter((key, event) -> !key.startsWith("event_topic"))
                 .create();
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(tv.get("event_topic"), "value4"));
