@@ -663,12 +663,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
                     Optional<String> destBroker = this.selectBroker(bundleToUnload);
                     if (!destBroker.isPresent()) {
-                        log.warn("No broker available to unload bundle {} from broker {}", bundle, broker);
+                        log.info("[{}] No broker available to unload bundle {} from broker {}",
+                                strategy.getClass().getSimpleName(), bundle, broker);
                         return;
                     }
                     if (destBroker.get().equals(broker)) {
-                        log.warn("Bundle {} destination broker {} is the same as the source broker {}",
-                                bundle, destBroker.get(), broker);
+                        log.warn("[{}] The destination broker {} is the same as the current owner broker for Bundle {}",
+                                strategy.getClass().getSimpleName(), destBroker.get(), bundle);
                         return;
                     }
 
@@ -678,7 +679,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         pulsar.getAdminClient().namespaces()
                                 .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
-                        this.preallocateBundle(bundle, destBroker.get());
                     } catch (PulsarServerException | PulsarAdminException e) {
                         log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
                     }
