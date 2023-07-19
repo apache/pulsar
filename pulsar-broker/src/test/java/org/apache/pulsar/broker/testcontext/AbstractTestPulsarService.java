@@ -26,7 +26,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
-import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -38,11 +38,11 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  */
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
-    private boolean compactorExists;
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
-                                     MetadataStoreExtended configurationMetadataStore, Compactor compactor,
+                                     MetadataStoreExtended configurationMetadataStore,
+                                     CompactionServiceFactory compactionServiceFactory,
                                      BrokerInterceptor brokerInterceptor,
                                      BookKeeperClientFactory bookKeeperClientFactory) {
         super(config);
@@ -51,7 +51,7 @@ abstract class AbstractTestPulsarService extends PulsarService {
                 NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class));
         setConfigurationMetadataStore(
                 NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class));
-        setCompactor(compactor);
+        super.setCompactionServiceFactory(compactionServiceFactory);
         setBrokerInterceptor(brokerInterceptor);
         setBkClientFactory(bookKeeperClientFactory);
     }
@@ -74,23 +74,6 @@ abstract class AbstractTestPulsarService extends PulsarService {
                     getLocalMetadataStore()::handleMetadataEvent);
         }
         return getLocalMetadataStore();
-    }
-
-    @Override
-    protected void setCompactor(Compactor compactor) {
-        if (compactor != null) {
-            compactorExists = true;
-        }
-        super.setCompactor(compactor);
-    }
-
-    @Override
-    public Compactor newCompactor() throws PulsarServerException {
-        if (compactorExists) {
-            return getCompactor();
-        } else {
-            return spyConfig.getCompactor().spy(super.newCompactor());
-        }
     }
 
     @Override

@@ -1744,11 +1744,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         headersAndPayload.resetReaderIndex();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {},"
-                            + " partition key is: {}, ordering key is {}",
+                            + " partition key is: {}, ordering key is {}, uncompressedSize is {}",
                     remoteAddress, send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(),
                     msgMetadata.getSequenceId(), headersAndPayload.readableBytes(),
                     msgMetadata.hasPartitionKey() ? msgMetadata.getPartitionKey() : null,
-                    msgMetadata.hasOrderingKey() ? msgMetadata.getOrderingKey() : null);
+                    msgMetadata.hasOrderingKey() ? msgMetadata.getOrderingKey() : null,
+                    msgMetadata.getUncompressedSize());
         }
     }
 
@@ -2077,64 +2078,73 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         // If the compaction cursor reach the end of the topic, respond messageId from compacted ledger
-        Optional<Position> compactionHorizon = persistentTopic.getCompactedTopic().getCompactionHorizon();
-        if (lastPosition.getEntryId() == -1 || (compactionHorizon.isPresent()
-                        && lastPosition.compareTo((PositionImpl) compactionHorizon.get()) <= 0)) {
-            handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
-                    markDeletePosition);
-            return;
-        }
+        CompletableFuture<Position> compactionHorizonFuture =
+                persistentTopic.getTopicCompactionService().getLastCompactedPosition();
 
-        // For a valid position, we read the entry out and parse the batch size from its metadata.
-        CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-        ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
-            @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
-                entryFuture.complete(entry);
+        compactionHorizonFuture.whenComplete((compactionHorizon, ex) -> {
+            if (ex != null) {
+                log.error("Failed to get compactionHorizon.", ex);
+                writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, ex.getMessage()));
+                return;
             }
 
-            @Override
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                entryFuture.completeExceptionally(exception);
+            if (lastPosition.getEntryId() == -1 || (compactionHorizon != null
+                    && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0)) {
+                handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
+                        markDeletePosition);
+                return;
             }
-        }, null);
 
-        CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-            int batchSize = metadata.getNumMessagesInBatch();
-            entry.release();
-            return metadata.hasNumMessagesInBatch() ? batchSize : -1;
-        });
+            // For a valid position, we read the entry out and parse the batch size from its metadata.
+            CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
+            ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    entryFuture.complete(entry);
+                }
 
-        batchSizeFuture.whenComplete((batchSize, e) -> {
-            if (e != null) {
-                if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                    handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
-                            markDeletePosition);
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    entryFuture.completeExceptionally(exception);
+                }
+            }, null);
+
+            CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                int batchSize = metadata.getNumMessagesInBatch();
+                entry.release();
+                return metadata.hasNumMessagesInBatch() ? batchSize : -1;
+            });
+
+            batchSizeFuture.whenComplete((batchSize, e) -> {
+                if (e != null) {
+                    if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                        handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
+                                markDeletePosition);
+                    } else {
+                        writeAndFlush(Commands.newError(
+                                requestId, ServerError.MetadataError,
+                                "Failed to get batch size for entry " + e.getMessage()));
+                    }
                 } else {
-                    writeAndFlush(Commands.newError(
-                            requestId, ServerError.MetadataError,
-                            "Failed to get batch size for entry " + e.getMessage()));
-                }
-            } else {
-                int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
+                    int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
 
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
-                            topic.getName(), subscriptionName, lastPosition, partitionIndex);
-                }
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
+                                topic.getName(), subscriptionName, lastPosition, partitionIndex);
+                    }
 
-                writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
-                        lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
-                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
-            }
+                    writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
+                            lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
+                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                }
+            });
         });
     }
-
-    private void handleLastMessageIdFromCompactedLedger(PersistentTopic persistentTopic, long requestId,
-            int partitionIndex, PositionImpl markDeletePosition) {
-        persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
+    private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,
+                                                          int partitionIndex, PositionImpl markDeletePosition) {
+        persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenAccept(entry -> {
             if (entry != null) {
                 try {
                     // in this case, all the data has been compacted, so return the last position
