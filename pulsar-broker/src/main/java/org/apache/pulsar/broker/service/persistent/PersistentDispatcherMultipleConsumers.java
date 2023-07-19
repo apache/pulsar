@@ -1066,17 +1066,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
 
             long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
-            try {
                 return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
-            } catch (OutOfDirectMemoryError ex) {
-                log.error("Out of direct memory while trying add message index to delayed tracker."
-                        + " fallback to redelivery messages(heap) and waiting for enough direct memory space."
-                        + " error info: {}", ex.getMessage());
-                // fall back to redelivery queue(heap) waiting for enough direct memory.
-                redeliveryMessages.add(ledgerId, entryId);
-                Thread.yield(); // Avoid falling into the dead loop.
-                return true;
-            }
         }
     }
 

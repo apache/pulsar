@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -107,7 +108,7 @@ public class SegmentedLongArray implements AutoCloseable {
             // We should also reduce the capacity of the first buffer
             capacity -= sizeToReduce;
             ByteBuf oldBuffer = buffers.get(0);
-            ByteBuf newBuffer = PulsarByteBufAllocator.DEFAULT.directBuffer((int) capacity * SIZE_OF_LONG);
+            ByteBuf newBuffer = PooledByteBufAllocator.DEFAULT.directBuffer((int) capacity * SIZE_OF_LONG);
             oldBuffer.getBytes(0, newBuffer, (int) capacity * SIZE_OF_LONG);
             oldBuffer.release();
             buffers.set(0, newBuffer);
