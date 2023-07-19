@@ -1065,7 +1065,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
 
             long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
-                return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
+            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
         }
     }
 
