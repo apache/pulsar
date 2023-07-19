@@ -195,7 +195,7 @@
     CVE cannot take effect.
     Already covered by PR https://github.com/apache/pulsar/pull/20699
     ]]></notes>
-        <sha1>6efc73bb044a64add5555d676a8074b8389632e6</sha1>
+        <sha1>d3b929509399a698915b24ff47db781d0c526760</sha1>
         <cve>CVE-2023-2976</cve>
     </suppress>
     <suppress>
