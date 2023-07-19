@@ -31,7 +31,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,12 +63,25 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
+    public static final ImmutableList<String> INTERNAL_SUPPORTED_DRIVER = ImmutableList.of("S3",
+        "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
+    public static final ImmutableList<String> DRIVER_NAMES;
+    static {
+        String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
+        if (extraDrivers.trim().isEmpty()) {
+            DRIVER_NAMES = INTERNAL_SUPPORTED_DRIVER;
+        } else {
+            DRIVER_NAMES = ImmutableList.<String>builder()
+                .addAll(INTERNAL_SUPPORTED_DRIVER)
+                .addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
+                    .map(String::trim).collect(Collectors.toSet())).build();
+        }
+    }
+
     public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
     public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public static final ImmutableList<String> DRIVER_NAMES = ImmutableList
-            .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS = null;
@@ -104,6 +119,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Map<String, String> managedLedgerExtraConfigurations = null;
 
     // s3 config, set by service configuration or cli
     @Configuration
@@ -243,6 +261,14 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 }
             }
         });
+        Map<String, String> extraConfigurations = properties.entrySet().stream()
+            .filter(entry -> entry.getKey().toString().startsWith("managedLedgerOffloadExtraConfig"))
+            .collect(Collectors.toMap(
+                entry -> entry.getKey().toString().replaceFirst("managedLedgerOffloadExtraConfig", ""),
+                entry -> entry.getValue().toString()));
+
+        data.setManagedLedgerExtraConfigurations(extraConfigurations);
+
         data.compatibleWithBrokerConfigFile(properties);
         return data;
     }
@@ -333,6 +359,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 this.getManagedLedgerOffloadThresholdInSeconds());
         setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
+        setProperty(properties, "managedLedgerOffloadExtraConfigurations",
+                this.getManagedLedgerExtraConfigurations());
 
         if (this.isS3Driver()) {
             setProperty(properties, "s3ManagedLedgerOffloadRegion",

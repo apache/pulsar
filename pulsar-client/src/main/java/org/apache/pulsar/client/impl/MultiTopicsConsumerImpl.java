@@ -546,6 +546,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(messageId instanceof TopicMessageId);
         ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
         consumer.negativeAcknowledge(messageId);
+        unAckedMessageTracker.remove(messageId);
     }
 
     @Override
@@ -554,6 +555,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(messageId instanceof TopicMessageId);
         ConsumerImpl<T> consumer = consumers.get(((TopicMessageId) messageId).getOwnerTopic());
         consumer.negativeAcknowledge(message);
+        unAckedMessageTracker.remove(messageId);
     }
 
     @Override
@@ -852,6 +854,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return stats;
     }
 
+    @Override
     public UnAckedMessageTracker getUnAckedMessageTracker() {
         return unAckedMessageTracker;
     }

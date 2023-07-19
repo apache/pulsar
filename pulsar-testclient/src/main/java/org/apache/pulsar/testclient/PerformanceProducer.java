@@ -205,7 +205,7 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random"
                 + " number of seconds. this value between the specified origin (inclusive) and the specified bound"
-                + " (exclusive). e.g. \"1,300\"", converter = RangeConvert.class)
+                + " (exclusive). e.g. 1,300", converter = RangeConvert.class)
         public Range<Long> delayRange = null;
 
         @Parameter(names = { "-set",
@@ -801,7 +801,7 @@ public class PerformanceProducer {
         public Range<Long> convert(String rangeStr) {
             try {
                 requireNonNull(rangeStr);
-                final String[] facts = rangeStr.substring(1, rangeStr.length() - 1).split(",");
+                final String[] facts = rangeStr.split(",");
                 final long min = Long.parseLong(facts[0].trim());
                 final long max = Long.parseLong(facts[1].trim());
                 return Range.closedOpen(min, max);

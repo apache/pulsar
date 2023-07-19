@@ -38,16 +38,14 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
-import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -56,36 +54,30 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * for a "non-startable" PulsarService. Please see {@link PulsarTestContext} for more details.
  */
 class NonStartableTestPulsarService extends AbstractTestPulsarService {
-    private final PulsarResources pulsarResources;
-    private final ManagedLedgerStorage managedLedgerClientFactory;
-    private final BrokerService brokerService;
-
-    private final SchemaRegistryService schemaRegistryService;
-
-    private final PulsarClientImpl pulsarClient;
 
     private final NamespaceService namespaceService;
 
     public NonStartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                          MetadataStoreExtended localMetadataStore,
                                          MetadataStoreExtended configurationMetadataStore,
-                                         Compactor compactor, BrokerInterceptor brokerInterceptor,
+                                         CompactionServiceFactory compactionServiceFactory,
+                                         BrokerInterceptor brokerInterceptor,
                                          BookKeeperClientFactory bookKeeperClientFactory,
                                          PulsarResources pulsarResources,
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory);
-        this.pulsarResources = pulsarResources;
-        this.managedLedgerClientFactory = managedLedgerClientFactory;
+        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
+                brokerInterceptor, bookKeeperClientFactory);
+        setPulsarResources(pulsarResources);
+        setManagedLedgerClientFactory(managedLedgerClientFactory);
         try {
-            this.brokerService = brokerServiceCustomizer.apply(
-                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup()));
+            setBrokerService(brokerServiceCustomizer.apply(
+                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup())));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        this.schemaRegistryService = spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class);
-        this.pulsarClient = mock(PulsarClientImpl.class);
+        setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
+        setClient(mock(PulsarClientImpl.class));
         this.namespaceService = mock(NamespaceService.class);
         try {
             startNamespaceService();
@@ -119,62 +111,16 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
     }
 
     @Override
-    public synchronized PulsarClient getClient() throws PulsarServerException {
-        return pulsarClient;
-    }
-
-    @Override
     public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf) throws PulsarClientException {
-        return pulsarClient;
+        try {
+            return (PulsarClientImpl) getClient();
+        } catch (PulsarServerException e) {
+            throw new PulsarClientException(e);
+        }
     }
-
-    @Override
-    public SchemaRegistryService getSchemaRegistryService() {
-        return schemaRegistryService;
-    }
-
-    @Override
-    public PulsarResources getPulsarResources() {
-        return pulsarResources;
-    }
-
-    public BrokerService getBrokerService() {
-        return brokerService;
-    }
-
-    @Override
-    public MetadataStore getConfigurationMetadataStore() {
-        return configurationMetadataStore;
-    }
-
-    @Override
-    public MetadataStoreExtended getLocalMetadataStore() {
-        return localMetadataStore;
-    }
-
-    @Override
-    public ManagedLedgerStorage getManagedLedgerClientFactory() {
-        return managedLedgerClientFactory;
-    }
-
-    @Override
-    protected PulsarResources newPulsarResources() {
-        return pulsarResources;
-    }
-
-    @Override
-    protected ManagedLedgerStorage newManagedLedgerClientFactory() throws Exception {
-        return managedLedgerClientFactory;
-    }
-
     @Override
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-        return brokerService;
-    }
-
-    @Override
-    public BookKeeperClientFactory getBookKeeperClientFactory() {
-        return bookKeeperClientFactory;
+        return getBrokerService();
     }
 
     static class TestBrokerService extends BrokerService {
