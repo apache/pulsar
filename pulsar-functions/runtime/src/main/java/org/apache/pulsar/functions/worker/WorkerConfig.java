@@ -460,28 +460,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private boolean useTls = false;
 
-    /**
-     * @deprecated use {@link #setTlsHostnameVerificationEnabled(boolean)} instead
-     */
-    @Deprecated(since = "3.1.0", forRemoval = true)
-    public boolean setTlsEnableHostnameVerification(boolean tlsEnableHostnameVerification) {
-        this.tlsHostnameVerificationEnabled = tlsEnableHostnameVerification;
-        return tlsEnableHostnameVerification;
-    }
-
-    /**
-     * @deprecated use {@link #isTlsHostnameVerificationEnabled()} instead
-     */
-    @Deprecated(since = "3.1.0", forRemoval = true)
-    public boolean isTlsEnableHostnameVerification() {
-        return tlsHostnameVerificationEnabled;
-    }
-
     @FieldContext(
         category = CATEGORY_SECURITY,
         doc = "Whether to enable hostname verification on TLS connections"
     )
-    private boolean tlsHostnameVerificationEnabled = true;
+    private boolean tlsEnableHostnameVerification = true;
     @FieldContext(
             category = CATEGORY_SECURITY,
             doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"

@@ -36,7 +36,7 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
         String authParams;
         Boolean tlsAllowInsecureConnection;
         String tlsTrustCertsFilePath;
-        Boolean tlsHostnameVerificationEnabled;
+        Boolean tlsEnableHostnameVerification;
         String tlsProvider;
 
         static RootParamsKey fromRootParams(PulsarAdminTool.RootParams params) {
@@ -47,7 +47,7 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
             key.setRequestTimeout(params.getRequestTimeout());
             key.setTlsAllowInsecureConnection(params.getTlsAllowInsecureConnection());
             key.setTlsTrustCertsFilePath(params.getTlsTrustCertsFilePath());
-            key.setTlsHostnameVerificationEnabled(params.getTlsHostnameVerificationEnabled());
+            key.setTlsEnableHostnameVerification(params.getTlsEnableHostnameVerification());
             key.setTlsProvider(params.getTlsProvider());
             return key;
         }
@@ -97,8 +97,8 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
         if (rootParams.tlsAllowInsecureConnection != null) {
             adminBuilder.allowTlsInsecureConnection(rootParams.tlsAllowInsecureConnection);
         }
-        if (rootParams.tlsHostnameVerificationEnabled != null) {
-            adminBuilder.enableTlsHostnameVerification(rootParams.tlsHostnameVerificationEnabled);
+        if (rootParams.tlsEnableHostnameVerification != null) {
+            adminBuilder.enableTlsHostnameVerification(rootParams.tlsEnableHostnameVerification);
         }
         if (isNotBlank(rootParams.tlsProvider)) {
             adminBuilder.sslProvider(rootParams.tlsProvider);

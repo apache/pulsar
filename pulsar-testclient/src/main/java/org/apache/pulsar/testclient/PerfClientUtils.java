@@ -86,8 +86,8 @@ public class PerfClientUtils {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
-        if (arguments.tlsHostnameVerificationEnabled != null) {
-            clientBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnabled);
+        if (arguments.tlsHostnameVerificationEnable != null) {
+            clientBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
         }
 
         if (isNotBlank(arguments.listenerName)) {
@@ -112,8 +112,8 @@ public class PerfClientUtils {
             pulsarAdminBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
-        if (arguments.tlsHostnameVerificationEnabled != null) {
-            pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnabled);
+        if (arguments.tlsHostnameVerificationEnable != null) {
+            pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
         }
 
         return pulsarAdminBuilder;

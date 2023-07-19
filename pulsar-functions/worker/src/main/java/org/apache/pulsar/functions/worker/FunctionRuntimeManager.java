@@ -171,7 +171,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
                     .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
                     .useTls(workerConfig.isUseTls())
                     .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
-                    .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnabled())
+                    .tlsHostnameVerificationEnable(workerConfig.isTlsEnableHostnameVerification())
                     .build();
 
             //initialize function authentication provider

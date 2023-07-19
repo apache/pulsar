@@ -54,7 +54,7 @@ public class PerformanceBaseArgumentsTest {
         Assert.assertEquals(args.authParams, "myparams");
         Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
         Assert.assertTrue(args.tlsAllowInsecureConnection);
-        Assert.assertTrue(args.tlsHostnameVerificationEnabled);
+        Assert.assertTrue(args.tlsHostnameVerificationEnable);
         Assert.assertEquals(args.proxyServiceURL, "https://my-proxy-pulsar:4443/");
         Assert.assertEquals(args.proxyProtocol, SNI);
     }
@@ -83,7 +83,7 @@ public class PerformanceBaseArgumentsTest {
             "authParams", "myparams",
             "tlsTrustCertsFilePath", "./path",
                     "tlsAllowInsecureConnection","true",
-            "tlsHostnameVerificationEnabled", "true"
+            "tlsEnableHostnameVerification", "true"
             );
             props.putAll(configs);
             FileOutputStream out = new FileOutputStream(tempConfigFile);
@@ -99,7 +99,7 @@ public class PerformanceBaseArgumentsTest {
             Assert.assertEquals(args.authParams, "myparams");
             Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
             Assert.assertTrue(args.tlsAllowInsecureConnection);
-            Assert.assertTrue(args.tlsHostnameVerificationEnabled);
+            Assert.assertTrue(args.tlsHostnameVerificationEnable);
             
         } catch (IOException e) {
             e.printStackTrace();
@@ -133,7 +133,7 @@ public class PerformanceBaseArgumentsTest {
                     "authParams", "myparams",
                     "tlsTrustCertsFilePath", "./path",
                     "tlsAllowInsecureConnection","true",
-                    "tlsHostnameVerificationEnabled", "true",
+                    "tlsEnableHostnameVerification", "true",
                     "proxyServiceURL", "https://my-proxy-pulsar:4443/",
                     "proxyProtocol", "TEST"
             );
