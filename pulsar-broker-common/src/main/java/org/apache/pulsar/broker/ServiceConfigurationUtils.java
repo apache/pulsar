@@ -137,21 +137,4 @@ public class ServiceConfigurationUtils {
     public static String webServiceUrlTls(String host, int port) {
         return String.format("https://%s:%d", host, port);
     }
-
-    public static long getLongPropertyOrDefault(ServiceConfiguration config, String key, long defaultValue) {
-        Object value = config.getProperties().get(key);
-        if (value instanceof Integer) {
-            return ((Integer) value).longValue();
-        }
-        if (value instanceof Long) {
-            return (Long) value;
-        } else if (value instanceof String) {
-            try {
-                return Long.parseLong((String) value);
-            } catch (NumberFormatException e) {
-                return defaultValue;
-            }
-        }
-        return defaultValue;
-    }
 }

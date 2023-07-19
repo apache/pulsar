@@ -54,7 +54,6 @@ import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -76,9 +75,6 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
     private JAASCredentialsContainer jaasCredentialsContainer;
     private String loginContextName;
     private Cache<Long, AuthenticationState> authStates;
-
-    private static final String AUTHENTICATION_SASL_PREFIX = "authentication_sasl_prefix";
-    private static final long AUTHENTICATION_SASL_DEFAULT_EXPIRE_MS = 60_000;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
@@ -118,9 +114,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         }
         this.signer = new SaslRoleTokenSigner(secret);
         this.authStates = Caffeine.newBuilder()
-                .expireAfterWrite(
-                        ServiceConfigurationUtils.getLongPropertyOrDefault(config, AUTHENTICATION_SASL_PREFIX,
-                                AUTHENTICATION_SASL_DEFAULT_EXPIRE_MS), TimeUnit.MILLISECONDS).build();
+                .expireAfterWrite(config.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS).build();
     }
 
     @Override
