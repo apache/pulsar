@@ -68,7 +68,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             part.compressor = compressor;
             part.maxBatchSize = maxBatchSize;
             part.topicName = topicName;
-            part.producerName = producerName;
+            part.producerName = producer.getProducerName();
             batches.putIfAbsent(key, part);
 
             if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
@@ -104,7 +104,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             // Need to protect ourselves from any exception being thrown in the future handler from the application
             batches.forEach((k, v) -> v.firstCallback.sendComplete(ex));
         } catch (Throwable t) {
-            log.warn("[{}] [{}] Got exception while completing the callback", topicName, producerName, t);
+            log.warn("[{}] [{}] Got exception while completing the callback", topicName, producer.getProducerName(), t);
         }
         batches.forEach((k, v) -> ReferenceCountUtil.safeRelease(v.batchedMessageMetadataAndPayload));
         clear();
