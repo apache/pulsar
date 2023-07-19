@@ -888,7 +888,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     @VisibleForTesting
-    protected Optional<String> selectBroker(final ServiceUnitId serviceUnit) {
+    Optional<String> selectBroker(final ServiceUnitId serviceUnit) {
         synchronized (brokerCandidateCache) {
             final String bundle = serviceUnit.toString();
             final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
