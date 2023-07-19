@@ -326,7 +326,7 @@ tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client
 tlsAllowInsecureConnection: false
 # Whether server hostname must match the common name of the certificate
-tlsHostnameVerificationEnabled: true
+tlsEnableHostnameVerification: true
 # Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
 # Whether client certificates are required for TLS. Connections are rejected if the client
