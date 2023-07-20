@@ -98,9 +98,15 @@ public class SpyConfig {
      */
     private final SpyType bookKeeperClient;
     /**
-     * Spy configuration for {@link PulsarService#getCompactor()}.
+     * Spy configuration for {@link PulsarService#getCompactionServiceFactory#getCompactor()}.
      */
     private final SpyType compactor;
+
+    /**
+     * Spy configuration for {@link PulsarService#getCompactionServiceFactory()}.
+     */
+
+    private final SpyType compactedServiceFactory;
     /**
      * Spy configuration for {@link PulsarService#getNamespaceService()}.
      */
@@ -128,6 +134,7 @@ public class SpyConfig {
         spyConfigBuilder.brokerService(defaultSpyType);
         spyConfigBuilder.bookKeeperClient(defaultSpyType);
         spyConfigBuilder.compactor(defaultSpyType);
+        spyConfigBuilder.compactedServiceFactory(defaultSpyType);
         spyConfigBuilder.namespaceService(defaultSpyType);
         return spyConfigBuilder;
     }

@@ -25,7 +25,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 

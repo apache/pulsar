@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.elasticsearch;
 
 import co.elastic.clients.transport.ElasticsearchTransport;
+import com.fasterxml.jackson.core.JsonParseException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -219,7 +220,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-                return null;
+                return Optional.empty();
             }
         });
 
@@ -241,6 +242,85 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         sink.write(mockRecord);
         verify(mockRecord, times(1)).ack();
+    }
+
+    @Test
+    public final void sendJsonStringSchemaTest() throws Exception {
+
+        when(mockRecord.getMessage()).thenAnswer(new Answer<Optional<Message<String>>>() {
+            @Override
+            public Optional<Message<String>> answer(InvocationOnMock invocation) throws Throwable {
+                final MessageImpl mock = mock(MessageImpl.class);
+                when(mock.getData()).thenReturn("{\"a\":1}".getBytes(StandardCharsets.UTF_8));
+                return Optional.of(mock);
+            }
+        });
+
+        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return Optional.empty();
+            }
+        });
+
+        GenericRecord genericRecord = mock(GenericRecord.class);
+        when(genericRecord.getNativeObject()).thenReturn("{\"a\":1}");
+        when(genericRecord.getSchemaType()).thenReturn(SchemaType.JSON);
+        when(mockRecord.getValue()).thenAnswer(new Answer<GenericRecord>() {
+            public GenericRecord answer(InvocationOnMock invocation) throws Throwable {
+                return genericRecord;
+            }
+        });
+
+        when(mockRecord.getSchema()).thenAnswer(new Answer<Schema>() {
+            public Schema answer(InvocationOnMock invocation) throws Throwable {
+                return Schema.JSON(String.class);
+            }
+        });
+
+        map.put("indexName", "test-index");
+        map.put("schemaEnable", "true");
+        sink.open(map, mockSinkContext);
+        sink.write(mockRecord);
+        verify(mockRecord, times(1)).ack();
+    }
+
+    @Test(expectedExceptions = JsonParseException.class)
+    public final void sendJsonStringSchemaErrorTest() throws Exception {
+
+        when(mockRecord.getMessage()).thenAnswer(new Answer<Optional<Message<String>>>() {
+            @Override
+            public Optional<Message<String>> answer(InvocationOnMock invocation) throws Throwable {
+                final MessageImpl mock = mock(MessageImpl.class);
+                when(mock.getData()).thenReturn("no-json-format".getBytes(StandardCharsets.UTF_8));
+                return Optional.of(mock);
+            }
+        });
+
+        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return Optional.empty();
+            }
+        });
+
+        GenericRecord genericRecord = mock(GenericRecord.class);
+        when(genericRecord.getNativeObject()).thenReturn("no-json-format");
+        when(genericRecord.getSchemaType()).thenReturn(SchemaType.JSON);
+        when(mockRecord.getValue()).thenAnswer(new Answer<GenericRecord>() {
+            public GenericRecord answer(InvocationOnMock invocation) throws Throwable {
+                return genericRecord;
+            }
+        });
+
+        when(mockRecord.getSchema()).thenAnswer(new Answer<Schema>() {
+            public Schema answer(InvocationOnMock invocation) throws Throwable {
+                return Schema.JSON(String.class);
+            }
+        });
+
+        map.put("indexName", "test-index");
+        map.put("schemaEnable", "true");
+        sink.open(map, mockSinkContext);
+        sink.write(mockRecord);
     }
 
     @Test(enabled = true)
