@@ -76,7 +76,8 @@ public class PerfClientUtils {
                 .listenerThreads(arguments.listenerThreads)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .maxLookupRequests(arguments.maxLookupRequest)
-                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol);
+                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
+                .enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -84,10 +85,6 @@ public class PerfClientUtils {
 
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-        }
-
-        if (arguments.tlsHostnameVerificationEnable != null) {
-            clientBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
         }
 
         if (isNotBlank(arguments.listenerName)) {
@@ -102,7 +99,8 @@ public class PerfClientUtils {
 
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
                 .serviceHttpUrl(adminUrl)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
+                .enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable));
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -110,10 +108,6 @@ public class PerfClientUtils {
 
         if (arguments.tlsAllowInsecureConnection != null) {
             pulsarAdminBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-        }
-
-        if (arguments.tlsHostnameVerificationEnable != null) {
-            pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
         }
 
         return pulsarAdminBuilder;
