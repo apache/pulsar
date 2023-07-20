@@ -223,7 +223,7 @@ public class LocalRunner implements AutoCloseable {
         return new LocalRunnerBuilder();
     }
 
-    // Use our own Builder class to allows for setting default values, and to allow for the custom logic associated
+    // Use our own Builder class to support setting default values while maintaining the custom logic associated
     // with the nar directory extraction that is handled in the constructor.
     public static class LocalRunnerBuilder {
         private FunctionConfig functionConfig;
