@@ -67,7 +67,7 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install pyyaml==5.4.1
+RUN pip3 install pyyaml==6.0.1
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
