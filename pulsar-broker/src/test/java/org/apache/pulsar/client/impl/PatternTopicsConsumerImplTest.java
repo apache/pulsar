@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+import io.netty.util.Timeout;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -514,7 +516,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
-        // 2. Create consumer, this should success, but with empty sub-consumser internal
+        // 2. Create consumer, this should success, but with empty sub-consumer internal
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
             .patternAutoDiscoveryPeriod(2)
@@ -809,7 +811,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 7. call recheckTopics to unsubscribe topic 1,3, verify topics number: 2=6-1-3
         log.debug("recheck topics change");
         PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
-        consumer1.run(consumer1.getRecheckPatternTimeout());
+        Timeout recheckPatternTimeout = spy(consumer1.getRecheckPatternTimeout());
+        doReturn(false).when(recheckPatternTimeout).isCancelled();
+        consumer1.run(recheckPatternTimeout);
         Thread.sleep(100);
         assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getPartitions().size(), 2);
         assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().size(), 2);

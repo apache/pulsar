@@ -61,7 +61,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             PulsarClientImpl client, Pattern topicsPattern, long watcherId,
                             NamespaceName namespace, String topicsHash,
                             CompletableFuture<TopicListWatcher> watcherFuture) {
-        super(client, null);
+        super(client, topicsPattern.pattern());
         this.topicsChangeListener = topicsChangeListener;
         this.name = "Watcher(" + topicsPattern + ")";
         this.connectionHandler = new ConnectionHandler(this,

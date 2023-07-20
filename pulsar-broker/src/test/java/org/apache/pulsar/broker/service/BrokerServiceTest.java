@@ -1242,7 +1242,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
-        failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
+        failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to persistent policy"));
         doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();

@@ -38,8 +38,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.proxy.server.ProxyService;
 
-
-
 @Path("/")
 @Api(value = "/proxy-stats", description = "Stats for proxy", tags = "proxy-stats", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
