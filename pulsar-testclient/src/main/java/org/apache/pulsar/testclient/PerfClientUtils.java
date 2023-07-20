@@ -100,7 +100,7 @@ public class PerfClientUtils {
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
                 .serviceHttpUrl(adminUrl)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
-                .enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable));
+                .enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
