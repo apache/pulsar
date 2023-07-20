@@ -163,11 +163,8 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = "--hostname_verification_enabled",
-                description = "Enable hostname verification", hidden = true)
-        protected Boolean deprecatedTlsHostNameVerificationEnabled;
-        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification")
-        protected boolean tlsHostNameVerificationEnabled;
+        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification", arity = 1)
+        protected boolean tlsHostNameVerificationEnabled = true;
 
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
         protected String deprecatedTlsTrustCertFilePath;
@@ -197,9 +194,6 @@ public class CmdSources extends CmdBase {
             }
             if (!tlsAllowInsecureConnection && deprecatedTlsAllowInsecureConnection != null) {
                 tlsAllowInsecureConnection = deprecatedTlsAllowInsecureConnection;
-            }
-            if (!tlsHostNameVerificationEnabled && deprecatedTlsHostNameVerificationEnabled != null) {
-                tlsHostNameVerificationEnabled = deprecatedTlsHostNameVerificationEnabled;
             }
             if (isBlank(tlsTrustCertFilePath) && !isBlank(deprecatedTlsTrustCertFilePath)) {
                 tlsTrustCertFilePath = deprecatedTlsTrustCertFilePath;

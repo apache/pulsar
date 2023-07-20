@@ -780,12 +780,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection #Java, Python")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
-        @Parameter(names = "--hostname_verification_enabled",
-                description = "Enable hostname verification", hidden = true)
-        protected Boolean deprecatedTlsHostNameVerificationEnabled = null;
         @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification"
-                + " #Java, Python")
-        protected boolean tlsHostNameVerificationEnabled;
+                + " #Java, Python", arity = 1)
+        protected boolean tlsHostNameVerificationEnabled = true;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
         protected String deprecatedTlsTrustCertFilePath;
@@ -826,9 +823,6 @@ public class CmdFunctions extends CmdBase {
             }
             if (!tlsAllowInsecureConnection && deprecatedTlsAllowInsecureConnection != null) {
                 tlsAllowInsecureConnection = deprecatedTlsAllowInsecureConnection;
-            }
-            if (!tlsHostNameVerificationEnabled && deprecatedTlsHostNameVerificationEnabled != null) {
-                tlsHostNameVerificationEnabled = deprecatedTlsHostNameVerificationEnabled;
             }
             if (isBlank(tlsTrustCertFilePath) && !isBlank(deprecatedTlsTrustCertFilePath)) {
                 tlsTrustCertFilePath = deprecatedTlsTrustCertFilePath;
