@@ -68,7 +68,7 @@ def generate_arguments_parser():
   parser.add_argument('--client_auth_params', required=False, help='Client authentication params')
   parser.add_argument('--use_tls', required=False, help='Use tls')
   parser.add_argument('--tls_allow_insecure_connection', required=False, help='Tls allow insecure connection')
-  parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
+  parser.add_argument('--hostname_verification_enabled', required=False, default="true", help='Enable hostname verification')
   parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
   parser.add_argument('--port', required=False, help='Instance Port', type=int)
   parser.add_argument('--metrics_port', required=False, help="Port metrics will be exposed on", type=int)
@@ -240,7 +240,7 @@ def main():
   use_tls = False
   tls_allow_insecure_connection = False
   tls_trust_cert_path = None
-  hostname_verification_enabled = False
+  hostname_verification_enabled = True
   if args.client_auth_plugin and args.client_auth_params:
       authentication = pulsar.Authentication(args.client_auth_plugin, args.client_auth_params)
   if args.use_tls == "true":
@@ -249,8 +249,8 @@ def main():
     tls_allow_insecure_connection = True
   if args.tls_trust_cert_path:
      tls_trust_cert_path =  args.tls_trust_cert_path
-  if args.hostname_verification_enabled == "true":
-    hostname_verification_enabled = True
+  if args.hostname_verification_enabled == "false":
+    hostname_verification_enabled = False
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication=authentication, operation_timeout_seconds=30,
                                 io_threads=1, message_listener_threads=1, concurrent_lookup_requests=50000,
                                 log_conf_file_path=None, use_tls=use_tls, tls_trust_certs_file_path=tls_trust_cert_path,
