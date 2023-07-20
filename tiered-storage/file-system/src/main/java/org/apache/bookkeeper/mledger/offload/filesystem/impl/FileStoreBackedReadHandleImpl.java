@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +41,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,7 +153,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
