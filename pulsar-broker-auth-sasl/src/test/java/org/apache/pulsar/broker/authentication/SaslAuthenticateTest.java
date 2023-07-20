@@ -322,9 +322,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
         assertEquals(cache.asMap().size(), 10);
         // The cache expiration time is set to 1ms. Residual auth info should be cleaned up
-        Properties properties = new Properties();
-        properties.setProperty("authentication_sasl_prefix", "1");
-        conf.setProperties(properties);
+        conf.setInflightSaslContextExpiryMs(1);
         saslServer.initialize(conf);
         // Add more auth info into memory
         for (int i = 0; i < 10; i++) {
@@ -347,6 +345,31 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             }
             Thread.yield();
         }
+    }
+
+    @Test
+    public void testMaxInflightContext() throws Exception {
+        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
+                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn("Init").when(servletRequest).getHeader("State");
+        conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
+        conf.setMaxInflightSaslContext(1);
+        saslServer.initialize(conf);
+        // add 10 inflight sasl context
+        for (int i = 0; i < 10; i++) {
+            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                    servletRequest).getHeader("SASL-Token");
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+            saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+        }
+        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
+        field.setAccessible(true);
+        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        //only 1 context was left in the memory
+        assertEquals(cache.asMap().size(), 1);
     }
 
 }
