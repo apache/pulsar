@@ -19,13 +19,13 @@
 package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -109,7 +109,7 @@ public class Markers {
                 .clear()
                 .setSnapshotId(snapshotId)
                 .setSourceCluster(sourceCluster);
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(req.getSerializedSize());
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(req.getSerializedSize());
 
         try {
             req.writeTo(payload);
@@ -138,7 +138,7 @@ public class Markers {
                 .setLedgerId(ledgerId)
                 .setEntryId(entryId);
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(response.getSerializedSize());
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(response.getSerializedSize());
         try {
             response.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE, Optional.of(replyToCluster),
@@ -172,7 +172,7 @@ public class Markers {
         });
 
         int size = snapshot.getSerializedSize();
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(size);
         try {
             snapshot.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.of(sourceCluster), payload);
@@ -201,7 +201,7 @@ public class Markers {
                     .setMessageId().copyFrom(msgId);
         });
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(update.getSerializedSize());
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(update.getSerializedSize());
 
         try {
             update.writeTo(payload);
@@ -258,7 +258,7 @@ public class Markers {
                 .setTxnidMostBits(txnMostBits)
                 .setTxnidLeastBits(txnLeastBits);
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(0);
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(0);
 
         try {
             return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c,
