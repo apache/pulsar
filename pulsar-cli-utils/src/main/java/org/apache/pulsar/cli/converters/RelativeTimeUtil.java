@@ -30,7 +30,7 @@ import lombok.experimental.UtilityClass;
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
         if (relativeTime.isEmpty()) {
-            throw new IllegalArgumentException("expiry time cannot be empty");
+            throw new IllegalArgumentException("time cannot be empty");
         }
 
         int lastIndex =  relativeTime.length() - 1;
