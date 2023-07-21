@@ -146,13 +146,13 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     case IGNORE:
                         break;
                     case WARN:
-                        log.warn("Ignoring malformed document messageId={}",
+                        log.warn("Ignoring malformed document messageId={}, exception={}",
                                 record.getMessage().map(Message::getMessageId).orElse(null),
                                 jsonProcessingException);
                         elasticsearchClient.failed(jsonProcessingException);
                         throw jsonProcessingException;
                     case FAIL:
-                        log.error("Malformed document messageId={}",
+                        log.error("Malformed document messageId={}, excption={}",
                                 record.getMessage().map(Message::getMessageId).orElse(null),
                                 jsonProcessingException);
                         elasticsearchClient.failed(jsonProcessingException);
