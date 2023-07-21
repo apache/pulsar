@@ -70,7 +70,7 @@ public class ZookeeperServerTest implements Closeable {
     public void stop() throws IOException {
         zks.shutdown();
         serverFactory.shutdown();
-        log.info("Stoppend ZK server at {}", hostPort);
+        log.info("Stopped ZK server at {}", hostPort);
     }
 
     @Override

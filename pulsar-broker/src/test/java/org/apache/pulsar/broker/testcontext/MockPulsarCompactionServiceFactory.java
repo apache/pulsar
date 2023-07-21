@@ -16,24 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core;
+package org.apache.pulsar.broker.testcontext;
 
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 
-/**
- * Pulsar's Batch Push Source interface. Batch Push Sources have the same lifecycle
- * as the regular BatchSource, aka discover, prepare. The reason its called Push is
- * because BatchPushSource can emit a record using the consume method that they
- * invoke whenever they have data to be published to Pulsar.
- */
-@InterfaceAudience.Public
-@InterfaceStability.Evolving
-public abstract class BatchPushSource<T> extends AbstractPushSource<T> implements BatchSource<T> {
+public class MockPulsarCompactionServiceFactory extends PulsarCompactionServiceFactory {
+    private final Compactor compactor;
+    private final SpyConfig spyConfig;
+
+    public MockPulsarCompactionServiceFactory(SpyConfig spyConfig, Compactor compactor) {
+        this.compactor = compactor;
+        this.spyConfig = spyConfig;
+    }
 
     @Override
-    public Record<T> readNext() throws Exception {
-        return super.readNext();
+    protected Compactor newCompactor() throws PulsarServerException {
+        if (this.compactor != null) {
+            return this.compactor;
+        } else {
+            return spyConfig.getCompactor().spy(super.newCompactor());
+        }
     }
 }

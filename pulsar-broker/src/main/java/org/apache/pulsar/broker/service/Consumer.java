@@ -361,6 +361,12 @@ public class Consumer {
                 msgOutCounter.add(totalMessages);
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Sent messages to client fail by IO exception[{}], close the connection"
+                                    + " immediately. Consumer: {}",  topicName, subscription,
+                            status.cause() == null ? "" : status.cause().getMessage(), this.toString());
+                }
             }
         });
         return writeAndFlushPromise;
