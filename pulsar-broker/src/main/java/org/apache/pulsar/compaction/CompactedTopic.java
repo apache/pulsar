@@ -33,7 +33,7 @@ public interface CompactedTopic {
     /**
      * Read entries from compacted topic.
      *
-     * @deprecated Use {@link CompactedTopicUtils#readCompactedEntries(TopicCompactionService, ManagedCursor,
+     * @deprecated Use {@link CompactedTopicUtils#asyncReadCompactedEntriesOrWait(TopicCompactionService, ManagedCursor,
      * int, long, boolean, ReadEntriesCallback, Consumer)} instead.
      */
     @Deprecated
