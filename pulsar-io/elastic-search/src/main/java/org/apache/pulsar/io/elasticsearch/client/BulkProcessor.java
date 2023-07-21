@@ -57,6 +57,16 @@ public interface BulkProcessor extends Closeable {
 
     @Builder
     @Getter
+    class BulkCreateRequest {
+        private Record record;
+        private long requestId;
+        private String index;
+        private String documentId;
+        private String documentSource;
+    }
+
+    @Builder
+    @Getter
     class BulkIndexRequest {
         private Record record;
         private long requestId;
@@ -73,6 +83,8 @@ public interface BulkProcessor extends Closeable {
         private String index;
         private String documentId;
     }
+
+    void appendCreateRequest(BulkCreateRequest request) throws IOException;
 
 
     void appendIndexRequest(BulkIndexRequest request) throws IOException;

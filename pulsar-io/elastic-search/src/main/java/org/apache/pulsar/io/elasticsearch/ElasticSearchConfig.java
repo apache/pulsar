@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.Data;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.common.IOConfigUtils;
@@ -58,6 +59,13 @@ public class ElasticSearchConfig implements Serializable {
                 + " index name would be \"logs-2022-02-18\"."
     )
     private String indexName;
+
+    @FieldDoc(
+            required = true,
+            defaultValue = "index",
+            help = ""
+    )
+    private IndexType indexType = IndexType.INDEX;
 
     @FieldDoc(
         required = false,
@@ -338,6 +346,11 @@ public class ElasticSearchConfig implements Serializable {
         NONE,
         SHA256,
         SHA512
+    }
+
+    public enum IndexType {
+        INDEX,
+        DATA_STREAM
     }
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {
