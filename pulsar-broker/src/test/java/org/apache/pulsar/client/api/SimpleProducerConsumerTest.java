@@ -2160,7 +2160,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: produce message with 10ms interval: so, consumer can consume only 10 messages without acking
      *
@@ -2239,7 +2239,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: Consumer starts consuming only after all messages have been produced. So, consumer consumes total
      * receiver-queue-size number messages => ask for redelivery and receives all messages again.

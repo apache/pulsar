@@ -54,7 +54,9 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -83,7 +85,7 @@ import org.mockito.internal.util.MockUtil;
  * There are few motivations for PulsarTestContext:
  * <ul>
  * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the behavior of some
- * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issuess: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
+ * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
  * <li>Since the Mockito issue causes test flakiness, this change will improve reliability.</li>
  * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
  * deep test base cases hierarchies.</li>
@@ -134,6 +136,8 @@ public class PulsarTestContext implements AutoCloseable {
     private final PulsarService pulsarService;
 
     private final Compactor compactor;
+
+    private final CompactionServiceFactory compactionServiceFactory;
 
     private final BrokerService brokerService;
 
@@ -659,10 +663,19 @@ public class PulsarTestContext implements AutoCloseable {
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
+            CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
+            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
+                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+                compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
+                            builder.configurationMetadataStore, compactionServiceFactory,
+                            builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.brokerServiceCustomizer);
+            if (compactionServiceFactory != null) {
+                compactionServiceFactory.initialize(pulsarService);
+            }
             registerCloseable(() -> {
                 pulsarService.close();
                 resetSpyOrMock(pulsarService);
@@ -717,11 +730,20 @@ public class PulsarTestContext implements AutoCloseable {
             }
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
+            CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
+            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
+                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+                compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
+                            builder.configurationMetadataStore, compactionServiceFactory,
+                            builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.pulsarResources,
                             builder.managedLedgerClientFactory, builder.brokerServiceCustomizer);
+            if (compactionServiceFactory != null) {
+                compactionServiceFactory.initialize(pulsarService);
+            }
             registerCloseable(() -> {
                 pulsarService.close();
                 resetSpyOrMock(pulsarService);

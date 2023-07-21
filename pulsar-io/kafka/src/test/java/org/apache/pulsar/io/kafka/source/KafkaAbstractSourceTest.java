@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kafka.source;
 
 
 import com.google.common.collect.ImmutableMap;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.lang.reflect.Field;
@@ -31,7 +32,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
 import org.apache.pulsar.io.kafka.KafkaSourceConfig;
-import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -158,26 +158,47 @@ public class KafkaAbstractSourceTest {
         assertEquals(config.getSslTruststorePassword(), "cert_pwd");
     }
 
-    @Test
-    public final void closeConnectorWhenUnexpectedExceptionThrownTest() throws Exception {
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Subscribe exception")
+    public final void throwExceptionBySubscribe() throws Exception {
         KafkaAbstractSource source = new DummySource();
+
+        KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
+        kafkaSourceConfig.setTopic("test-topic");
+        Field kafkaSourceConfigField = KafkaAbstractSource.class.getDeclaredField("kafkaSourceConfig");
+        kafkaSourceConfigField.setAccessible(true);
+        kafkaSourceConfigField.set(source, kafkaSourceConfig);
+
         Consumer consumer = mock(Consumer.class);
-        Mockito.doThrow(new RuntimeException("Uncaught exception")).when(consumer)
+        Mockito.doThrow(new RuntimeException("Subscribe exception")).when(consumer)
                 .subscribe(Mockito.any(Collection.class));
 
         Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
         consumerField.setAccessible(true);
         consumerField.set(source, consumer);
-
+        // will throw RuntimeException.
         source.start();
+    }
 
-        Field runningField = KafkaAbstractSource.class.getDeclaredField("running");
-        runningField.setAccessible(true);
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Pool exception")
+    public final void throwExceptionByPoll() throws Exception {
+        KafkaAbstractSource source = new DummySource();
 
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse((boolean) runningField.get(source));
-            Assert.assertNull(consumerField.get(source));
-        });
+        KafkaSourceConfig kafkaSourceConfig = new KafkaSourceConfig();
+        kafkaSourceConfig.setTopic("test-topic");
+        Field kafkaSourceConfigField = KafkaAbstractSource.class.getDeclaredField("kafkaSourceConfig");
+        kafkaSourceConfigField.setAccessible(true);
+        kafkaSourceConfigField.set(source, kafkaSourceConfig);
+
+        Consumer consumer = mock(Consumer.class);
+        Mockito.doThrow(new RuntimeException("Pool exception")).when(consumer)
+                .poll(Mockito.any(Duration.class));
+
+        Field consumerField = KafkaAbstractSource.class.getDeclaredField("consumer");
+        consumerField.setAccessible(true);
+        consumerField.set(source, consumer);
+        source.start();
+        // will throw RuntimeException.
+        source.read();
     }
 
     private File getFile(String name) {
