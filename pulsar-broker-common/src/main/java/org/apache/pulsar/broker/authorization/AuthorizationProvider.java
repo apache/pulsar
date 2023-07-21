@@ -436,9 +436,7 @@ public interface AuthorizationProvider extends Closeable {
      * @return CompletableFuture<Void>
      */
     default CompletableFuture<Void> removePermissionsAsync(TopicName topicName) {
-        return FutureUtil.failedFuture(new IllegalStateException(
-                String.format("removePermissionsAsync on topicName %s is not supported by the Authorization",
-                        topicName)));
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
