@@ -40,7 +40,7 @@ public class CompactedTopicUtils {
 
     @Beta
     public static void readCompactedEntries(TopicCompactionService topicCompactionService, ManagedCursor cursor,
-                                            int numberOfEntriesToRead, boolean readFromEarliest,
+                                            int numberOfEntriesToRead, long bytesToRead, boolean readFromEarliest,
                                             AsyncCallbacks.ReadEntriesCallback callback, @Nullable Consumer consumer) {
         Objects.requireNonNull(topicCompactionService);
         Objects.requireNonNull(cursor);
@@ -64,7 +64,8 @@ public class CompactedTopicUtils {
             if (lastCompactedPosition == null
                     || readPosition.compareTo(
                     lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId()) > 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx,
+                        PositionImpl.LATEST);
                 return CompletableFuture.completedFuture(null);
             }
 

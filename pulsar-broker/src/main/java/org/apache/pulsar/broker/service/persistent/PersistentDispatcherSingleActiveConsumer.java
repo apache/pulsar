@@ -351,7 +351,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 if (consumer.readCompacted()) {
                     boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
                     CompactedTopicUtils.readCompactedEntries(topic.getTopicCompactionService(), cursor, messagesToRead,
-                            readFromEarliest, this, consumer);
+                            bytesToRead, readFromEarliest, this, consumer);
                 } else {
                     ReadEntriesCtx readEntriesCtx =
                             ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
