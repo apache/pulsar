@@ -62,7 +62,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
-        return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant));
+        return getChildrenRecursiveAsync(joinPath(BASE_POLICIES_PATH, tenant));
     }
 
     public CompletableFuture<Boolean> getPoliciesReadOnlyAsync() {
