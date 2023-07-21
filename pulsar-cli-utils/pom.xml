@@ -40,6 +40,7 @@
       <artifactId>jcommander</artifactId>
       <scope>compile</scope>
     </dependency>
+    
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
@@ -73,20 +74,7 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>com.github.splunk.lightproto</groupId>
-        <artifactId>lightproto-maven-plugin</artifactId>
-        <version>${lightproto-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
+      
       <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
@@ -125,6 +113,7 @@
           </execution>
         </executions>
       </plugin>
+      
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>
