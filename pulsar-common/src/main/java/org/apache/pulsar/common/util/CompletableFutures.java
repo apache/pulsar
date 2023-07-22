@@ -1,11 +1,10 @@
 package org.apache.pulsar.common.util;
 
-import lombok.experimental.UtilityClass;
-
-import javax.annotation.Nonnull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import lombok.experimental.UtilityClass;
 
 @UtilityClass
 public final class CompletableFutures {
