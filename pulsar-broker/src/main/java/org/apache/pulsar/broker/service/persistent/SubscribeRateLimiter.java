@@ -163,16 +163,19 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
+    @Deprecated
     public SubscribeRate getPoliciesSubscribeRate() {
         return getPoliciesSubscribeRate(brokerService, topicName);
     }
 
+    @Deprecated
     public static SubscribeRate getPoliciesSubscribeRate(BrokerService brokerService, final String topicName) {
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
         final Optional<Policies> policies = DispatchRateLimiter.getPolicies(brokerService, topicName);
         return getPoliciesSubscribeRate(cluster, policies, topicName);
     }
 
+    @Deprecated
     public static SubscribeRate getPoliciesSubscribeRate(final String cluster, final Optional<Policies> policies,
             String topicName) {
         // return policy-subscribe rate only if it's enabled in policies

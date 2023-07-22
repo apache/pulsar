@@ -204,6 +204,7 @@ public class DispatchRateLimiter {
         return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace);
     }
 
+    @Deprecated
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(namespace);

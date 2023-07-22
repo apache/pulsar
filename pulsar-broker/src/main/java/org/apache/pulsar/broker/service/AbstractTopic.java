@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.*;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
@@ -81,6 +82,9 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicPolicies> {
 
@@ -1128,6 +1132,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return brokerService.getBrokerPublishRateLimiter();
     }
 
+    @Deprecated
     public void updateResourceGroupLimiter(Optional<Policies> optPolicies) {
         Policies policies;
         try {
@@ -1141,17 +1146,20 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
             policies = new Policies();
         }
+        updateResourceGroupLimiter(policies);
+    }
 
+    public void updateResourceGroupLimiter(@Nonnull Policies namespacePolicies) {
+        requireNonNull(namespacePolicies);
         // attach the resource-group level rate limiters, if set
-        String rgName = policies.resource_group_name;
+        String rgName = namespacePolicies.resource_group_name;
         if (rgName != null) {
             final ResourceGroup resourceGroup =
-              brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
+                    brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
             if (resourceGroup != null) {
                 this.resourceGroupRateLimitingEnabled = true;
                 this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
-                this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(),
-                  () -> this.enableCnxAutoRead());
+                this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(), this::enableCnxAutoRead);
                 log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
                 return;
             }
@@ -1165,6 +1173,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             enableProducerReadForPublishRateLimiting();
         }
     }
+
 
     public void updateEntryFilters() {
         if (isSystemTopic()) {
