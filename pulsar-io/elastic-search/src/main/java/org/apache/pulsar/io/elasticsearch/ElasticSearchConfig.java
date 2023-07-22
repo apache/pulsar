@@ -62,7 +62,7 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = true,
-            defaultValue = "index",
+            defaultValue = "INDEX",
             help = ""
     )
     private IndexType indexType = IndexType.INDEX;
