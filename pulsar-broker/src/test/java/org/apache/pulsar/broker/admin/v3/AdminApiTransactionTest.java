@@ -81,7 +81,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
-
+    final String TEST_TB_STATS_TOPIC = "persistent://public/default/testGetTransactionBufferStats";
     @Override
     protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration conf = super.getDefaultConf();
@@ -89,6 +89,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setTransactionCoordinatorEnabled(true);
         conf.setTransactionBufferSnapshotMaxTransactionCount(1);
+        conf.setTransactionBufferSegmentedSnapshotEnabled(true);
+        conf.setTransactionBufferSnapshotSegmentSize(8 + 3 * 5 +TEST_TB_STATS_TOPIC.length());
         return conf;
     }
 
@@ -320,13 +322,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 20000)
     public void testGetTransactionBufferStats() throws Exception {
         initTransaction(2);
-        TransactionImpl transaction = (TransactionImpl) getTransaction();
-        final String topic = "persistent://public/default/testGetTransactionBufferStats";
         final String subName1 = "test1";
         final String subName2 = "test2";
         try {
             admin.transactions()
-                    .getTransactionBufferStatsAsync(topic).get();
+                    .getTransactionBufferStatsAsync(TEST_TB_STATS_TOPIC).get();
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
@@ -334,24 +334,30 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(cause.getMessage(), "Topic not found");
         }
         try {
-            pulsar.getBrokerService().getTopic(topic, false);
+            pulsar.getBrokerService().getTopic(TEST_TB_STATS_TOPIC, false);
             admin.transactions()
-                    .getTransactionBufferStatsAsync(topic).get();
+                    .getTransactionBufferStatsAsync(TEST_TB_STATS_TOPIC).get();
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
             assertEquals(cause.getMessage(), "Topic not found");
         }
-        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createNonPartitionedTopic(TEST_TB_STATS_TOPIC);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .sendTimeout(0, TimeUnit.SECONDS).topic(topic).create();
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS).topic(TEST_TB_STATS_TOPIC).create();
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES).topic(TEST_TB_STATS_TOPIC)
                 .subscriptionName(subName1).subscribe();
 
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer(Schema.BYTES).topic(TEST_TB_STATS_TOPIC)
                 .subscriptionName(subName2).subscribe();
         long currentTime = System.currentTimeMillis();
+        for (int i = 0; i < 6; i++) {
+            TransactionImpl transaction = (TransactionImpl) getTransaction();
+            producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+            transaction.abort().get();
+        }
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
         transaction.commit().get();
 
@@ -360,7 +366,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer2.acknowledgeAsync(messageId, transaction).get();
 
         TransactionBufferStats transactionBufferStats = admin.transactions().
-                getTransactionBufferStatsAsync(topic).get();
+                getTransactionBufferStatsAsync(TEST_TB_STATS_TOPIC).get();
 
         assertEquals(transactionBufferStats.state, "Ready");
         assertEquals(transactionBufferStats.maxReadPosition,
@@ -368,7 +374,15 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         ((MessageIdImpl) messageId).getEntryId() + 1).toString());
         assertTrue(transactionBufferStats.lastSnapshotTimestamps > currentTime);
         assertNull(transactionBufferStats.lowWaterMarks);
-        transactionBufferStats = admin.transactions().getTransactionBufferStats(topic, true);
+
+        Awaitility.await().untilAsserted(() -> {
+            TransactionBufferStats stats = admin.transactions().
+                    getTransactionBufferStatsAsync(TEST_TB_STATS_TOPIC).get();
+            assertNotNull(stats.snapshotStats);
+            assertEquals(1, stats.snapshotStats.segmentsSize);
+            assertEquals(1, stats.snapshotStats.unsealedAbortTxnIDs);
+        });
+        transactionBufferStats = admin.transactions().getTransactionBufferStats(TEST_TB_STATS_TOPIC, true);
         assertNotNull(transactionBufferStats.lowWaterMarks);
     }
 

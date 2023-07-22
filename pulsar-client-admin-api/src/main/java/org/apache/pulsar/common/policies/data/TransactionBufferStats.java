@@ -44,4 +44,19 @@ public class TransactionBufferStats {
     public long recoverStartTime;
     //End timestamp of transaction buffer recovery. 0L means no startup.
     public long recoverEndTime;
+    /**
+     *  The stats of snapshots that only exist when enabling multiple snapshot segments.
+     */
+    public SnapshotStats snapshotStats;
+
+    public static class SnapshotStats {
+        /**
+         * The transaction snapshot segment size stored for this topic transaction buffer.
+         */
+        public long segmentsSize;
+        /**
+         * The unsealed aborted transaction IDs size stored in the snapshot processor.
+         */
+        public long unsealedAbortTxnIDs;
+    }
 }
