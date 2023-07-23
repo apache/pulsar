@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.admin;
 
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
-
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +42,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.tests.integration.messaging.MessagingBase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
 
 /**
  * Integration tests for Pulsar Admin.
@@ -59,11 +59,13 @@ public class AdminTest extends MessagingBase {
                 .serviceHttpUrl(adminUrl.get())
                 .build();
 
-        @Cleanup final PulsarClient client = PulsarClient.builder()
+        @Cleanup
+        final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(serviceUrl.get())
                 .build();
 
-        @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
+        @Cleanup
+        final Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
