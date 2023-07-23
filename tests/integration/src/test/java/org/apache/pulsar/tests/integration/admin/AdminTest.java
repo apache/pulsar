@@ -88,11 +88,13 @@ public class AdminTest extends MessagingBase {
         final String nsName = "public/" + generateNamespaceName();
         pulsarAdmin.namespaces().createNamespace(nsName);
         final String topicPrefix = "persistent://" + nsName + "/";
-        for (int i = 0; i < 300; i++) {
+        for (int i = 0; i < 200; i++) {
             final String tmpTopicName = topicPrefix + UUID.randomUUID();
             final List<CompletableFuture<Void>> futures = new ArrayList<>(2);
-            final CompletableFuture<Void> partitionedFuture = pulsarAdmin.topics().createPartitionedTopicAsync(tmpTopicName, 1);
-            final CompletableFuture<Void> nonPartitionedFuture = pulsarAdmin.topics().createNonPartitionedTopicAsync(tmpTopicName);
+            final CompletableFuture<Void> partitionedFuture = pulsarAdmin.topics()
+                    .createPartitionedTopicAsync(tmpTopicName, 1);
+            final CompletableFuture<Void> nonPartitionedFuture = pulsarAdmin.topics()
+                    .createNonPartitionedTopicAsync(tmpTopicName);
             futures.add(partitionedFuture);
             futures.add(nonPartitionedFuture);
             try {

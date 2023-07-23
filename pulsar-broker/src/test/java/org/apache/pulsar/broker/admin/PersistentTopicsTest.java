@@ -32,15 +32,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,6 +47,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
@@ -91,6 +89,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
@@ -1713,5 +1712,35 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .get();
         assertTrue(namespaces.contains(ns1V2));
         assertTrue(namespaces.contains(ns1V1));
+    }
+
+    @SneakyThrows
+    @Test
+    public void partitionedAndNonPartitionedConcurrentCreate() {
+        final String nsName = testTenant + "/" + UUID.randomUUID();
+        admin.namespaces().createNamespace(nsName);
+        final String topicPrefix = "persistent://" + nsName + "/";
+        for (int i = 0; i < 200; i++) {
+            final String tmpTopicName = topicPrefix + UUID.randomUUID();
+            final List<CompletableFuture<Void>> futures = new ArrayList<>(2);
+            final CompletableFuture<Void> partitionedFuture = admin.topics()
+                    .createPartitionedTopicAsync(tmpTopicName, 1);
+            final CompletableFuture<Void> nonPartitionedFuture = admin.topics()
+                    .createNonPartitionedTopicAsync(tmpTopicName);
+            futures.add(partitionedFuture);
+            futures.add(nonPartitionedFuture);
+            try {
+                FutureUtil.waitForAll(futures).join();
+                final List<String> topics = admin.topics().getList(nsName);
+                Assert.assertTrue(topics.contains(tmpTopicName));
+                Assert.assertTrue(topics.contains(TopicName.get(tmpTopicName).getPartition(0).toString()));
+                fail("Expect admin conflict exception.");
+            } catch (CompletionException ex) {
+                Assert.assertTrue(ex.getCause() instanceof PulsarAdminException.ConflictException);
+            }
+            final List<String> topics = admin.topics().getList(nsName);
+            assertTrue(topics.contains(tmpTopicName)
+                    ^ topics.contains(TopicName.get(tmpTopicName).getPartition(0).toString()));
+        }
     }
 }
