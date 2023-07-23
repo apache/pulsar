@@ -463,25 +463,20 @@ public class NonPersistentTopics extends PersistentTopics {
                             }
                             asyncResponse.resume(topicList);
                         }).exceptionally(ex -> {
-                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                                    namespaceName, bundleRange, realCause);
-                            if (realCause instanceof WebApplicationException) {
-                                asyncResponse.resume(realCause);
-                            } else {
-                                asyncResponse.resume(new RestException(realCause));
+                            if (!isRedirectException(ex)) {
+                                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                                        namespaceName, bundleRange, ex);
                             }
+                            resumeAsyncResponseExceptionally(asyncResponse, ex);
                             return null;
                         });
             }
         }).exceptionally(ex -> {
-            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                namespaceName, bundleRange, ex);
-            if (ex.getCause() instanceof WebApplicationException) {
-                asyncResponse.resume(ex.getCause());
-            } else {
-                asyncResponse.resume(new RestException(ex.getCause()));
+            if (!isRedirectException(ex)) {
+                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                        namespaceName, bundleRange, ex);
             }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
