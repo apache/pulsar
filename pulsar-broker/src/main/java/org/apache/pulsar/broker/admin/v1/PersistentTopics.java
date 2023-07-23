@@ -210,7 +210,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicOwnership(topicName, authoritative);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            if (!isRedirectException(e)) {
+                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }

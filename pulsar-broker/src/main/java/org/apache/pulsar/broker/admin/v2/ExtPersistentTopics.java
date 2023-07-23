@@ -91,7 +91,9 @@ public class ExtPersistentTopics extends PersistentTopicsBase {
             internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
                     metadata.properties);
         } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            if (!isRedirectException(e)) {
+                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
