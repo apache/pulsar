@@ -79,13 +79,15 @@ public class ExtPersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "The metadata for the topic",
                     required = true, type = "PartitionedTopicMetadata") PartitionedTopicMetadata metadata,
-            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
+            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateNamespaceName(tenant, namespace);
             validateGlobalNamespaceOwnership();
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             validateCreateTopic(topicName);
+            validateTopicOwnership(topicName, authoritative);
             internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
                     metadata.properties);
         } catch (Exception e) {

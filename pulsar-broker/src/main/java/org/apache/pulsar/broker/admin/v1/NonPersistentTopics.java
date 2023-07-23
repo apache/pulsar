@@ -134,9 +134,11 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             int numPartitions,
-            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
+            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
+            validateTopicOwnership(topicName, authoritative);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);

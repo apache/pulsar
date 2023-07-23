@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
@@ -82,6 +83,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected NamespaceName namespaceName;
     protected TopicName topicName;
+    protected static final Map<TopicName, Boolean> PENDING_TOPIC_CREATION_REQUEST = new ConcurrentHashMap<>();
 
     protected BookKeeper bookKeeper() {
         return pulsar().getBookKeeperClient();
@@ -565,6 +567,12 @@ public abstract class AdminResource extends PulsarWebResource {
                     "Number of partitions should be less than or equal to " + maxPartitions));
             return;
         }
+
+        if (PENDING_TOPIC_CREATION_REQUEST.putIfAbsent(topicName, true) != null) {
+            asyncResponse.resume(new RestException(Status.CONFLICT,
+                    String.format("Create topic %s conflicts", topicName)));
+            return;
+        }
         validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC)
                 .thenRun(() -> {
                     Policies policies = null;
@@ -615,6 +623,8 @@ public abstract class AdminResource extends PulsarWebResource {
                     log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
+                }).whenComplete((unused, __) -> {
+                    PENDING_TOPIC_CREATION_REQUEST.remove(topicName);
                 });
     }
 

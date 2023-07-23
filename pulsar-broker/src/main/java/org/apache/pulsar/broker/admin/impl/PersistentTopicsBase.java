@@ -307,29 +307,38 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalCreateNonPartitionedTopicAsync(boolean authoritative,
                                                      Map<String, String> properties) {
+        if (PENDING_TOPIC_CREATION_REQUEST.putIfAbsent(topicName, true) != null) {
+            return CompletableFuture.failedFuture(new RestException(Status.CONFLICT,
+                    String.format("Create topic %s conflicts", topicName)));
+        }
         CompletableFuture<Void> ret = validateNonPartitionTopicNameAsync(topicName.getLocalName());
         if (topicName.isGlobal()) {
             ret = ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
         }
-        return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-           .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
-                   NamespaceOperation.CREATE_TOPIC))
-           .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
-           .thenAccept(partitionMetadata -> {
-               if (partitionMetadata.partitions > 0) {
-                   log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
-                   throw new RestException(Status.CONFLICT, "This topic already exists");
-               }
-           })
-           .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
-           .thenCompose(existedTopic -> {
-               if (existedTopic.isPresent()) {
-                   log.error("[{}] Topic {} already exists", clientAppId(), topicName);
-                   throw new RestException(Status.CONFLICT, "This topic already exists");
-               }
-               return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
-           })
-           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
+        final CompletableFuture<Void> future =
+                ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
+                        NamespaceOperation.CREATE_TOPIC))
+                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
+                .thenAccept(partitionMetadata -> {
+                    if (partitionMetadata.partitions > 0) {
+                        log.warn("[{}] Partitioned topic with the same name already exists {}",
+                                clientAppId(), topicName);
+                        throw new RestException(Status.CONFLICT, "This topic already exists");
+                    }
+                })
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
+                .thenCompose(existedTopic -> {
+                    if (existedTopic.isPresent()) {
+                        log.error("[{}] Topic {} already exists", clientAppId(), topicName);
+                        throw new RestException(Status.CONFLICT, "This topic already exists");
+                    }
+                    return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
+                })
+                .thenAccept(__ ->
+                        log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
+         future.whenComplete((unused, __) -> PENDING_TOPIC_CREATION_REQUEST.remove(topicName));
+         return future;
     }
 
     /**
