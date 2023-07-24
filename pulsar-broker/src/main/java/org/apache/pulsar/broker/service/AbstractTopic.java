@@ -79,6 +79,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,6 +157,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
 
+    protected ConcurrentOpenHashMap<Long, SchemaData> schemaCache;
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -169,6 +172,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
+        this.schemaCache = ConcurrentOpenHashMap.<Long, SchemaData>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
     }
 
     public SubscribeRate getSubscribeRate() {
@@ -694,6 +701,27 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return brokerService.pulsar()
                 .getSchemaRegistryService()
                 .checkConsumerCompatibility(id, schema, getSchemaCompatibilityStrategy());
+    }
+
+    protected CompletableFuture<Void> tryCompleteTheLostSchema(SchemaVersion schemaVersion, SchemaData schema) {
+        String id = getSchemaId();
+        return brokerService.pulsar()
+                .getSchemaRegistryService()
+                .tryCompleteTheLostSchema(id, schemaVersion, schema);
+    }
+
+    @Override
+    public CompletableFuture<Long> findSchemaVersion(SchemaData schema) {
+        String id = getSchemaId();
+        return brokerService.pulsar()
+                .getSchemaRegistryService()
+                .findSchemaVersion(id, schema);
+    }
+
+    protected CompletableFuture<SchemaVersion> getLatestSchemaVersion() {
+        return brokerService.pulsar()
+                .getSchemaRegistryService()
+                .getLatestSchemaVersion(getSchemaId());
     }
 
     @Override
@@ -1367,4 +1395,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         return Optional.empty();
     }
+
+    public void putSchemaAndVersionInSchemaCache(long schemaVersion, SchemaData schemaData) {
+        schemaCache.putIfAbsent(schemaVersion, schemaData);
+    }
+
 }
