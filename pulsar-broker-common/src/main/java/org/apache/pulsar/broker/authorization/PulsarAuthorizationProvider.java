@@ -675,7 +675,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName,
+                                                                               String role,
+                                                                               AuthenticationDataSource authData) {
         return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
             if (readonly) {
                 if (log.isDebugEnabled()) {
@@ -697,15 +699,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         if (auth.getTopicAuthentication().containsKey(topicUri)) {
                             for (Map.Entry<String, Set<AuthAction>> entry :
                                     auth.getTopicAuthentication().get(topicUri).entrySet()) {
-                                String role = entry.getKey();
+                                String roleKey = entry.getKey();
                                 Set<AuthAction> topicPermissions = entry.getValue();
 
-                                if (!permissions.containsKey(role)) {
-                                    permissions.put(role, topicPermissions);
+                                if (!permissions.containsKey(roleKey)) {
+                                    permissions.put(roleKey, topicPermissions);
                                 } else {
                                     // Do the union between namespace and topic level
-                                    Set<AuthAction> union = Sets.union(permissions.get(role), topicPermissions);
-                                    permissions.put(role, union);
+                                    Set<AuthAction> union = Sets.union(permissions.get(roleKey), topicPermissions);
+                                    permissions.put(roleKey, union);
                                 }
                             }
                         }
@@ -721,7 +723,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
+    public CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(
+            NamespaceName namespaceName, String role, AuthenticationDataSource authData) {
         return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
             if (readonly) {
                 if (log.isDebugEnabled()) {
@@ -747,7 +750,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName) {
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName,
+                                                                               String role,
+                                                                               AuthenticationDataSource authData) {
         return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
             if (readonly) {
                 if (log.isDebugEnabled()) {

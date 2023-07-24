@@ -441,10 +441,14 @@ public interface AuthorizationProvider extends Closeable {
 
     /**
      * Get authorization-action permissions on a topic.
-     * @param topicName
+     * @param topicName topic name
+     * @param role role name
+     * @param authData authenticated data
      * @return CompletableFuture<Map<String, Set<AuthAction>>>
      */
-    default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
+    default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName,
+                                                                                String role,
+                                                                                AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on topicName %s is not supported by the Authorization",
                         topicName)));
@@ -452,10 +456,13 @@ public interface AuthorizationProvider extends Closeable {
 
     /**
      * Get authorization-action permissions on a topic.
-     * @param namespaceName
-     * @return CompletableFuture<Map<String, Set<String>>>
+     * @param namespaceName  namespace name
+     * @param role role name
+     * @param authData authenticated data
+     * @return CompletableFuture<Map<String, Set<String>>> <subscriptionName, Set<roles>>
      */
-    default CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
+    default CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(
+            NamespaceName namespaceName, String role, AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getSubscriptionPermissionsAsync on namespace %s is not supported by the Authorization",
                         namespaceName)));
@@ -463,10 +470,14 @@ public interface AuthorizationProvider extends Closeable {
 
     /**
      * Get authorization-action permissions on a namespace.
-     * @param namespaceName
+     * @param namespaceName namespace name
+     * @param role role name
+     * @param authData authenticated data
      * @return CompletableFuture<Map<String, Set<AuthAction>>>
      */
-    default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName) {
+    default CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName,
+                                                                                String role,
+                                                                                AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
                         namespaceName)));

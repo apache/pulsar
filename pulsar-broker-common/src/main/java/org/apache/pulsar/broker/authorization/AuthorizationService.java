@@ -821,15 +821,19 @@ public class AuthorizationService {
         return provider.removePermissionsAsync(topicName);
     }
 
-    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
-        return provider.getPermissionsAsync(topicName);
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName,
+                                                                               String role,
+                                                                               AuthenticationDataSource autData) {
+        return provider.getPermissionsAsync(namespaceName, role, autData);
     }
 
-    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName) {
-        return provider.getPermissionsAsync(namespaceName);
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName, String role,
+                                                                               AuthenticationDataSource autData) {
+        return provider.getPermissionsAsync(topicName, role, autData);
     }
 
-    public CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
-        return provider.getSubscriptionPermissionsAsync(namespaceName);
+    public CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(
+            NamespaceName namespaceName, String role, AuthenticationDataSource autData) {
+        return provider.getSubscriptionPermissionsAsync(namespaceName, role, autData);
     }
 }

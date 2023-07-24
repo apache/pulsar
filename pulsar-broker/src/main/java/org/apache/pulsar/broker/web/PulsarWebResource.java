@@ -1302,4 +1302,23 @@ public abstract class PulsarWebResource {
             asyncResponse.resume(new RestException(realCause));
         }
     }
+
+    /**
+     * Gets the real client role.<br/>
+     *
+     * When authentication is enabled, if the original principal (the role forwarded by the proxy) is not null,
+     * the original principal is returned, otherwise the client ID is returned.<br/>
+     *
+     * When authentication is disabled, returns null.
+     */
+    protected String getRealClientRole() {
+        if (!pulsar().getConfiguration().isAuthorizationEnabled()) {
+            return null;
+        }
+        String original = originalPrincipal();
+        if (original != null) {
+            return original;
+        }
+        return clientAppId();
+    }
 }

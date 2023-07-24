@@ -293,7 +293,7 @@ public class Namespaces extends NamespacesBase {
                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName))
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName, clientAppId(), clientAuthData()))
                 .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("Failed to get permissions for namespace {}", namespaceName, ex);
@@ -314,7 +314,8 @@ public class Namespaces extends NamespacesBase {
                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getAuthorizationService().getSubscriptionPermissionsAsync(namespaceName))
+                .thenCompose(__ -> getAuthorizationService().getSubscriptionPermissionsAsync(namespaceName,
+                        getRealClientRole(), clientAuthData()))
                 .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get permissions on subscription for namespace {}: {} ",
