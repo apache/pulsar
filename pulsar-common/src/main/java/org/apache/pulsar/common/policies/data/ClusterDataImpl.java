@@ -419,11 +419,11 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         boolean hasBrokerServiceUrlTls = getBrokerServiceUrlTls() != null;
 
         if (!hasServiceUrl && !hasServiceUrlTls) {
-                throw new IllegalArgumentException("Atleast one of ServiceUrl or ServiceUrlTls must be set.");
+                throw new IllegalArgumentException("At least one of ServiceUrl or ServiceUrlTls must be set.");
         }
 
         if (!hasBrokerServiceUrl && !hasBrokerServiceUrlTls) {
-                throw new IllegalArgumentException("Atleast one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
+                throw new IllegalArgumentException("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
         }
              
         URIPreconditions.checkURIIfPresent(getServiceUrl(),
