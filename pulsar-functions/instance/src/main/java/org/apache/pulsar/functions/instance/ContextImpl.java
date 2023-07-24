@@ -137,9 +137,29 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private final Function.FunctionDetails.ComponentType componentType;
 
+    private static Map<String, Object> buildSecretsMap(InstanceConfig config) {
+        if (!StringUtils.isEmpty(config.getFunctionDetails().getSecretsMap())) {
+            return new Gson().fromJson(config.getFunctionDetails().getSecretsMap(),
+                    new TypeToken<Map<String, Object>>() {
+                    }.getType());
+        } else {
+            return new HashMap<>();
+        }
+    }
+
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
                        String[] metricsLabels,
+                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder)
+            throws PulsarClientException {
+        this(config, logger, client, secretsProvider, collectorRegistry, metricsLabels, buildSecretsMap(config),
+                componentType, statsManager, stateManager, pulsarAdmin, clientBuilder);
+    }
+
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
+                       String[] metricsLabels, Map<String, Object> secretsMap,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
                        StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder)
             throws PulsarClientException {
@@ -186,13 +206,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                     }.getType());
         }
         this.secretsProvider = secretsProvider;
-        if (!StringUtils.isEmpty(config.getFunctionDetails().getSecretsMap())) {
-            secretsMap = new Gson().fromJson(config.getFunctionDetails().getSecretsMap(),
-                    new TypeToken<Map<String, Object>>() {
-                    }.getType());
-        } else {
-            secretsMap = new HashMap<>();
-        }
+        this.secretsMap = secretsMap == null ? new HashMap<>() : secretsMap;
 
         this.metricsLabels = metricsLabels;
         String prefix;

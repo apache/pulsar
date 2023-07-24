@@ -481,6 +481,9 @@ public class RuntimeUtils {
             if (instanceConfig.isIgnoreUnknownConfigFields()) {
                 args.add("--ignore_unknown_config_fields");
             }
+
+            args.add("--merge_secrets_into_config_map");
+            args.add(Boolean.toString(instanceConfig.isMergeSecretsIntoConfigMap()));
         }
 
         // state storage configs

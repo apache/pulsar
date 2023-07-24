@@ -749,6 +749,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean ignoreUnknownConfigFields = false;
 
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Whether to merge secrets into the connector's configuration. Only affects Sinks and Sources."
+                    + " Applies to all connectors deployed by this function worker."
+                    + " When true, the SecretsProvider will materialize secrets from the connector's secrets argument"
+                    + " and then the resulting values will be put into the connector's configuration."
+                    + " In the event of a key collision, the sink or source configuration will take precedence."
+                    + " Secrets are merged into config map before unknown fields are filtered out when"
+                    + " ignoreUnknownConfigFields is true. Defaults to false."
+    )
+    private boolean mergeSecretsIntoConfigMap = false;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }

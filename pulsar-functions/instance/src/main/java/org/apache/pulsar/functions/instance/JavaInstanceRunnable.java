@@ -26,6 +26,8 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.deser.BeanDeserializer;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -143,6 +145,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Sink sink;
 
     private final SecretsProvider secretsProvider;
+    private Map<String, Object> secretsMap;
 
     private FunctionCollectorRegistry collectorRegistry;
     private final String[] metricsLabels;
@@ -255,6 +258,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start the state table
         setupStateStore();
 
+        setupSecretsMap();
+
         ContextImpl contextImpl = setupContext();
 
         // start the output producer
@@ -283,7 +288,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
+                collectorRegistry, metricsLabels, secretsMap, this.componentType, this.stats, stateManager,
                 pulsarAdmin, clientBuilder);
     }
 
@@ -385,6 +390,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             return new BKStateStoreProviderImpl();
         } else {
             return (StateStoreProvider) Class.forName(stateStorageImplClass).getConstructor().newInstance();
+        }
+    }
+
+    private void setupSecretsMap() {
+        String secrets = instanceConfig.getFunctionDetails().getSecretsMap();
+        if (!StringUtils.isEmpty(secrets)) {
+            secretsMap = new Gson().fromJson(secrets, new TypeToken<Map<String, Object>>() {}.getType());
+        } else {
+            secretsMap = new HashMap<>();
         }
     }
 
@@ -862,11 +876,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {
-            if (sourceSpec.getConfigs().isEmpty()) {
-                this.source.open(new HashMap<>(), contextImpl);
-            } else {
-                this.source.open(parseComponentConfig(sourceSpec.getConfigs()), contextImpl);
-            }
+            this.source.open(augmentAndFilterConnectorConfig(sourceSpec.getConfigs()), contextImpl);
             if (this.source instanceof PulsarSource) {
                 contextImpl.setInputConsumers(((PulsarSource) this.source).getInputConsumers());
             }
@@ -877,31 +887,66 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
         }
     }
-    private Map<String, Object> parseComponentConfig(String connectorConfigs) throws IOException {
-        return parseComponentConfig(connectorConfigs, instanceConfig, componentClassLoader, componentType);
+
+    /**
+     * Merge all key value pairs from the secrets map into the config map. If a key already exists in the
+     * config map, the value from the config map is used to ensure backwards compatibility.
+     * @param secretsProvider - the secrets provider that will convert secret's values into config values.
+     * @param secrets - the map of secrets
+     * @param configs - the connector configuration map, which will be mutated.
+     */
+    private static void mergeSecretsIntoConfigs(SecretsProvider secretsProvider,
+                                                Map<String, Object> secrets,
+                                                Map<String, Object> configs) {
+        for (Map.Entry<String, Object> entry : secrets.entrySet()) {
+            Object oldValue = configs.putIfAbsent(entry.getKey(),
+                    secretsProvider.provideSecret(entry.getKey(), entry.getValue()));
+            if (oldValue != null) {
+                log.warn("Key collision for config {}. Secrets and config provided a key. Using config's value.",
+                        entry.getKey());
+            }
+        }
     }
 
-    static Map<String, Object> parseComponentConfig(String connectorConfigs,
-                                                    InstanceConfig instanceConfig,
-                                                    ClassLoader componentClassLoader,
-                                                    org.apache.pulsar.functions.proto.Function
+    static Map<String, Object> convertComponentConfig(String connectorConfigs) throws IOException {
+        if (StringUtils.isEmpty(connectorConfigs)) {
+            return new HashMap<>();
+        }
+        return ObjectMapperFactory.getMapper().reader().forType(new TypeReference<Map<String, Object>>() {})
+                .readValue(connectorConfigs);
+    }
+
+    private Map<String, Object> augmentAndFilterConnectorConfig(String connectorConfigs) throws IOException {
+        return augmentAndFilterConnectorConfig(connectorConfigs, secretsMap, instanceConfig, secretsProvider,
+                componentClassLoader, componentType);
+    }
+
+    static Map<String, Object> augmentAndFilterConnectorConfig(String connectorConfigs,
+                                                               Map<String, Object> secretsMap,
+                                                               InstanceConfig instanceConfig,
+                                                               SecretsProvider secretsProvider,
+                                                               ClassLoader componentClassLoader,
+                                                               org.apache.pulsar.functions.proto.Function
                                                             .FunctionDetails.ComponentType componentType)
             throws IOException {
-        final Map<String, Object> config = ObjectMapperFactory
-                .getMapper()
-                .reader()
-                .forType(new TypeReference<Map<String, Object>>() {})
-                .readValue(connectorConfigs);
+        final Map<String, Object> config = convertComponentConfig(connectorConfigs);
+        if (componentType != org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK
+                && componentType != org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+            return config;
+        }
+
+        if (instanceConfig.isMergeSecretsIntoConfigMap()) {
+            mergeSecretsIntoConfigs(secretsProvider, secretsMap, config);
+        }
+
         if (instanceConfig.isIgnoreUnknownConfigFields() && componentClassLoader instanceof NarClassLoader) {
             final String configClassName;
             if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
                 configClassName = ConnectorUtils
                         .getConnectorDefinition((NarClassLoader) componentClassLoader).getSourceConfigClass();
-            } else if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
+            } else {
                 configClassName =  ConnectorUtils
                         .getConnectorDefinition((NarClassLoader) componentClassLoader).getSinkConfigClass();
-            } else {
-                return config;
             }
             if (configClassName != null) {
 
@@ -1014,19 +1059,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {
-            if (sinkSpec.getConfigs().isEmpty()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Opening Sink with empty hashmap with contextImpl: {} ", contextImpl.toString());
-                }
-                this.sink.open(new HashMap<>(), contextImpl);
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec,
-                            contextImpl.toString());
-                }
-                final Map<String, Object> config = parseComponentConfig(sinkSpec.getConfigs());
-                this.sink.open(config, contextImpl);
+            if (log.isDebugEnabled()) {
+                log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec.getConfigs(),
+                        contextImpl.toString());
             }
+            this.sink.open(augmentAndFilterConnectorConfig(sinkSpec.getConfigs()), contextImpl);
         } catch (Exception e) {
             log.error("Sink open produced uncaught exception: ", e);
             throw e;

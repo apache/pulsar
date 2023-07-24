@@ -49,6 +49,7 @@ public class InstanceConfig {
     private int metricsPort;
     private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
     private boolean ignoreUnknownConfigFields;
+    private boolean mergeSecretsIntoConfigMap;
 
     /**
      * Get the string representation of {@link #getInstanceId()}.

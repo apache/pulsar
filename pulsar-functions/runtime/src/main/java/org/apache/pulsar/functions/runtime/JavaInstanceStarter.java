@@ -158,6 +158,15 @@ public class JavaInstanceStarter implements AutoCloseable {
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
+    @Parameter(names = "--merge_secrets_into_config_map", arity = 1,
+            description = "Whether to merge secrets into the connector's configuration. Only affects Sinks and Sources."
+                    + " When true, the SecretsProvider will materialize secrets from the connector's secrets argument"
+                    + " and then the resulting values will be put into the connector's configuration."
+                    + " In the event of a key collision, the sink or source configuration will take precedence."
+                    + " Secrets are merged into config map before unknown fields are filtered out when"
+                    + " ignoreUnknownConfigFields is true. Defaults to false.",
+            required = false)
+    public boolean mergeSecretsIntoConfigMap = false;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -187,6 +196,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
+        instanceConfig.setMergeSecretsIntoConfigMap(mergeSecretsIntoConfigMap);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
