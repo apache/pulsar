@@ -23,6 +23,7 @@ import io.airlift.json.JsonModule;
 import io.trino.spi.type.TypeManager;
 import java.util.HashMap;
 import java.util.Map;
+import javax.validation.ValidationException;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -134,6 +135,38 @@ public class TestPulsarConnectorConfig {
                 + "\"prometheusStatsHttpEnable\":\"true\"}");
 
         app.doNotInitializeLogging().setRequiredConfigurationProperties(config).initialize();
+    }
+    @Test
+    public void testAnnotatedConfigurationsExceptions() {
+        Bootstrap app = new Bootstrap(
+                new JsonModule(),
+                new PulsarConnectorModule("connectorId", Mockito.mock(TypeManager.class)));
+
+        Map<String, String> config = new HashMap<>();
+
+        config.put("pulsar.managed-ledger-offload-driver", "aws-s3");
+        config.put("pulsar.offloaders-directory", "/pulsar/offloaders");
+        config.put("pulsar.managed-ledger-offload-max-threads", "2");
+        config.put("pulsar.offloader-properties", "{\"s3ManagedLedgerOffloadBucket\":\"offload-bucket\","
+                + "\"s3ManagedLedgerOffloadRegion\":\"us-west-2\","
+                + "\"s3ManagedLedgerOffloadServiceEndpoint\":\"http://s3.amazonaws.com\"}");
+        config.put("pulsar.auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        config.put("pulsar.auth-params", "params");
+        config.put("pulsar.auth-token", "token");
+        config.put("pulsar.tls-allow-insecure-connection", "true");
+        config.put("pulsar.tls-hostname-verification-enable", "true");
+        config.put("pulsar.tls-trust-cert-file-path", "/path");
+        config.put("pulsar.bookkeeper-num-io-threads", "10");
+        config.put("pulsar.bookkeeper-num-worker-threads", "10");
+        config.put("pulsar.managed-ledger-num-scheduler-threads", "10");
+        config.put("pulsar.stats-provider", "org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider");
+        config.put("pulsar.stats-provider-configs", "{\"httpServerEnabled\":\"false\","
+                + "\"prometheusStatsHttpPort\":\"9092\","
+                + "\"prometheusStatsHttpEnable\":\"true\"}");
+        Assert.expectThrows(
+                ValidationException.class, ()-> app.doNotInitializeLogging().setRequiredConfigurationProperties(config).initialize());
+
+
     }
 
 }
