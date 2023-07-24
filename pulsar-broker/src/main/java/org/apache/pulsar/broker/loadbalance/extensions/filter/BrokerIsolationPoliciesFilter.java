@@ -44,9 +44,9 @@ public class BrokerIsolationPoliciesFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> availableBrokers,
-                                    ServiceUnitId serviceUnit,
-                                    LoadManagerContext context) {
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> availableBrokers,
+                                                                        ServiceUnitId serviceUnit,
+                                                                        LoadManagerContext context) {
         return isolationPoliciesHelper.applyIsolationPoliciesAsync(availableBrokers, serviceUnit)
                 .thenApply(brokerCandidateCache -> {
                     availableBrokers.keySet().retainAll(brokerCandidateCache);
