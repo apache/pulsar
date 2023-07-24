@@ -413,16 +413,12 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
      * @throws IllegalArgumentException exist illegal property.
      */
      public void checkPropertiesIfPresent() throws IllegalArgumentException {
-        boolean hasServiceUrl = getServiceUrl() != null;
-        boolean hasServiceUrlTls = getServiceUrlTls() != null;
-        boolean hasBrokerServiceUrl = getBrokerServiceUrl() != null;
-        boolean hasBrokerServiceUrlTls = getBrokerServiceUrlTls() != null;
 
-        if (!hasServiceUrl && !hasServiceUrlTls) {
+        if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
                 throw new IllegalArgumentException("At least one of ServiceUrl or ServiceUrlTls must be set.");
         }
 
-        if (!hasBrokerServiceUrl && !hasBrokerServiceUrlTls) {
+        if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
                 throw new IllegalArgumentException("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
         }
              
