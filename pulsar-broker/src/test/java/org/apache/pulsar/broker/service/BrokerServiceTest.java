@@ -1157,7 +1157,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 } else {
                     // check topic should not be created if disable autoCreateTopic.
                     Assert.assertTrue(load.isDone());
-                    Assert.assertTrue(load.get().isPresent());
+                    Assert.assertFalse(load.get().isPresent());
                 }
             }
         } finally {
