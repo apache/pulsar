@@ -24,7 +24,6 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
-import static org.apache.pulsar.common.util.CompletableFutures.compose;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.bootstrap.ServerBootstrap;
@@ -3392,25 +3391,22 @@ public class BrokerService implements Closeable {
     }
 
     public @Nonnull CompletionStage<Boolean> isAllowAutoSubscriptionCreationAsync(@Nonnull TopicName tpName) {
-        return compose(() -> {
-            requireNonNull(tpName);
-            // topic level policies
-            Optional<TopicPolicies> topicPolicies = getTopicPolicies(tpName);
-            if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
-                return CompletableFuture.completedFuture(topicPolicies.get().getAutoSubscriptionCreationOverride()
-                        .isAllowAutoSubscriptionCreation());
-            }
-            // namespace level policies
-            return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(tpName.getNamespaceObject())
-                    .thenApply(policies -> {
-                        if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
-                            return policies.get().autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
-                        }
-                        // broker level policies
-                        return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
-                    });
-        });
-
+        requireNonNull(tpName);
+        // topic level policies
+        final var topicPolicies = getTopicPolicies(tpName);
+        if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
+            return CompletableFuture.completedFuture(topicPolicies.get().getAutoSubscriptionCreationOverride()
+                    .isAllowAutoSubscriptionCreation());
+        }
+        // namespace level policies
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(tpName.getNamespaceObject())
+                .thenApply(policies -> {
+                    if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                        return policies.get().autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
+                    }
+                    // broker level policies
+                    return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+                });
     }
 
     public boolean isSystemTopic(String topic) {

@@ -1178,7 +1178,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-
     public void updateEntryFilters() {
         if (isSystemTopic()) {
             entryFilters = Pair.of(null, Collections.emptyList());
