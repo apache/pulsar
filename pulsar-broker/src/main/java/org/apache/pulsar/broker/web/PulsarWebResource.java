@@ -120,7 +120,8 @@ public abstract class PulsarWebResource {
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
     //  cluster name, topic name, flag
-    private static final Map<String, Map<TopicName, Boolean>> PENDING_TOPIC_CREATION_REQUESTS = new ConcurrentHashMap<>();
+    private static final Map<String, Map<TopicName, Boolean>> PENDING_TOPIC_CREATION_REQUESTS =
+            new ConcurrentHashMap<>();
 
     @Context
     protected ServletContext servletContext;
