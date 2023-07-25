@@ -43,43 +43,36 @@ public class KafkaSinkConfig implements Serializable {
     private String bootstrapServers;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "Protocol used to communicate with Kafka brokers.")
     private String securityProtocol;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "SASL mechanism used for Kafka client connections.")
     private String saslMechanism;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "JAAS login context parameters for SASL connections in the format used by JAAS configuration files.")
     private String saslJaasConfig;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "The list of protocols enabled for SSL connections.")
     private String sslEnabledProtocols;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "The endpoint identification algorithm to validate server hostname using server certificate.")
     private String sslEndpointIdentificationAlgorithm;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "The location of the trust store file.")
     private String sslTruststoreLocation;
 
     @FieldDoc(
-            required = false,
             defaultValue = "",
             help = "The password for the trust store file.")
     private String sslTruststorePassword;

@@ -47,7 +47,7 @@ public class KafkaAbstractSinkTest {
     private static class DummySink extends KafkaAbstractSink<String, byte[]> {
 
         @Override
-        public KeyValue extractKeyValue(Record record) {
+        public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
             return new KeyValue<>(record.getKey().orElse(null), record.getValue());
         }
     }
@@ -74,7 +74,7 @@ public class KafkaAbstractSinkTest {
 
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
-        KafkaAbstractSink sink = new DummySink();
+        KafkaAbstractSink<String, byte[]> sink = new DummySink();
         Map<String, Object> config = new HashMap<>();
         SinkContext sc = new SinkContext() {
             @Override
