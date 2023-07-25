@@ -83,7 +83,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected NamespaceName namespaceName;
     protected TopicName topicName;
-    protected static final Map<TopicName, Boolean> PENDING_TOPIC_CREATION_REQUEST = new ConcurrentHashMap<>();
 
     protected BookKeeper bookKeeper() {
         return pulsar().getBookKeeperClient();
@@ -568,7 +567,7 @@ public abstract class AdminResource extends PulsarWebResource {
             return;
         }
 
-        if (PENDING_TOPIC_CREATION_REQUEST.putIfAbsent(topicName, true) != null) {
+        if (getPendingTopicCreationRequests().putIfAbsent(topicName, true) != null) {
             asyncResponse.resume(new RestException(Status.CONFLICT,
                     String.format("Create topic %s conflicts", topicName)));
             return;
@@ -624,7 +623,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 }).whenComplete((unused, __) -> {
-                    PENDING_TOPIC_CREATION_REQUEST.remove(topicName);
+                    getPendingTopicCreationRequests().remove(topicName);
                 });
     }
 

@@ -31,14 +31,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -117,6 +111,9 @@ public abstract class PulsarWebResource {
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
+    //  cluster name, topic name, flag
+    private static final Map<String, Map<TopicName, Boolean>> PENDING_TOPIC_CREATION_REQUESTS = new ConcurrentHashMap<>();
+
     @Context
     protected ServletContext servletContext;
 
@@ -134,6 +131,15 @@ public abstract class PulsarWebResource {
         }
 
         return pulsar;
+    }
+
+    /**
+     * In some test cases, we use two pulsar services in one JVM. The static filed may cause some problems.
+     * We are adding the cluster key to avoid this problem.
+     */
+    protected Map<TopicName, Boolean> getPendingTopicCreationRequests() {
+        return PENDING_TOPIC_CREATION_REQUESTS.computeIfAbsent(pulsar().getConfiguration().getClusterName(),
+                key -> new ConcurrentHashMap<>());
     }
 
     protected ServiceConfiguration config() {

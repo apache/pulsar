@@ -307,7 +307,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalCreateNonPartitionedTopicAsync(boolean authoritative,
                                                      Map<String, String> properties) {
-        if (PENDING_TOPIC_CREATION_REQUEST.putIfAbsent(topicName, true) != null) {
+        if (getPendingTopicCreationRequests().putIfAbsent(topicName, true) != null) {
             return CompletableFuture.failedFuture(new RestException(Status.CONFLICT,
                     String.format("Create topic %s conflicts", topicName)));
         }
@@ -337,7 +337,7 @@ public class PersistentTopicsBase extends AdminResource {
                 })
                 .thenAccept(__ ->
                         log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
-         future.whenComplete((unused, __) -> PENDING_TOPIC_CREATION_REQUEST.remove(topicName));
+         future.whenComplete((unused, __) -> getPendingTopicCreationRequests().remove(topicName));
          return future;
     }
 
