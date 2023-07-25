@@ -74,6 +74,7 @@ public interface BulkProcessor extends Closeable {
         private String documentId;
     }
 
+
     void appendIndexRequest(BulkIndexRequest request) throws IOException;
 
     void appendDeleteRequest(BulkDeleteRequest request) throws IOException;
