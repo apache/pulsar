@@ -2732,7 +2732,8 @@ public class BrokerService implements Closeable {
                                     if (metadata.partitions == 0
                                             && !topicExists
                                             && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService().isAllowAutoTopicCreationAsync(topicName, policies)
+                                            && pulsar.getBrokerService()
+                                                .isAllowAutoTopicCreationAsync(topicName, policies)
                                             && pulsar.getBrokerService()
                                                             .isDefaultTopicTypePartitioned(topicName, policies)) {
 
