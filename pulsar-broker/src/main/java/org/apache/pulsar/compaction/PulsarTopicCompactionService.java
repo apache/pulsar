@@ -109,10 +109,10 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     }
 
     @Override
-    public CompletableFuture<Position> findNewestPosition(Predicate<Entry> condition) {
+    public CompletableFuture<Position> findNewestPosition(@Nonnull Predicate<Entry> condition) {
         var compactedTopicContextFuture = compactedTopic.getCompactedTopicContextFuture();
         if (compactedTopicContextFuture == null) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("Does not exist compactedTopicContext"));
+            return CompletableFuture.completedFuture(null);
         }
         return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
             LedgerHandle lh = compactedTopicContext.getLedger();

@@ -69,5 +69,5 @@ public interface TopicCompactionService extends AutoCloseable {
      *  predicate that reads an entry an applies a condition
      * @return a future that will be completed with the result position, this position can be null.
      */
-    CompletableFuture<Position> findNewestPosition(Predicate<Entry> condition);
+    CompletableFuture<Position> findNewestPosition(@Nonnull Predicate<Entry> condition);
 }
