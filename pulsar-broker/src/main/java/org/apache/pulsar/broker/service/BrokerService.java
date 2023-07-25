@@ -2868,12 +2868,9 @@ public class BrokerService implements Closeable {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
-        Optional<Policies> policies =
-                pulsar.getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(topicName.getNamespaceObject());
-        return pulsar.getNamespaceService().checkTopicExists(topicName)
-                .thenCompose(topicExists -> {
-                    return fetchPartitionedTopicMetadataAsync(topicName)
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                .thenCompose(policies -> pulsar.getNamespaceService().checkTopicExists(topicName)
+                    .thenCompose(topicExists -> fetchPartitionedTopicMetadataAsync(topicName)
                             .thenCompose(metadata -> {
                                 CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
 
@@ -2915,8 +2912,8 @@ public class BrokerService implements Closeable {
                                 });
 
                                 return future;
-                            });
-                });
+                            }))
+                );
     }
 
     @SuppressWarnings("deprecation")
