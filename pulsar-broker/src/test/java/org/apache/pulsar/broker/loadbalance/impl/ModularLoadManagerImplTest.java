@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance;
+package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,11 +54,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
+import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
-import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Producer;
@@ -335,38 +336,70 @@ public class ModularLoadManagerImplTest {
             bundleReference.set(invocation.getArguments()[0].toString() + '/' + invocation.getArguments()[1]);
             return null;
         }).when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+
+        AtomicReference<Optional<String>> selectedBrokerRef = new AtomicReference<>();
+        ModularLoadManagerImpl primaryLoadManagerSpy = spy(primaryLoadManager);
+        doAnswer(invocation -> {
+            ServiceUnitId serviceUnitId = (ServiceUnitId) invocation.getArguments()[0];
+            Optional<String> broker = primaryLoadManager.selectBroker(serviceUnitId);
+            selectedBrokerRef.set(broker);
+            return broker;
+        }).when(primaryLoadManagerSpy).selectBroker(any());
+
         setField(pulsar1.getAdminClient(), "namespaces", namespacesSpy1);
         pulsar1.getConfiguration().setLoadBalancerEnabled(true);
-        final LoadData loadData = (LoadData) getField(primaryLoadManager, "loadData");
+        final LoadData loadData = (LoadData) getField(primaryLoadManagerSpy, "loadData");
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
         final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryHost));
         when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
         brokerDataMap.put(primaryHost, brokerDataSpy1);
         // Need to update all the bundle data for the shredder to see the spy.
-        primaryLoadManager.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
+        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
 
         Thread.sleep(100);
         localBrokerData.setCpu(new ResourceUsage(80, 100));
-        primaryLoadManager.doLoadShedding();
+        primaryLoadManagerSpy.doLoadShedding();
 
         // 80% is below overload threshold: verify nothing is unloaded.
-        verify(namespacesSpy1, Mockito.times(0)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        verify(namespacesSpy1, Mockito.times(0))
+                .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
 
         localBrokerData.setCpu(new ResourceUsage(90, 100));
-        primaryLoadManager.doLoadShedding();
+        primaryLoadManagerSpy.doLoadShedding();
         // Most expensive bundle will be unloaded.
-        verify(namespacesSpy1, Mockito.times(1)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        verify(namespacesSpy1, Mockito.times(1))
+                .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
         assertEquals(bundleReference.get(), mockBundleName(2));
+        assertEquals(selectedBrokerRef.get().get(), secondaryHost);
 
-        primaryLoadManager.doLoadShedding();
+        primaryLoadManagerSpy.doLoadShedding();
         // Now less expensive bundle will be unloaded (normally other bundle would move off and nothing would be
         // unloaded, but this is not the case due to the spy's behavior).
-        verify(namespacesSpy1, Mockito.times(2)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        verify(namespacesSpy1, Mockito.times(2))
+                .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
         assertEquals(bundleReference.get(), mockBundleName(1));
+        assertEquals(selectedBrokerRef.get().get(), secondaryHost);
 
-        primaryLoadManager.doLoadShedding();
+        primaryLoadManagerSpy.doLoadShedding();
         // Now both are in grace period: neither should be unloaded.
-        verify(namespacesSpy1, Mockito.times(2)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        verify(namespacesSpy1, Mockito.times(2))
+                .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        assertEquals(selectedBrokerRef.get().get(), secondaryHost);
+
+        // Test bundle transfer to same broker
+
+        loadData.getRecentlyUnloadedBundles().clear();
+        primaryLoadManagerSpy.doLoadShedding();
+        verify(namespacesSpy1, Mockito.times(3))
+                .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+
+        doReturn(Optional.of(primaryHost)).when(primaryLoadManagerSpy).selectBroker(any());
+        loadData.getRecentlyUnloadedBundles().clear();
+        primaryLoadManagerSpy.doLoadShedding();
+        // The bundle shouldn't be unloaded because the broker is the same.
+        verify(namespacesSpy1, Mockito.times(3))
+                .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+
     }
 
     // Test that ModularLoadManagerImpl will determine that writing local data to ZooKeeper is necessary if certain
