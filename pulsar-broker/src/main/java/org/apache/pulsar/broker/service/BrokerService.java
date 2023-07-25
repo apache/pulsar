@@ -2733,7 +2733,7 @@ public class BrokerService implements Closeable {
                                             && !topicExists
                                             && !topicName.isPartitioned()
                                             && pulsar.getBrokerService()
-                                                .isAllowAutoTopicCreationAsync(topicName, policies)
+                                                .isAllowAutoTopicCreation(topicName, policies)
                                             && pulsar.getBrokerService()
                                                             .isDefaultTopicTypePartitioned(topicName, policies)) {
 
@@ -2980,15 +2980,15 @@ public class BrokerService implements Closeable {
         Optional<Policies> policies =
                 pulsar.getPulsarResources().getNamespaceResources()
                         .getPoliciesIfCached(topicName.getNamespaceObject());
-        return isAllowAutoTopicCreationAsync(topicName, policies);
+        return isAllowAutoTopicCreation(topicName, policies);
     }
 
     public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName) {
         return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
-                .thenApply(policies -> isAllowAutoTopicCreationAsync(topicName, policies));
+                .thenApply(policies -> isAllowAutoTopicCreation(topicName, policies));
     }
 
-    public boolean isAllowAutoTopicCreationAsync(final TopicName topicName, final Optional<Policies> policies) {
+    public boolean isAllowAutoTopicCreation(final TopicName topicName, final Optional<Policies> policies) {
         if (policies.isPresent() && policies.get().deleted) {
             log.info("Preventing AutoTopicCreation on a namespace that is being deleted {}",
                     topicName.getNamespaceObject());
