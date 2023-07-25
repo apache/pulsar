@@ -90,7 +90,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
     @Override
     public void appendIndexRequest(BulkIndexRequest request) throws IOException {
         final Map mapped = mapper.readValue(request.getDocumentSource(), Map.class);
-        BulkOperationVariant operation = switch (this.config.getIndexType()) {
+        final BulkOperationVariant operation = switch (this.config.getIndexType()) {
             case INDEX -> new IndexOperation.Builder<Map>()
                     .index(request.getIndex())
                     .id(request.getDocumentId())
