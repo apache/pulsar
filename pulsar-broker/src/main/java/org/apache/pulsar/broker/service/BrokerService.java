@@ -2958,12 +2958,22 @@ public class BrokerService implements Closeable {
         cnxSet.forEach(consumer);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)}
+     * You can use #{@link BrokerService#isAllowAutoTopicCreationAsync(TopicName)}
+     */
     @Deprecated
     public boolean isAllowAutoTopicCreation(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return isAllowAutoTopicCreation(topicName);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)}
+     * You can use #{@link BrokerService#isAllowAutoTopicCreationAsync(TopicName)}
+     */
     @Deprecated
     public boolean isAllowAutoTopicCreation(final TopicName topicName) {
         Optional<Policies> policies =
