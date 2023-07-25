@@ -1035,10 +1035,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 }
 
-                boolean createTopicIfDoesNotExist = forceTopicCreation
-                        && service.isAllowAutoTopicCreation(topicName.toString());
-
-                service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                service.isAllowAutoTopicCreationAsync(topicName)
+                        .thenCompose(isAllowAutoTopicCreation -> {
+                            final boolean createTopicIfDoesNotExist = forceTopicCreation && isAllowAutoTopicCreation;
+                            return service.getTopic(topicName.toString(), createTopicIfDoesNotExist);
+                        })
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
                                 return FutureUtil
