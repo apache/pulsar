@@ -20,6 +20,7 @@ package org.apache.pulsar.compaction;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -60,4 +61,13 @@ public interface TopicCompactionService extends AutoCloseable {
      * @return a future that will be completed with the last compacted position, this position can be null.
      */
     CompletableFuture<Position> getLastCompactedPosition();
+
+    /**
+     * Find the newest Position that matches the given predicate.
+     *
+     * @param condition
+     *  predicate that reads an entry an applies a condition
+     * @return a future that will be completed with the result position, this position can be null.
+     */
+    CompletableFuture<Position> findNewestPosition(Predicate<Entry> condition);
 }

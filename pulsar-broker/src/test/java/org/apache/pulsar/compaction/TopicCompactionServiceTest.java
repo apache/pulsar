@@ -33,9 +33,12 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -67,22 +70,27 @@ public class TopicCompactionServiceTest extends CompactorTest {
 
         producer.newMessage()
                 .key("a")
+                .sequenceId(1)
                 .value("A_1".getBytes())
                 .send();
         producer.newMessage()
                 .key("b")
+                .sequenceId(2)
                 .value("B_1".getBytes())
                 .send();
-        producer.newMessage()
+        MessageIdImpl messageId = (MessageIdImpl) producer.newMessage()
                 .key("a")
+                .sequenceId(3)
                 .value("A_2".getBytes())
                 .send();
         producer.newMessage()
                 .key("b")
+                .sequenceId(4)
                 .value("B_2".getBytes())
                 .send();
         producer.newMessage()
                 .key("b")
+                .sequenceId(5)
                 .value("B_3".getBytes())
                 .send();
 
@@ -123,5 +131,13 @@ public class TopicCompactionServiceTest extends CompactorTest {
 
         List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
         assertEquals(entries2.size(), 1);
+
+        Position position = service.findNewestPosition(entry -> {
+            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+            return messageMetadata.getSequenceId() <= 4;
+        }).join();
+        final PositionImpl expectedPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+
+        assertEquals(position, expectedPosition);
     }
 }

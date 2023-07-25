@@ -28,9 +28,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -104,6 +106,45 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     @Override
     public CompletableFuture<Position> getLastCompactedPosition() {
         return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
+    }
+
+    @Override
+    public CompletableFuture<Position> findNewestPosition(Predicate<Entry> condition) {
+        var compactedTopicContextFuture = compactedTopic.getCompactedTopicContextFuture();
+        if (compactedTopicContextFuture == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Does not exist compactedTopicContext"));
+        }
+        return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
+            LedgerHandle lh = compactedTopicContext.getLedger();
+            CompletableFuture<Position> promise = new CompletableFuture<>();
+            findNewestPointLoop(condition, 0L, lh.getLastAddConfirmed(), promise, null, lh);
+            return promise;
+        });
+    }
+
+    private static void findNewestPointLoop(final Predicate<Entry> condition,
+                                            final long start, final long end,
+                                            final CompletableFuture<Position> promise,
+                                            final PositionImpl lastMatchPosition,
+                                            final LedgerHandle lh) {
+        if (start > end) {
+            promise.complete(lastMatchPosition);
+            return;
+        }
+
+        long mid = start + (end - start) / 2;
+        CompactedTopicImpl.readEntries(lh, mid, mid).thenAccept(entries -> {
+            Entry entry = entries.get(0);
+            final PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+            if (condition.test(entry)) {
+                findNewestPointLoop(condition, mid + 1, end, promise, position, lh);
+            } else {
+                findNewestPointLoop(condition, start, mid - 1, promise, lastMatchPosition, lh);
+            }
+        }).exceptionally(ex -> {
+            promise.completeExceptionally(ex);
+            return null;
+        });
     }
 
     public CompactedTopicImpl getCompactedTopic() {
