@@ -118,8 +118,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     /**
-     * Get the namespace policy from the metadata cache, if the cache doesn't have this value,
-     * don't load the new value.
+     * Get the namespace policy from the metadata cache. This method will not trigger the load of metadata cache.
      *
      * @deprecated Since this method may introduce inconsistent namespace policies. we should use
      * #{@link NamespaceResources#getPoliciesAsync}
