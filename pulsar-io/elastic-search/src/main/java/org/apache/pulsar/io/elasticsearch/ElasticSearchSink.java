@@ -133,7 +133,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             throw elasticsearchClient.irrecoverableError.get();
                     }
                 } else {
-                    elasticsearchClient.indexDocument(record, idAndDoc);
+                    if (elasticSearchConfig.isBulkEnabled()) {
+                        elasticsearchClient.bulkIndex(record, idAndDoc);
+                    } else {
+                        elasticsearchClient.indexDocument(record, idAndDoc);
+                    }
                 }
             } catch (JsonProcessingException jsonProcessingException) {
                 switch (elasticSearchConfig.getMalformedDocAction()) {
