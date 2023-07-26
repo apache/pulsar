@@ -88,26 +88,37 @@ public class ElasticBulkProcessor implements BulkProcessor {
     }
 
     @Override
-    public void appendIndexRequest(BulkIndexRequest request) throws IOException {
-        final Map mapped = mapper.readValue(request.getDocumentSource(), Map.class);
-        final BulkOperationVariant operation = switch (this.config.getIndexType()) {
-            case INDEX -> new IndexOperation.Builder<Map>()
-                    .index(request.getIndex())
-                    .id(request.getDocumentId())
-                    .document(mapped)
-                    .build();
-            case DATA_STREAM -> new CreateOperation.Builder<Map>()
-                    .index(request.getIndex())
-                    .id(request.getDocumentId())
-                    .document(mapped)
-                    .build();
-        };
+    public void appendCreateRequest(BulkCreateRequest request) throws IOException {
+        final var mapped = mapper.readValue(request.getDocumentSource(), Map.class);
+
+        final var createOperation = new CreateOperation.Builder<Map>()
+                .index(request.getIndex())
+                .id(request.getDocumentId())
+                .document(mapped)
+                .build();
 
         long sourceLength = 0;
         if (config.getBulkSizeInMb() > 0) {
             sourceLength = request.getDocumentSource().getBytes(StandardCharsets.UTF_8).length;
         }
-        add(BulkOperationWithPulsarRecord.createBulkableOperation(operation, request.getRecord(), sourceLength));
+        add(BulkOperationWithPulsarRecord.createOperation(createOperation, request.getRecord(), sourceLength));
+    }
+
+    @Override
+    public void appendIndexRequest(BulkIndexRequest request) throws IOException {
+        final Map mapped = mapper.readValue(request.getDocumentSource(), Map.class);
+
+        final IndexOperation<Map> indexOperation = new IndexOperation.Builder<Map>()
+                .index(request.getIndex())
+                .id(request.getDocumentId())
+                .document(mapped)
+                .build();
+
+        long sourceLength = 0;
+        if (config.getBulkSizeInMb() > 0) {
+            sourceLength = request.getDocumentSource().getBytes(StandardCharsets.UTF_8).length;
+        }
+        add(BulkOperationWithPulsarRecord.indexOperation(indexOperation, request.getRecord(), sourceLength));
     }
 
     @Override
@@ -219,11 +230,18 @@ public class ElasticBulkProcessor implements BulkProcessor {
          */
         private static final int REQUEST_OVERHEAD = 50;
 
-        public static BulkOperationWithPulsarRecord createBulkableOperation(BulkOperationVariant operation,
-                                                                            Record pulsarRecord,
-                                                                            long sourceLength) {
+        public static BulkOperationWithPulsarRecord createOperation(CreateOperation createOperation,
+                                                                    Record pulsarRecord,
+                                                                    long sourceLength) {
             long estimatedSizeInBytes = REQUEST_OVERHEAD + sourceLength;
-            return new BulkOperationWithPulsarRecord(operation, pulsarRecord, estimatedSizeInBytes);
+            return new BulkOperationWithPulsarRecord(createOperation, pulsarRecord, estimatedSizeInBytes);
+        }
+
+        public static BulkOperationWithPulsarRecord indexOperation(IndexOperation indexOperation,
+                                                                   Record pulsarRecord,
+                                                                   long sourceLength) {
+            long estimatedSizeInBytes = REQUEST_OVERHEAD + sourceLength;
+            return new BulkOperationWithPulsarRecord(indexOperation, pulsarRecord, estimatedSizeInBytes);
         }
 
         public static BulkOperationWithPulsarRecord deleteOperation(DeleteOperation indexOperation,
