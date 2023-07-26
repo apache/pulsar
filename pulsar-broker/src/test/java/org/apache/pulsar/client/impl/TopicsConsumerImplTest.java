@@ -25,6 +25,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -45,6 +46,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -1081,6 +1083,64 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         // Wait the message expire task done and make sure the message expired.
         retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
         assertEquals(subscription.getNumberOfEntriesInBacklog(false), 0);
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testDefaultBacklogTTLForHealthTopic() throws Exception {
+
+        int defaultTTLSec = 5;
+        int totalMessages = 10;
+        this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
+
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        final String healthCheckTopicV1 = "persistent://" + heartbeatNamespaceV1 + "/healthcheck";
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        final String healthCheckTopicV2 = "persistent://" + heartbeatNamespaceV2 + "/healthcheck";
+        final String subName = "expiredSub";
+
+        Consumer<byte[]> consumerV1 = pulsarClient.newConsumer().topic(healthCheckTopicV1).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+        consumerV1.close();
+        Consumer<byte[]> consumerV2 = pulsarClient.newConsumer().topic(healthCheckTopicV2).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+        consumerV2.close();
+
+        Producer<byte[]> producerV1 = pulsarClient.newProducer().topic(healthCheckTopicV1).enableBatching(false).create();
+        for (int i = 0; i < totalMessages; i++) {
+            producerV1.send(("" + i).getBytes());
+        }
+        Producer<byte[]> producerV2 = pulsarClient.newProducer().topic(healthCheckTopicV2).enableBatching(false).create();
+        for (int i = 0; i < totalMessages; i++) {
+            producerV2.send(("" + i).getBytes());
+        }
+
+        Optional<Topic> topicV1 = pulsar.getBrokerService().getTopic(healthCheckTopicV1, false).get();
+        assertTrue(topicV1.isPresent());
+        PersistentSubscription subscriptionV1 = (PersistentSubscription) topicV1.get().getSubscription(subName);
+
+        Optional<Topic> topicV2 = pulsar.getBrokerService().getTopic(healthCheckTopicV2, false).get();
+        assertTrue(topicV2.isPresent());
+        PersistentSubscription subscriptionV2 = (PersistentSubscription) topicV2.get().getSubscription(subName);
+
+        Thread.sleep((defaultTTLSec - 1) * 1000);
+        topicV1.get().checkMessageExpiry();
+        topicV2.get().checkMessageExpiry();
+        // Wait the message expire task done and make sure the message does not expire early.
+        Thread.sleep(1000);
+        assertEquals(subscriptionV1.getNumberOfEntriesInBacklog(false), 10);
+        assertEquals(subscriptionV2.getNumberOfEntriesInBacklog(false), 10);
+        Thread.sleep(2000);
+        topicV1.get().checkMessageExpiry();
+        topicV2.get().checkMessageExpiry();
+        // Wait the message expire task done and make sure the message expired.
+        retryStrategically((test) -> subscriptionV1.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
+        assertEquals(subscriptionV1.getNumberOfEntriesInBacklog(false), 0);
+        retryStrategically((test) -> subscriptionV2.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
+        assertEquals(subscriptionV2.getNumberOfEntriesInBacklog(false), 0);
     }
 
     @Test(timeOut = testTimeout)
