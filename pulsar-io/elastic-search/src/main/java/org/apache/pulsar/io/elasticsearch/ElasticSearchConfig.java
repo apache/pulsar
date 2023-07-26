@@ -60,7 +60,7 @@ public class ElasticSearchConfig implements Serializable {
     private String indexName;
 
     @FieldDoc(
-            required = true,
+            required = false,
             defaultValue = "INDEX",
             help = "The type of the index. If the target index is data stream,"
                 + "This value must be set to \"DATA_STREAM\"."
