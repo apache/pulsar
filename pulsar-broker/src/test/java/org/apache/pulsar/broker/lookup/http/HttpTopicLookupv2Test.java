@@ -142,6 +142,9 @@ public class HttpTopicLookupv2Test {
         doReturn(uri).when(uriInfo).getRequestUri();
         doReturn(true).when(config).isAuthorizationEnabled();
 
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(brokerService).isAllowAutoTopicCreationAsync(any());
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         future.complete(false);

@@ -157,18 +157,20 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenAccept(optPolicies -> {
+                    final Policies policies;
                     if (!optPolicies.isPresent()) {
                         log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
+                        policies = new Policies();
                     } else {
-                        Policies policies = optPolicies.get();
+                        policies = optPolicies.get();
                         updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                         schemaValidationEnforced = policies.schema_validation_enforced;
                     }
                     updatePublishDispatcher();
-                    updateResourceGroupLimiter(optPolicies);
+                    updateResourceGroupLimiter(policies);
                 });
     }
 

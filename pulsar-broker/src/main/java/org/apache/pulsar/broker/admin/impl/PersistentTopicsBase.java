@@ -2208,9 +2208,10 @@ public class PersistentTopicsBase extends AdminResource {
                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
                         subscriptionName, targetMessageId, authoritative, replicated, properties);
             } else {
-                boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
-                getPartitionedTopicMetadataAsync(topicName,
-                        authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
+                pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
+                    .thenCompose(allowAutoTopicCreation ->
+                            getPartitionedTopicMetadataAsync(topicName, authoritative, allowAutoTopicCreation))
+                    .thenAccept(partitionMetadata -> {
                     final int numPartitions = partitionMetadata.partitions;
                     if (numPartitions > 0) {
                         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -2306,13 +2307,13 @@ public class PersistentTopicsBase extends AdminResource {
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated,
             Map<String, String> properties) {
 
-        boolean isAllowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
-
-        validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> {
-                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE, subscriptionName);
-                    return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
-                }).thenApply(optTopic -> {
+        pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
+            .thenCompose(isAllowAutoTopicCreation -> validateTopicOwnershipAsync(topicName, authoritative)
+                    .thenCompose(__ -> {
+                        validateTopicOperation(topicName, TopicOperation.SUBSCRIBE, subscriptionName);
+                        return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
+                    }))
+           .thenApply(optTopic -> {
             if (optTopic.isPresent()) {
                 return optTopic.get();
             } else {
