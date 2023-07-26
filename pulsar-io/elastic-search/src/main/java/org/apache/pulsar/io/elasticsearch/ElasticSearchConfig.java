@@ -62,9 +62,8 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "INDEX",
-            help = "The type of the index. If the target cluster is ElasticSearch and the index is data stream,"
+            help = "The type of the index. If the target index is data stream,"
                 + "This value must be set to \"DATA_STREAM\"."
-                + "If the target cluster is OpenSearch, this value has no effect."
     )
     private IndexType indexType = IndexType.INDEX;
 
