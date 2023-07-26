@@ -31,6 +31,7 @@ import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.RandomExponentialRetry;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
 import org.apache.pulsar.io.elasticsearch.client.RestClient;
+import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.refresh.RefreshRequest;
@@ -296,7 +297,14 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
 
     @Override
     public void appendCreateRequest(BulkCreateRequest request) throws IOException {
-        throw new IOException("Not implemented");
+        IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
+        if (!Strings.isNullOrEmpty(request.getDocumentId())) {
+            indexRequest.id(request.getDocumentId());
+        }
+        indexRequest.type(config.getTypeName());
+        indexRequest.source(request.getDocumentSource(), XContentType.JSON);
+        indexRequest = indexRequest.opType(DocWriteRequest.OpType.CREATE);
+        internalBulkProcessor.add(indexRequest);
     }
 
     @Override
