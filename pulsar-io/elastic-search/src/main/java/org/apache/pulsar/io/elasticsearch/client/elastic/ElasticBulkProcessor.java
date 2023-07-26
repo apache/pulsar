@@ -89,9 +89,9 @@ public class ElasticBulkProcessor implements BulkProcessor {
 
     @Override
     public void appendCreateRequest(BulkCreateRequest request) throws IOException {
-        final var mapped = mapper.readValue(request.getDocumentSource(), Map.class);
+        final Map mapped = mapper.readValue(request.getDocumentSource(), Map.class);
 
-        final var createOperation = new CreateOperation.Builder<Map>()
+        final CreateOperation<Map> createOperation = new CreateOperation.Builder<Map>()
                 .index(request.getIndex())
                 .id(request.getDocumentId())
                 .document(mapped)
