@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.io.influxdb.v2;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.io.core.SinkContext;
 import org.testng.annotations.Test;
 
 public class InfluxDBSinkConfigTest {
@@ -36,7 +39,20 @@ public class InfluxDBSinkConfigTest {
 
         assertNotNull(config);
         config.validate();
-        verifyValues(config);
+        verifyValues(config, "xxxx");
+    }
+
+    @Test
+    public final void testLoadFromYamlAndContext() throws Exception {
+        File yamlFile = getFile("sinkConfig-v2.yaml");
+        String path = yamlFile.getAbsolutePath();
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("token")).thenReturn("a-super-secret-token");
+        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(path, context);
+
+        assertNotNull(config);
+        config.validate();
+        verifyValues(config, "a-super-secret-token");
     }
 
     private Map<String, Object> buildValidConfigMap() {
@@ -61,8 +77,20 @@ public class InfluxDBSinkConfigTest {
         InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map);
         assertNotNull(config);
         config.validate();
-        verifyValues(config);
+        verifyValues(config, "xxxx");
     }
+
+    @Test
+    public final void testLoadFromMapAndContext() throws Exception {
+        Map<String, Object> map = buildValidConfigMap();
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("token")).thenReturn("a-super-secret-token");
+        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map, context);
+        assertNotNull(config);
+        config.validate();
+        verifyValues(config, "a-super-secret-token");
+    }
+
 
     @Test(expectedExceptions = NullPointerException.class,
             expectedExceptionsMessageRegExp = "influxdbUrl property not set.")
@@ -82,9 +110,9 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    private void verifyValues(InfluxDBSinkConfig config) {
+    private void verifyValues(InfluxDBSinkConfig config, String expectedToken) {
         assertEquals("http://localhost:9999", config.getInfluxdbUrl());
-        assertEquals("xxxx", config.getToken());
+        assertEquals(expectedToken, config.getToken());
         assertEquals("example-org", config.getOrganization());
         assertEquals("example-bucket", config.getBucket());
         assertEquals("ns", config.getPrecision());

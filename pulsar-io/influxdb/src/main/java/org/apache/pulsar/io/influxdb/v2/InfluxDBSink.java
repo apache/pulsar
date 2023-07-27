@@ -49,7 +49,7 @@ public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        InfluxDBSinkConfig influxDBSinkConfig = InfluxDBSinkConfig.load(config);
+        InfluxDBSinkConfig influxDBSinkConfig = InfluxDBSinkConfig.load(config, sinkContext);
         influxDBSinkConfig.validate();
         super.init(influxDBSinkConfig.getBatchTimeMs(), influxDBSinkConfig.getBatchSize());
 

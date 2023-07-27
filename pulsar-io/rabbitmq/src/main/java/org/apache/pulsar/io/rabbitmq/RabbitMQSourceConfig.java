@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.rabbitmq;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
@@ -28,6 +29,8 @@ import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -61,14 +64,31 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
             help = "Set true if the queue should be declared passively - ie to preserve durability/timeout settings")
     private boolean passive = false;
 
+    /**
+     * @deprecated Use {@link #load(String, SourceContext)} instead.
+     */
+    @Deprecated
     public static RabbitMQSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), RabbitMQSourceConfig.class);
     }
 
+    public static RabbitMQSourceConfig load(String yamlFile, SourceContext context) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return load(mapper.readValue(new File(yamlFile), new TypeReference<Map<String, Object>>() {}), context);
+    }
+
+    /**
+     * @deprecated Use {@link #load(Map, SourceContext)} instead.
+     */
+    @Deprecated
     public static RabbitMQSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), RabbitMQSourceConfig.class);
+    }
+
+    public static RabbitMQSourceConfig load(Map<String, Object> map, SourceContext context) {
+        return IOConfigUtils.loadWithSecrets(map, RabbitMQSourceConfig.class, context);
     }
 
     @Override

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.rabbitmq.sink;
 
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSinkConfig;
 import org.testng.annotations.Test;
 
@@ -26,6 +27,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -44,6 +47,30 @@ public class RabbitMQSinkConfigTest {
         assertEquals(config.getVirtualHost(), "/");
         assertEquals(config.getUsername(), "guest");
         assertEquals(config.getPassword(), "guest");
+        assertEquals(config.getConnectionName(), "test-connection");
+        assertEquals(config.getRequestedChannelMax(), Integer.parseInt("0"));
+        assertEquals(config.getRequestedFrameMax(), Integer.parseInt("0"));
+        assertEquals(config.getConnectionTimeout(), Integer.parseInt("60000"));
+        assertEquals(config.getHandshakeTimeout(), Integer.parseInt("10000"));
+        assertEquals(config.getRequestedHeartbeat(), Integer.parseInt("60"));
+        assertEquals(config.getExchangeName(), "test-exchange");
+        assertEquals(config.getExchangeType(), "test-exchange-type");
+    }
+
+    @Test
+    public final void loadFromYamlFileAndContextTest() throws IOException {
+        File yamlFile = getFile("sinkConfig.yaml");
+        String path = yamlFile.getAbsolutePath();
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("username")).thenReturn("my-secret-name");
+        when(context.getSecret("password")).thenReturn("my-secret-pass");
+        RabbitMQSinkConfig config = RabbitMQSinkConfig.load(path, context);
+        assertNotNull(config);
+        assertEquals(config.getHost(), "localhost");
+        assertEquals(config.getPort(), Integer.parseInt("5673"));
+        assertEquals(config.getVirtualHost(), "/");
+        assertEquals(config.getUsername(), "my-secret-name");
+        assertEquals(config.getPassword(), "my-secret-pass");
         assertEquals(config.getConnectionName(), "test-connection");
         assertEquals(config.getRequestedChannelMax(), Integer.parseInt("0"));
         assertEquals(config.getRequestedFrameMax(), Integer.parseInt("0"));
@@ -78,6 +105,42 @@ public class RabbitMQSinkConfigTest {
         assertEquals(config.getVirtualHost(), "/");
         assertEquals(config.getUsername(), "guest");
         assertEquals(config.getPassword(), "guest");
+        assertEquals(config.getConnectionName(), "test-connection");
+        assertEquals(config.getRequestedChannelMax(), Integer.parseInt("0"));
+        assertEquals(config.getRequestedFrameMax(), Integer.parseInt("0"));
+        assertEquals(config.getConnectionTimeout(), Integer.parseInt("60000"));
+        assertEquals(config.getHandshakeTimeout(), Integer.parseInt("10000"));
+        assertEquals(config.getRequestedHeartbeat(), Integer.parseInt("60"));
+        assertEquals(config.getExchangeName(), "test-exchange");
+        assertEquals(config.getExchangeType(), "test-exchange-type");
+    }
+
+    @Test
+    public final void loadFromMapAndContextTest() throws IOException {
+        Map<String, Object> map = new HashMap<>();
+        map.put("host", "localhost");
+        map.put("port", "5673");
+        map.put("virtualHost", "/");
+        map.put("connectionName", "test-connection");
+        map.put("requestedChannelMax", "0");
+        map.put("requestedFrameMax", "0");
+        map.put("connectionTimeout", "60000");
+        map.put("handshakeTimeout", "10000");
+        map.put("requestedHeartbeat", "60");
+        map.put("exchangeName", "test-exchange");
+        map.put("exchangeType", "test-exchange-type");
+
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("username")).thenReturn("my-secret-name");
+        when(context.getSecret("password")).thenReturn("my-secret-pass");
+        RabbitMQSinkConfig config = RabbitMQSinkConfig.load(map, context);
+
+        assertNotNull(config);
+        assertEquals(config.getHost(), "localhost");
+        assertEquals(config.getPort(), Integer.parseInt("5673"));
+        assertEquals(config.getVirtualHost(), "/");
+        assertEquals(config.getUsername(), "my-secret-name");
+        assertEquals(config.getPassword(), "my-secret-pass");
         assertEquals(config.getConnectionName(), "test-connection");
         assertEquals(config.getRequestedChannelMax(), Integer.parseInt("0"));
         assertEquals(config.getRequestedFrameMax(), Integer.parseInt("0"));

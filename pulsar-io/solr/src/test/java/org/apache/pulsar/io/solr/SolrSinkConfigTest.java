@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.solr;
 
 import com.google.common.collect.Lists;
+import org.apache.pulsar.io.core.SinkContext;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -29,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -52,6 +55,23 @@ public class SolrSinkConfigTest {
     }
 
     @Test
+    public final void loadFromYamlFileAndContextTest() throws IOException {
+        File yamlFile = getFile("sinkConfig.yaml");
+        String path = yamlFile.getAbsolutePath();
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("username")).thenReturn("my-secret-name");
+        when(context.getSecret("password")).thenReturn("my-secret-pass");
+        SolrSinkConfig config = SolrSinkConfig.load(path, context);
+        assertNotNull(config);
+        assertEquals(config.getSolrUrl(), "localhost:2181,localhost:2182/chroot");
+        assertEquals(config.getSolrMode(), "SolrCloud");
+        assertEquals(config.getSolrCollection(), "techproducts");
+        assertEquals(config.getSolrCommitWithinMs(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "my-secret-name");
+        assertEquals(config.getPassword(), "my-secret-pass");
+    }
+
+    @Test
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -69,6 +89,26 @@ public class SolrSinkConfigTest {
         assertEquals(config.getSolrCommitWithinMs(), Integer.parseInt("100"));
         assertEquals(config.getUsername(), "fakeuser");
         assertEquals(config.getPassword(), "fake@123");
+    }
+
+    @Test
+    public final void loadFromMapAndContextTest() throws IOException {
+        Map<String, Object> map = new HashMap<>();
+        map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
+        map.put("solrMode", "SolrCloud");
+        map.put("solrCollection", "techproducts");
+        map.put("solrCommitWithinMs", "100");
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("username")).thenReturn("my-secret-name");
+        when(context.getSecret("password")).thenReturn("my-secret-pass");
+        SolrSinkConfig config = SolrSinkConfig.load(map, context);
+        assertNotNull(config);
+        assertEquals(config.getSolrUrl(), "localhost:2181,localhost:2182/chroot");
+        assertEquals(config.getSolrMode(), "SolrCloud");
+        assertEquals(config.getSolrCollection(), "techproducts");
+        assertEquals(config.getSolrCommitWithinMs(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "my-secret-name");
+        assertEquals(config.getPassword(), "my-secret-pass");
     }
 
     @Test

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.canal;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -26,6 +27,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 
@@ -80,14 +83,31 @@ public class CanalSourceConfig implements Serializable{
         help = "The batch size to fetch from canal.")
     private int batchSize = 1000;
 
+
+    /**
+     * @deprecated Use {@link #load(String, SourceContext)} instead.
+     */
+    @Deprecated
     public static CanalSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), CanalSourceConfig.class);
     }
 
+    public static CanalSourceConfig load(String yamlFile, SourceContext context) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return load(mapper.readValue(new File(yamlFile), new TypeReference<Map<String, Object>>() {}), context);
+    }
 
+    /**
+     * @deprecated Use {@link #load(Map, SourceContext)} instead.
+     */
+    @Deprecated
     public static CanalSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), CanalSourceConfig.class);
+    }
+
+    public static CanalSourceConfig load(Map<String, Object> map, SourceContext context) {
+        return IOConfigUtils.loadWithSecrets(map, CanalSourceConfig.class, context);
     }
 }

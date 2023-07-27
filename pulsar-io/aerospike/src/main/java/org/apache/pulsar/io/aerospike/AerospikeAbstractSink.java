@@ -58,7 +58,7 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        aerospikeSinkConfig = AerospikeSinkConfig.load(config);
+        aerospikeSinkConfig = AerospikeSinkConfig.load(config, sinkContext);
         if (aerospikeSinkConfig.getSeedHosts() == null
                 || aerospikeSinkConfig.getKeyspace() == null
                 || aerospikeSinkConfig.getColumnName() == null) {
