@@ -62,4 +62,34 @@ public class ClusterDataImplTest {
         assertEquals(clone, originalData, "Clones should have object equality.");
         assertNotSame(clone, originalData, "Clones should not be the same reference.");
     }
+    
+    @Test
+    public void testBothServiceUrlsisEmpty(){
+        ClusterDataImpl clusterData = new ClusterDataImpl();
+        clusterData.setServiceUrl("");
+        clusterData.setServiceUrlTls("");
+        clusterData.setBrokerServiceUrl("pulsar://pulsar.example.com:6650");
+        clusterData.setBrokerServiceUrlTls("pulsar+ssl://pulsar.example.com:6651");
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class, clusterData::checkPropertiesIfPresent
+        );
+        
+        assertEquals("At least one of ServiceUrl or ServiceUrlTls must be set.", exception.getMessage());
+    }
+
+    @Test
+    public void testBothBrokerServiceUrlsisEmpty(){
+        ClusterDataImpl clusterData = new ClusterDataImpl();
+        clusterData.setServiceUrl("http://pulsar.example.com:8080");
+        clusterData.setServiceUrlTls("https://pulsar.example.com:8443");
+        clusterData.setBrokerServiceUrl("");
+        clusterData.setBrokerServiceUrlTls("");
+        
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class, clusterData::checkPropertiesIfPresent
+        );
+        
+        assertEquals("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.", exception.getMessage());
+    }
 }
