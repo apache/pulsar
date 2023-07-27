@@ -412,7 +412,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
      *
      * @throws IllegalArgumentException exist illegal property.
      */
-     public void checkPropertiesIfPresent() throws IllegalArgumentException {
+       public void checkPropertiesIfPresent() throws IllegalArgumentException {
 
         if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
             throw new IllegalArgumentException("At least one of ServiceUrl or ServiceUrlTls must be set.");
