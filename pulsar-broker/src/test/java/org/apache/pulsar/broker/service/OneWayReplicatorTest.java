@@ -89,7 +89,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
             assertTrue(topicOptional2.isPresent());
             PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
-            assertTrue(!persistentTopic2.getProducers().isEmpty());
+            assertFalse(persistentTopic2.getProducers().isEmpty());
         });
         // The topic in cluster2 has a replicator created producer(schema Auto_Produce), but does not have any schema。
         // Verify: the consumer of this cluster2 can create successfully.
