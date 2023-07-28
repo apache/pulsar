@@ -1179,6 +1179,33 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    /**
+     * This test just ensure that schema check still keeps the original logic: if there has any producer, but no schema
+     * was registered, the new consumer could not register new schema.
+     * TODO: I think this design should be improved: if a producer used "AUTO_PRODUCE_BYTES" schema, we should allow
+     *       the new consumer to register new schema. But before we can solve this problem, we need to modify
+     *       "CmdProducer" to let the Broker know that the Producer uses a schema of type "AUTO_PRODUCE_BYTES".
+     */
+    @Test
+    public void testAutoProduceAndSpecifiedConsumer() throws Exception {
+        final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        final String topicName = "persistent://" + namespace + "/tp_" + randomName(16);
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        try {
+            pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub1").subscribe();
+            fail("Should throw ex: Topic does not have schema to check");
+        } catch (Exception ex){
+            assertTrue(ex.getMessage().contains("Topic does not have schema to check"));
+        }
+
+        // Cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
     @Test
     public void testCreateSchemaInParallel() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
