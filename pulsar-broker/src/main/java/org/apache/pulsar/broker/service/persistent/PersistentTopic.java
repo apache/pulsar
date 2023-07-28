@@ -2882,7 +2882,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .mapToInt(subscription -> subscription.getConsumers().size())
                         .sum();
                 if (hasSchema
-                        || (!producers.isEmpty())
+                        || (userCreatedProducerCount > 0)
                         || (numActiveConsumers != 0)
                         || (ledger.getTotalSize() != 0)) {
                     return checkSchemaCompatibleForConsumer(schema);
