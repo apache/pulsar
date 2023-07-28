@@ -2559,15 +2559,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private boolean hasLedgerRetentionExpired(long ledgerTimestamp) {
-        return config.getRetentionTimeMillis() >= 0
-                && clock.millis() - ledgerTimestamp > config.getRetentionTimeMillis();
+    private boolean hasLedgerRetentionExpired(long retentionTimeMs, long ledgerTimestamp) {
+        return retentionTimeMs >= 0 && clock.millis() - ledgerTimestamp > retentionTimeMs;
     }
 
-    private boolean isLedgerRetentionOverSizeQuota(long sizeToDelete) {
+    private boolean isLedgerRetentionOverSizeQuota(long retentionSizeInMB, long sizeToDelete) {
         // Handle the -1 size limit as "infinite" size quota
-        return config.getRetentionSizeInMB() >= 0
-                && TOTAL_SIZE_UPDATER.get(this) - sizeToDelete >= config.getRetentionSizeInMB() * MegaByte;
+        return retentionSizeInMB >= 0 && TOTAL_SIZE_UPDATER.get(this) - sizeToDelete >= retentionSizeInMB * MegaByte;
     }
 
     boolean isOffloadedNeedsDelete(OffloadContext offload, Optional<OffloadPolicies> offloadPolicies) {
@@ -2627,6 +2625,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             long slowestReaderLedgerId = -1;
             final long slowestNonDurationLedgerId = getTheSlowestNonDurationReadPosition().getLedgerId();
+            final long retentionSizeInMB = config.getRetentionSizeInMB();
+            final long retentionTimeMs = config.getRetentionTimeMillis();
             if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
@@ -2673,8 +2673,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 totalSizeToDelete += ls.getSize();
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(totalSizeToDelete);
-                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
+                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(retentionSizeInMB, totalSizeToDelete);
+                boolean expired = hasLedgerRetentionExpired(retentionTimeMs, ls.getTimestamp());
                 if (log.isDebugEnabled()) {
                     log.debug(
                             "[{}] Checking ledger {} -- time-old: {} sec -- "
