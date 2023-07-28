@@ -138,6 +138,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.LoadableValue;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
@@ -2624,7 +2625,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long slowestReaderLedgerId = -1;
-            final long slowestNonDurationLedgerId = getTheSlowestNonDurationReadPosition().getLedgerId();
+            final LoadableValue<Long> slowestNonDurationLedgerId =
+                    new LoadableValue(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
             final long retentionSizeInMB = config.getRetentionSizeInMB();
             final long retentionTimeMs = config.getRetentionTimeMillis();
             if (!cursors.hasDurableCursors()) {
@@ -2694,14 +2696,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
                     }
-                    releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId);
+                    releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId.getValue());
                     break;
                 }
             }
 
             while (ledgerInfoIterator.hasNext()) {
                 LedgerInfo ls = ledgerInfoIterator.next();
-                releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId);
+                releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId.getValue());
             }
 
             for (LedgerInfo ls : ledgers.values()) {
