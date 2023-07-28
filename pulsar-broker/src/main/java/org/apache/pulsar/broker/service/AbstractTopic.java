@@ -139,7 +139,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private static final AtomicIntegerFieldUpdater<AbstractTopic> USER_CREATED_PRODUCER_COUNTER_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(AbstractTopic.class, "userCreatedProducerCount");
-    private volatile int userCreatedProducerCount = 0;
+    protected volatile int userCreatedProducerCount = 0;
 
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
