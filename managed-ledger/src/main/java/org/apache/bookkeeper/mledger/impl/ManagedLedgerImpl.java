@@ -2626,6 +2626,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long slowestReaderLedgerId = -1;
+            long slowestNonDurationLedgerId = getTheSlowestNonDurationReadPosition().getLedgerId();
             if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
@@ -2647,8 +2648,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long totalSizeToDelete = 0;
+
             // skip ledger if retention constraint met
-            for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
+            Iterator<LedgerInfo> ledgerInfoIterator =
+                    ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
+            while (ledgerInfoIterator.hasNext()){
+                LedgerInfo ls = ledgerInfoIterator.next();
                 // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
                     if (log.isDebugEnabled()) {
@@ -2686,15 +2691,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     ledgersToDelete.add(ls);
                 } else {
-                    if (ls.getLedgerId() < getTheSlowestNonDurationReadPosition().getLedgerId()) {
-                        // once retention constraint has been met, skip check
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name,
-                                    ls.getLedgerId());
-                        }
-                        invalidateReadHandle(ls.getLedgerId());
-                    }
+                    // once retention constraint has been met, skip check
+                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId);
+                    break;
                 }
+            }
+
+            while (ledgerInfoIterator.hasNext()) {
+                LedgerInfo ls = ledgerInfoIterator.next();
+                releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId);
             }
 
             for (LedgerInfo ls : ledgers.values()) {
@@ -2776,6 +2782,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     promise.completeExceptionally(e);
                 }
             });
+        }
+    }
+
+    private void releaseReadHandleIfNoLongerRead(long ledgerId, long slowestNonDurationLedgerId) {
+        if (ledgerId < slowestNonDurationLedgerId) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Ledger {} no longer needs to be read, close the cached readHandle", name, ledgerId);
+            }
+            invalidateReadHandle(ledgerId);
         }
     }
 
