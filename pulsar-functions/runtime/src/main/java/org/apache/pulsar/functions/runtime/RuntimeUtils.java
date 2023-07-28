@@ -481,6 +481,9 @@ public class RuntimeUtils {
             if (instanceConfig.isIgnoreUnknownConfigFields()) {
                 args.add("--ignore_unknown_config_fields");
             }
+
+            args.add("--interpolate_secrets_into_config_map");
+            args.add(Boolean.toString(instanceConfig.isInterpolateSecretsIntoConfigMap()));
         }
 
         // state storage configs

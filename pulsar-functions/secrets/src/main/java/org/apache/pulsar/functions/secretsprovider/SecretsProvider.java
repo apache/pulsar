@@ -39,4 +39,16 @@ public interface SecretsProvider {
      * @return The actual secret
      */
     String provideSecret(String secretName, Object pathToSecret);
+
+    /**
+     * If the passed value is formatted as a reference to a secret, as defined by the implementation, return the
+     * referenced secret. If the value is not formatted as a secret reference or the referenced secret does not exist,
+     * return null.
+     *
+     * @param value a config value that may be formatted as a reference to a secret
+     * @return the materialized secret. Otherwise, null.
+     */
+    default String interpolateSecretForValue(String value) {
+        return null;
+    }
 }
