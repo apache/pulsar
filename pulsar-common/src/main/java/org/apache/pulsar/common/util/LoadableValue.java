@@ -20,6 +20,9 @@ package org.apache.pulsar.common.util;
 
 import java.util.function.Supplier;
 
+/***
+ * Used to lazy load a value, only calculate it when used. Not thread-safety.
+ */
 public class LoadableValue<T> {
 
     private Supplier<T> loader;
