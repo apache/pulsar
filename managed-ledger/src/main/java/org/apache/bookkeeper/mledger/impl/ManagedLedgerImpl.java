@@ -2626,7 +2626,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long slowestReaderLedgerId = -1;
-            long slowestNonDurationLedgerId = getTheSlowestNonDurationReadPosition().getLedgerId();
+            final long slowestNonDurationLedgerId = getTheSlowestNonDurationReadPosition().getLedgerId();
             if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
