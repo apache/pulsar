@@ -2648,7 +2648,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long totalSizeToDelete = 0;
-
             // skip ledger if retention constraint met
             Iterator<LedgerInfo> ledgerInfoIterator =
                     ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
