@@ -138,7 +138,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.LoadableValue;
+import org.apache.pulsar.common.util.LazyLoadableValue;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
@@ -2625,8 +2625,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long slowestReaderLedgerId = -1;
-            final LoadableValue<Long> slowestNonDurationLedgerId =
-                    new LoadableValue(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
+            final LazyLoadableValue<Long> slowestNonDurationLedgerId =
+                    new LazyLoadableValue(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
             final long retentionSizeInMB = config.getRetentionSizeInMB();
             final long retentionTimeMs = config.getRetentionTimeMillis();
             if (!cursors.hasDurableCursors()) {

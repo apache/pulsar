@@ -23,13 +23,13 @@ import java.util.function.Supplier;
 /***
  * Used to lazy load a value, only calculate it when used. Not thread-safety.
  */
-public class LoadableValue<T> {
+public class LazyLoadableValue<T> {
 
     private Supplier<T> loader;
 
     private T value;
 
-    public LoadableValue(Supplier<T> loader) {
+    public LazyLoadableValue(Supplier<T> loader) {
         this.loader = loader;
     }
 
