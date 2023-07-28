@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.influxdb.v1;
 
+import org.apache.pulsar.io.core.SinkContext;
 import org.influxdb.InfluxDB;
 import org.testng.annotations.Test;
 
@@ -26,7 +27,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 
 /**
@@ -47,6 +51,28 @@ public class InfluxDBSinkConfigTest {
         assertEquals(Boolean.parseBoolean("false"), config.isGzipEnable());
         assertEquals(Long.parseLong("1000"), config.getBatchTimeMs());
         assertEquals(Integer.parseInt("100"), config.getBatchSize());
+    }
+
+    @Test
+    public final void loadFromYamlFileAndContextTest() throws IOException {
+        File yamlFile = getFile("sinkConfig-v1.yaml");
+        String path = yamlFile.getAbsolutePath();
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("username")).thenReturn("secret-username");
+        when(context.getSecret("password")).thenReturn("secret-password");
+
+        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(path, context);
+        assertNotNull(config);
+        assertEquals(config.getInfluxdbUrl(), "http://localhost:8086");
+        assertEquals(config.getDatabase(), "test_db");
+        assertEquals(config.getConsistencyLevel(), "ONE");
+        assertEquals(config.getLogLevel(), "NONE");
+        assertEquals(config.getRetentionPolicy(), "autogen");
+        assertFalse(config.isGzipEnable());
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "secret-username");
+        assertEquals(config.getPassword(), "secret-password");
     }
 
     @Test
@@ -74,6 +100,36 @@ public class InfluxDBSinkConfigTest {
     }
 
     @Test
+    public final void loadFromMapAndContextTest() throws IOException {
+        Map<String, Object> map = new HashMap<>();
+        map.put("influxdbUrl", "http://localhost:8086");
+        map.put("database", "test_db");
+        map.put("consistencyLevel", "ONE");
+        map.put("logLevel", "NONE");
+        map.put("retentionPolicy", "autogen");
+        map.put("gzipEnable", "false");
+        map.put("batchTimeMs", "1000");
+        map.put("batchSize", "100");
+
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("username")).thenReturn("secret-username");
+        when(context.getSecret("password")).thenReturn("secret-password");
+
+        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map, context);
+        assertNotNull(config);
+        assertEquals(config.getInfluxdbUrl(), "http://localhost:8086");
+        assertEquals(config.getDatabase(), "test_db");
+        assertEquals(config.getConsistencyLevel(), "ONE");
+        assertEquals(config.getLogLevel(), "NONE");
+        assertEquals(config.getRetentionPolicy(), "autogen");
+        assertFalse(config.isGzipEnable());
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "secret-username");
+        assertEquals(config.getPassword(), "secret-password");
+    }
+
+    @Test
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");
@@ -87,6 +143,21 @@ public class InfluxDBSinkConfigTest {
 
         InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map);
         config.validate();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "influxdbUrl cannot be null")
+    public final void missingInfluxdbUrlTest() throws IOException {
+        Map<String, Object> map = new HashMap<>();
+        map.put("database", "test_db");
+        map.put("consistencyLevel", "ONE");
+        map.put("logLevel", "NONE");
+        map.put("retentionPolicy", "autogen");
+        map.put("gzipEnable", "false");
+        map.put("batchTimeMs", "1000");
+        map.put("batchSize", "100");
+
+        InfluxDBSinkConfig.load(map, null);
     }
 
     @Test(expectedExceptions = NullPointerException.class,
@@ -118,7 +189,7 @@ public class InfluxDBSinkConfigTest {
         map.put("batchTimeMs", "1000");
         map.put("batchSize", "-100");
 
-        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map);
+        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map, null);
         config.validate();
     }
 
@@ -135,7 +206,7 @@ public class InfluxDBSinkConfigTest {
         map.put("batchTimeMs", "1000");
         map.put("batchSize", "100");
 
-        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map);
+        InfluxDBSinkConfig config = InfluxDBSinkConfig.load(map, null);
         config.validate();
 
         InfluxDB.ConsistencyLevel.valueOf(config.getConsistencyLevel().toUpperCase());
