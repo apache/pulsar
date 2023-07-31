@@ -767,7 +767,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     connectorConfig.getMaxSplitQueueSizeBytes() / 2);
             this.messageQueueCacheSizeAllocator = new NoStrictCacheSizeAllocator(
                     connectorConfig.getMaxSplitQueueSizeBytes() / 2);
-            log.info("Init cacheSizeAllocator with maxSplitEntryQueueSizeBytes {}.",
+            log.info("Init cacheSizeAllocator with maxSplitEntryQueueSizeBytes %d.",
                     connectorConfig.getMaxSplitQueueSizeBytes());
         } else {
             this.entryQueueCacheSizeAllocator = new NullCacheSizeAllocator();
