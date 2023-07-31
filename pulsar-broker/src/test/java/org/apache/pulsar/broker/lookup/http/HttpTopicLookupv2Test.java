@@ -222,6 +222,10 @@ public class HttpTopicLookupv2Test {
         UriInfo uriInfo = mock(UriInfo.class);
         uriField.set(destLookup, uriInfo);
         doReturn(false).when(config).isAuthorizationEnabled();
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(brokerService).isAllowAutoTopicCreationAsync(any());
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> arg = ArgumentCaptor.forClass(RestException.class);
 //        // Test policy not found
