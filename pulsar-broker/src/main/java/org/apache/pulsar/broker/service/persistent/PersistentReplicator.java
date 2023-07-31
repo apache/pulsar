@@ -175,6 +175,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (this.cursor != null) {
             // deactivate cursor after successfully close the producer
             this.cursor.setInactive();
+            // cancel the request to read new entries
+            this.cursor.cancelPendingReadRequest();
+            HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         }
     }
 
