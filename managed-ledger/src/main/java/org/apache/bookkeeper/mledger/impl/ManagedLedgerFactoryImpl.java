@@ -443,7 +443,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         }).exceptionally(e -> {
             log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
-            callback.openReadOnlyManagedLedgerFailed((ManagedLedgerException) e.getCause(), ctx);
+            callback.openReadOnlyManagedLedgerFailed(
+                    new ManagedLedgerException.ManagedLedgerNotFoundException(e.getMessage()), ctx);
             return null;
         });
     }
