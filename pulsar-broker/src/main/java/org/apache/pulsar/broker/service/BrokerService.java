@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -56,6 +57,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -72,6 +74,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import javax.annotation.Nonnull;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -945,7 +948,15 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, isAllowAutoTopicCreation(topic)).thenApply(Optional::get);
+        final TopicName topicName;
+        try {
+             topicName = TopicName.get(topic);
+        } catch (Throwable ex) {
+            return FutureUtil.failedFuture(ex);
+        }
+        return isAllowAutoTopicCreationAsync(topicName)
+                .thenCompose(isAllowAutoTopicCreation -> getTopic(topic, isAllowAutoTopicCreation)
+                        .thenApply(Optional::get));
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
@@ -2882,7 +2893,8 @@ public class BrokerService implements Closeable {
                                     if (metadata.partitions == 0
                                             && !topicExists
                                             && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName, policies)
+                                            && pulsar.getBrokerService()
+                                                .isAllowAutoTopicCreation(topicName, policies)
                                             && pulsar.getBrokerService()
                                                             .isDefaultTopicTypePartitioned(topicName, policies)) {
 
@@ -3099,16 +3111,34 @@ public class BrokerService implements Closeable {
         }
     }
 
+
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)}
+     * You can use #{@link BrokerService#isAllowAutoTopicCreationAsync(TopicName)}
+     */
+    @Deprecated
     public boolean isAllowAutoTopicCreation(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return isAllowAutoTopicCreation(topicName);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)}
+     * You can use #{@link BrokerService#isAllowAutoTopicCreationAsync(TopicName)}
+     */
+    @Deprecated
     public boolean isAllowAutoTopicCreation(final TopicName topicName) {
         Optional<Policies> policies =
                 pulsar.getPulsarResources().getNamespaceResources()
                         .getPoliciesIfCached(topicName.getNamespaceObject());
         return isAllowAutoTopicCreation(topicName, policies);
+    }
+
+    public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName) {
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                .thenApply(policies -> isAllowAutoTopicCreation(topicName, policies));
     }
 
     public boolean isAllowAutoTopicCreation(final TopicName topicName, final Optional<Policies> policies) {
@@ -3157,11 +3187,23 @@ public class BrokerService implements Closeable {
         return null;
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link BrokerService#isAllowAutoSubscriptionCreationAsync(TopicName)} to instead of it.
+     */
+    @Deprecated
     public boolean isAllowAutoSubscriptionCreation(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return isAllowAutoSubscriptionCreation(topicName);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link BrokerService#isAllowAutoSubscriptionCreationAsync(TopicName)} to instead of it.
+     */
+    @Deprecated
     public boolean isAllowAutoSubscriptionCreation(final TopicName topicName) {
         AutoSubscriptionCreationOverride autoSubscriptionCreationOverride =
                 getAutoSubscriptionCreationOverride(topicName);
@@ -3172,6 +3214,12 @@ public class BrokerService implements Closeable {
         }
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link BrokerService#isAllowAutoSubscriptionCreationAsync(TopicName)} to instead of it.
+     */
+    @Deprecated
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         Optional<Policies> policies =
                 pulsar.getPulsarResources().getNamespaceResources().getPoliciesIfCached(topicName.getNamespaceObject());
@@ -3181,6 +3229,19 @@ public class BrokerService implements Closeable {
         }
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
+    }
+
+    public @Nonnull CompletionStage<Boolean> isAllowAutoSubscriptionCreationAsync(@Nonnull TopicName tpName) {
+        requireNonNull(tpName);
+        // namespace level policies
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(tpName.getNamespaceObject())
+                .thenApply(policies -> {
+                    if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                        return policies.get().autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
+                    }
+                    // broker level policies
+                    return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+                });
     }
 
     public boolean isSystemTopic(String topic) {

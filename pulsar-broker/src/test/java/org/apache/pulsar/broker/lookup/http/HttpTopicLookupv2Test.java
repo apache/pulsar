@@ -146,6 +146,9 @@ public class HttpTopicLookupv2Test {
         doReturn(uri).when(uriInfo).getRequestUri();
         doReturn(true).when(config).isAuthorizationEnabled();
 
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(brokerService).isAllowAutoTopicCreationAsync(any());
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         future.complete(false);
@@ -219,6 +222,10 @@ public class HttpTopicLookupv2Test {
         UriInfo uriInfo = mock(UriInfo.class);
         uriField.set(destLookup, uriInfo);
         doReturn(false).when(config).isAuthorizationEnabled();
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(brokerService).isAllowAutoTopicCreationAsync(any());
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> arg = ArgumentCaptor.forClass(RestException.class);
 //        // Test policy not found

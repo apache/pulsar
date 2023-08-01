@@ -126,6 +126,13 @@ public class NamespaceResources extends BaseResources<Policies> {
         return get(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
+    /**
+     * Get the namespace policy from the metadata cache. This method will not trigger the load of metadata cache.
+     *
+     * @deprecated Since this method may introduce inconsistent namespace policies. we should use
+     * #{@link NamespaceResources#getPoliciesAsync}
+     */
+    @Deprecated
     public Optional<Policies> getPoliciesIfCached(NamespaceName ns) {
         return getCache().getIfCached(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
