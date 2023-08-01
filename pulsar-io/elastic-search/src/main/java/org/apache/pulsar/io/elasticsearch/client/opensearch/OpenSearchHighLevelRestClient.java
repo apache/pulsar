@@ -225,7 +225,7 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     @Override
     public boolean indexDocument(String index, String documentId, String documentSource) throws IOException {
         IndexRequest indexRequest = Requests.indexRequest(index);
-        if (!documentId.isEmpty()) {
+        if (documentId != null && !documentId.isEmpty()) {
             indexRequest.id(documentId);
         }
         indexRequest.source(documentSource, XContentType.JSON);
