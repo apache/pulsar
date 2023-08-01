@@ -2705,7 +2705,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             while (ledgerInfoIterator.hasNext()) {
                 LedgerInfo ls = ledgerInfoIterator.next();
-                releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId.getValue());
+                if (!releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId.getValue())) {
+                    break;
+                }
             }
 
             for (LedgerInfo ls : ledgers.values()) {
@@ -2790,13 +2792,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void releaseReadHandleIfNoLongerRead(long ledgerId, long slowestNonDurationLedgerId) {
+    /**
+     * @param ledgerId the ledger handle which maybe will be released.
+     * @return if the ledger handle was released.
+     */
+    private boolean releaseReadHandleIfNoLongerRead(long ledgerId, long slowestNonDurationLedgerId) {
         if (ledgerId < slowestNonDurationLedgerId) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Ledger {} no longer needs to be read, close the cached readHandle", name, ledgerId);
             }
             invalidateReadHandle(ledgerId);
+            return true;
         }
+        return false;
     }
 
     protected void doDeleteLedgers(List<LedgerInfo> ledgersToDelete) {
