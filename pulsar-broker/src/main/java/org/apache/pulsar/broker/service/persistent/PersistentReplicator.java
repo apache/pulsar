@@ -108,6 +108,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     protected volatile boolean fetchSchemaInProgress = false;
+    private volatile boolean waitForCursorRewinding = false;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
                                    String remoteCluster, String remoteTopic,
@@ -135,10 +136,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void readEntries(Producer<byte[]> producer) {
-        // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
-        cursor.rewind();
+        waitForCursorRewinding = true;
 
-        cursor.cancelPendingReadRequest();
+        // Repeat until there are no read operations in progress
+        if (STATE_UPDATER.get(this) == State.Starting && HAVE_PENDING_READ_UPDATER.get(this) == TRUE
+                && !cursor.cancelPendingReadRequest()) {
+            brokerService.getPulsar().getExecutor().schedule(() -> readEntries(producer), 10, TimeUnit.MILLISECONDS);
+            return;
+        }
+
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         this.producer = (ProducerImpl) producer;
 
@@ -147,6 +153,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             backOff.reset();
             // activate cursor: so, entries can be cached
             this.cursor.setActive();
+
+            // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
+            cursor.rewind();
+            waitForCursorRewinding = false;
+
             // read entries
             readMoreEntries();
         } else {
@@ -155,6 +166,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
+            waitForCursorRewinding = false;
             closeProducerAsync();
         }
 
@@ -246,6 +258,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+                if (waitForCursorRewinding) {
+                    log.info("[{}] Skip the reading because repl producer is starting", replicatorId);
+                    HAVE_PENDING_READ_UPDATER.set(this, FALSE);
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
                 }
