@@ -2566,7 +2566,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private boolean isLedgerRetentionOverSizeQuota(long retentionSizeInMB, long sizeToDelete) {
         // Handle the -1 size limit as "infinite" size quota
-        return retentionSizeInMB >= 0 && TOTAL_SIZE_UPDATER.get(this) - sizeToDelete >= retentionSizeInMB * MegaByte;
+        return retentionSizeInMB >= 0 && totalSize - sizeToDelete >= retentionSizeInMB * MegaByte;
     }
 
     boolean isOffloadedNeedsDelete(OffloadContext offload, Optional<OffloadPolicies> offloadPolicies) {
