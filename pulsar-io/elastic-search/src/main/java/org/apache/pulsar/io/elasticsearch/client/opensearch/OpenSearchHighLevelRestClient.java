@@ -50,7 +50,6 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
-import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.ByteSizeUnit;
 import org.opensearch.common.unit.ByteSizeValue;
@@ -296,8 +295,9 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     @Override
     public void appendCreateRequest(BulkCreateRequest request) throws IOException {
         IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
-        if (!request.getDocumentId().isEmpty()) {
-            indexRequest.id(request.getDocumentId());
+        var documentId = request.getDocumentId();
+        if (documentId != null && !documentId.isEmpty()) {
+            indexRequest.id(documentId);
         }
         indexRequest.source(request.getDocumentSource(), XContentType.JSON);
         indexRequest = indexRequest.opType(DocWriteRequest.OpType.CREATE);
@@ -307,8 +307,9 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     @Override
     public void appendIndexRequest(BulkProcessor.BulkIndexRequest request) throws IOException {
         IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
-        if (!request.getDocumentId().isEmpty()) {
-            indexRequest.id(request.getDocumentId());
+        var documentId = request.getDocumentId();
+        if (documentId != null && !documentId.isEmpty()) {
+            indexRequest.id(documentId);
         }
         indexRequest.source(request.getDocumentSource(), XContentType.JSON);
         internalBulkProcessor.add(indexRequest);
