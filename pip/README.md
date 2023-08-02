@@ -90,7 +90,7 @@ It is advised to create a master GitHub issue to formulate the execution plan an
 You can the view list of PIPs previously managed by GitHub wiki or GitHub issues [here](https://github.com/apache/pulsar/wiki#pulsar-improvement-proposals)
 
 ### List of PIPs
-1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[pip][design] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
+1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[improve][pip] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
    - Merged PR means the PIP was accepted.
    - Closed PR means the PIP was rejected.
    - Open PR means the PIP was submitted and is in the process of discussion.
