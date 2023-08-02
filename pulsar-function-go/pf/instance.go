@@ -77,6 +77,12 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
+	goInstance.context.stateService = noopStateService{}
+
+	if goInstance.context.instanceConf.stateServiceURL != "" {
+		goInstance.context.stateService, _ = newBKStateService(goInstance.context.instanceConf)
+	}
+
 	goInstance.lastHealthCheckTS = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
