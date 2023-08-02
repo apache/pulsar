@@ -3,9 +3,9 @@ package kv
 import (
 	"context"
 	"fmt"
-	"github.com/apache/pulsar/pulsar-function-go/pb/bookkeeper/kv"
-	"github.com/apache/pulsar/pulsar-function-go/pb/bookkeeper/kv/rpc"
-	"github.com/apache/pulsar/pulsar-function-go/pb/bookkeeper/stream"
+	"github.com/pocockn/pulsar-function-go/pb/bookkeeper/kv"
+	"github.com/pocockn/pulsar-function-go/pb/bookkeeper/kv/rpc"
+	"github.com/pocockn/pulsar-function-go/pb/bookkeeper/stream"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

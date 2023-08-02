@@ -26,8 +26,8 @@ import (
 	"net"
 	"testing"
 
-	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/golang/protobuf/ptypes/empty"
+	pb "github.com/pocockn/pulsar-function-go/pb"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"

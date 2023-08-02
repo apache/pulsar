@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/apache/pulsar/pulsar-function-go/logutil"
-	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/golang/protobuf/ptypes/empty"
+	log "github.com/pocockn/pulsar-function-go/logutil"
+	pb "github.com/pocockn/pulsar-function-go/pb"
 	"google.golang.org/grpc"
 )
 
