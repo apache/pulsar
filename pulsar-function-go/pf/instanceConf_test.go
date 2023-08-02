@@ -22,9 +22,9 @@ package pf
 import (
 	"testing"
 
-	cfg "github.com/pocockn/pulsar-function-go/conf"
+	cfg "github.com/pocockn/pulsar/pulsar-function-go/conf"
 
-	pb "github.com/pocockn/pulsar-function-go/pb"
+	pb "github.com/pocockn/pulsar/pulsar-function-go/pb"
 	"github.com/stretchr/testify/assert"
 )
 

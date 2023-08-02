@@ -25,7 +25,7 @@ import (
 	"log"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"github.com/pocockn/pulsar-function-go/pf"
+	"github.com/pocockn/pulsar/pulsar-function-go/pf"
 )
 
 func PublishFunc(ctx context.Context, in []byte) error {

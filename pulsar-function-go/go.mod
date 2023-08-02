@@ -1,4 +1,4 @@
-module github.com/pocockn/pulsar-function-go
+module github.com/pocockn/pulsar/pulsar-function-go
 
 go 1.19
 

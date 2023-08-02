@@ -26,7 +26,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	log "github.com/pocockn/pulsar-function-go/logutil"
+	log "github.com/pocockn/pulsar/pulsar-function-go/logutil"
 	"github.com/prometheus/client_golang/prometheus"
 	prometheus_client "github.com/prometheus/client_model/go"
 )

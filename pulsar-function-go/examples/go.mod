@@ -1,22 +1,22 @@
-module github.com/pocockn/pulsar-function-go/examples
+module github.com/pocockn/pulsar/pulsar-function-go/examples
 
 go 1.13
 
 require (
 	github.com/apache/pulsar-client-go v0.11.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20220120090717-25e59572242e // indirect
-	github.com/pocockn/pulsar-function-go v0.0.0
+	github.com/pocockn/pulsar/pulsar-function-go v0.0.0
 	github.com/beefsack/go-rate v0.0.0-20220214233405-116f4ca011a0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/spf13/viper v1.8.1 // indirect
 )
 
-replace github.com/pocockn/pulsar-function-go => ../
+replace github.com/pocockn/pulsar/pulsar-function-go => ../
 
-replace github.com/pocockn/pulsar-function-go/pf => ../pf
+replace github.com/pocockn/pulsar/pulsar-function-go/pf => ../pf
 
-replace github.com/pocockn/pulsar-function-go/logutil => ../logutil
+replace github.com/pocockn/pulsar/pulsar-function-go/logutil => ../logutil
 
-replace github.com/pocockn/pulsar-function-go/pb => ../pb
+replace github.com/pocockn/pulsar/pulsar-function-go/pb => ../pb
 
-replace github.com/pocockn/pulsar-function-go/conf => ../conf
+replace github.com/pocockn/pulsar/pulsar-function-go/conf => ../conf

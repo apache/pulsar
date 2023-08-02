@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/pocockn/pulsar-function-go/internal/bookkeeper/kv"
-	"github.com/pocockn/pulsar-function-go/pb/bookkeeper/storage"
-	"github.com/pocockn/pulsar-function-go/pb/bookkeeper/stream"
+	"github.com/pocockn/pulsar/pulsar-function-go/internal/bookkeeper/kv"
+	"github.com/pocockn/pulsar/pulsar-function-go/pb/bookkeeper/storage"
+	"github.com/pocockn/pulsar/pulsar-function-go/pb/bookkeeper/stream"
 	"net/url"
 	"strings"
 )

@@ -31,8 +31,8 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 
-	log "github.com/pocockn/pulsar-function-go/logutil"
-	pb "github.com/pocockn/pulsar-function-go/pb"
+	log "github.com/pocockn/pulsar/pulsar-function-go/logutil"
+	pb "github.com/pocockn/pulsar/pulsar-function-go/pb"
 	prometheus_client "github.com/prometheus/client_model/go"
 )
 
