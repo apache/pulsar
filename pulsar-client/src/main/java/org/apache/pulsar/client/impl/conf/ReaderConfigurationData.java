@@ -190,7 +190,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
         }
     }
 
-    @SuppressFBWarnings({"EI_EXPOSE_REP2"})
+    @SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
     public MessageCrypto getMessageCrypto() {
         return messageCrypto;
     }
