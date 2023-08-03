@@ -946,6 +946,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public void exceptionHandleFuture(Throwable t) {
         final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+        persistentSubscription.getTopic().getSubscriptions().remove(subName);
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
