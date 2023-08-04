@@ -33,7 +33,7 @@ public class RelativeTimeUtil {
             throw new IllegalArgumentException("time cannot be empty");
         }
 
-        int lastIndex =  relativeTime.length() - 1;
+        int lastIndex = relativeTime.length() - 1;
         char lastChar = relativeTime.charAt(lastIndex);
         final char timeUnit;
 
