@@ -49,9 +49,33 @@ public class DeadLetterPolicy {
     private String retryLetterTopic;
 
     /**
+     * Enable chunking of messages for retry letter producer.
+     */
+    @Builder.Default
+    private boolean retryLetterChunkingEnabled = false;
+
+    /**
+     * Enable batching of messages for retry letter producer.
+     */
+    @Builder.Default
+    private boolean retryLetterBatchingEnabled = false;
+
+    /**
      * Name of the dead topic where the failing messages will be sent.
      */
     private String deadLetterTopic;
+
+    /**
+     * Enable chunking of messages for dead letter producer.
+     */
+    @Builder.Default
+    private boolean deadLetterChunkingEnabled = false;
+
+    /**
+     * Enable batching of messages for dead letter producer.
+     */
+    @Builder.Default
+    private boolean deadLetterBatchingEnabled = true;
 
     /**
      * Name of the initial subscription name of the dead letter topic.

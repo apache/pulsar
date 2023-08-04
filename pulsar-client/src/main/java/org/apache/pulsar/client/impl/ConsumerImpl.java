@@ -612,7 +612,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (retryLetterProducer == null) {
                     retryLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
-                            .enableBatching(false)
+                            .enableBatching(this.deadLetterPolicy.isRetryLetterBatchingEnabled())
+                            .enableChunking(this.deadLetterPolicy.isRetryLetterChunkingEnabled())
                             .blockIfQueueFull(false)
                             .create();
                 }
@@ -2093,6 +2094,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .enableBatching(this.deadLetterPolicy.isDeadLetterBatchingEnabled())
+                                    .enableChunking(this.deadLetterPolicy.isDeadLetterChunkingEnabled())
                                     .blockIfQueueFull(false)
                                     .createAsync();
                 }
