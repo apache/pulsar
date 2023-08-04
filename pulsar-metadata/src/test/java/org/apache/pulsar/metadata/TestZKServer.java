@@ -96,7 +96,7 @@ public class TestZKServer implements AutoCloseable {
     @SneakyThrows
     private static ContainerManager getContainerManager(ZooKeeperServerMain zooKeeperServerMain) {
         ContainerManager containerManager = (ContainerManager) ReflectionUtils.
-                tryToReadFieldValue((Class) zooKeeperServerMain.getClass(), "containerManager", zooKeeperServerMain)
+                tryToReadFieldValue(ZooKeeperServerMain.class, "containerManager", zooKeeperServerMain)
                 .get();
         return containerManager;
     }
