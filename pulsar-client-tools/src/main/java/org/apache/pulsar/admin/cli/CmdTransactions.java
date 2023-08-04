@@ -56,9 +56,14 @@ public class CmdTransactions extends CmdBase {
                 description = "Whether to get information about lowWaterMarks stored in transaction buffer.")
         private boolean lowWaterMark;
 
+        @Parameter(names = {"-s", "--segment-stats"},
+                description = "Whether to get segment statistics.")
+        private boolean segmentStats = false;
+
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark));
+            // Assuming getTransactionBufferStats method signature has been updated to accept the new parameter
+            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark, segmentStats));
         }
     }
 
@@ -188,6 +193,20 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get transaction buffer internal stats")
+    private class GetTransactionBufferInternalStats extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "Topic name", required = true)
+        private String topic;
+
+        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionBufferInternalStats(topic, metadata));
+        }
+    }
+
     @Parameters(commandDescription = "Update the scale of transaction coordinators")
     private class ScaleTransactionCoordinators extends CliCommand {
         @Parameter(names = { "-r", "--replicas" }, description = "The scale of the transaction coordinators")
@@ -242,6 +261,7 @@ public class CmdTransactions extends CmdBase {
         super("transactions", admin);
         jcommander.addCommand("coordinator-internal-stats", new GetCoordinatorInternalStats());
         jcommander.addCommand("pending-ack-internal-stats", new GetPendingAckInternalStats());
+        jcommander.addCommand("buffer-snapshot-internal-stats", new GetTransactionBufferInternalStats());
         jcommander.addCommand("coordinator-stats", new GetCoordinatorStats());
         jcommander.addCommand("transaction-buffer-stats", new GetTransactionBufferStats());
         jcommander.addCommand("pending-ack-stats", new GetPendingAckStats());

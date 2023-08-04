@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
@@ -340,7 +341,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
                         updatePublishDispatcher();
-                        updateResourceGroupLimiter(optPolicies);
+                        updateResourceGroupLimiter(new Policies());
                         initializeDispatchRateLimiterIfNeeded();
                         updateSubscribeRateLimiter();
                         return;
@@ -356,7 +357,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     updatePublishDispatcher();
 
-                    updateResourceGroupLimiter(optPolicies);
+                    updateResourceGroupLimiter(policies);
 
                     this.isEncryptionRequired = policies.encryption_required;
 
@@ -487,7 +488,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
-        Objects.requireNonNull(topicCompactionService);
+        requireNonNull(topicCompactionService);
         if (isCompactionSubscription(subscriptionName)
                 && topicCompactionService instanceof PulsarTopicCompactionService pulsarTopicCompactionService) {
             CompactedTopicImpl compactedTopic = pulsarTopicCompactionService.getCompactedTopic();
@@ -2804,7 +2805,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
+    public CompletableFuture<Void> onPoliciesUpdate(@Nonnull Policies data) {
+        requireNonNull(data);
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
                     data.encryption_required);
@@ -2826,7 +2828,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         updatePublishDispatcher();
 
-        this.updateResourceGroupLimiter(Optional.of(data));
+        updateResourceGroupLimiter(data);
 
         List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
         producers.values().forEach(producer -> producerCheckFutures.add(
@@ -3270,7 +3272,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             .toList().size())
                     .sum();
             if (hasSchema
-                    || (!producers.isEmpty())
+                    || (userCreatedProducerCount > 0)
                     || (numActiveConsumersWithoutAutoSchema != 0)
                     || (ledger.getTotalSize() != 0)) {
                 return checkSchemaCompatibleForConsumer(schema);
@@ -3566,7 +3568,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public TransactionBufferStats getTransactionBufferStats(boolean lowWaterMarks) {
-        return this.transactionBuffer.getStats(lowWaterMarks);
+        return getTransactionBufferStats(lowWaterMarks, false);
+    }
+
+    public TransactionBufferStats getTransactionBufferStats(boolean lowWaterMarks, boolean segmentStats) {
+        return this.transactionBuffer.getStats(lowWaterMarks, segmentStats);
     }
 
     public TransactionPendingAckStats getTransactionPendingAckStats(String subName, boolean lowWaterMarks) {

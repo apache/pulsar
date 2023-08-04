@@ -482,6 +482,10 @@ public class MessageDeduplication {
     }
 
     public void takeSnapshot() {
+        if (!isEnabled()) {
+            return;
+        }
+
         Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
         long currentTimeStamp = System.currentTimeMillis();
         if (interval == null || interval <= 0
