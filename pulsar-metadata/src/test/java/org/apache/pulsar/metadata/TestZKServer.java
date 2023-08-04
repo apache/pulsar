@@ -25,20 +25,30 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.net.Socket;
+import java.util.Properties;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.zookeeper.server.ContainerManager;
+import org.apache.zookeeper.server.ServerCnxnFactory;
+import org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.embedded.ExitHandler;
 import org.apache.zookeeper.server.embedded.ZooKeeperServerEmbedded;
 import org.assertj.core.util.Files;
+import org.junit.platform.commons.util.ReflectionUtils;
 
 @Slf4j
 public class TestZKServer implements AutoCloseable {
 
+    public static final int TICK_TIME = 1000;
+
     private final File zkDataDir;
+    private int zkPort; // initially this is zero
     private ZooKeeperServerEmbedded zooKeeperServerEmbedded;
 
     public TestZKServer() throws Exception {
@@ -52,24 +62,67 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void start() throws Exception {
+        final Properties configZookeeper = new Properties();
+        configZookeeper.put("clientPort", zkPort + "");
+        configZookeeper.put("host", "127.0.0.1");
+        configZookeeper.put("ticktime", TICK_TIME + "");
         zooKeeperServerEmbedded = ZooKeeperServerEmbedded
                 .builder()
                 .baseDir(zkDataDir.toPath())
+                .configuration(configZookeeper)
                 .exitHandler(ExitHandler.LOG_ONLY)
                 .build();
 
         zooKeeperServerEmbedded.start(60_000);
         log.info("Started test ZK server on at {}", zooKeeperServerEmbedded.getConnectionString());
 
+        ZooKeeperServerMain zooKeeperServerMain = getZooKeeperServerMain(zooKeeperServerEmbedded);
+        ServerCnxnFactory serverCnxnFactory = getServerCnxnFactory(zooKeeperServerMain);
+        // save the port, in order to allow restarting on the same port
+        zkPort = serverCnxnFactory.getLocalPort();
+
         boolean zkServerReady = waitForServerUp(this.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
+    }
+
+    @SneakyThrows
+    private static ZooKeeperServerMain getZooKeeperServerMain(ZooKeeperServerEmbedded zooKeeperServerEmbedded) {
+        ZooKeeperServerMain zooKeeperServerMain = (ZooKeeperServerMain) ReflectionUtils.
+                tryToReadFieldValue((Class) zooKeeperServerEmbedded.getClass(), "mainsingle", zooKeeperServerEmbedded)
+                .get();
+        return zooKeeperServerMain;
+    }
+
+    @SneakyThrows
+    private static ContainerManager getContainerManager(ZooKeeperServerMain zooKeeperServerMain) {
+        ContainerManager containerManager = (ContainerManager) ReflectionUtils.
+                tryToReadFieldValue((Class) zooKeeperServerMain.getClass(), "containerManager", zooKeeperServerMain)
+                .get();
+        return containerManager;
+    }
+
+    @SneakyThrows
+    private static ZooKeeperServer getZooKeeperServer(ZooKeeperServerMain zooKeeperServerMain) {
+        ServerCnxnFactory serverCnxnFactory = getServerCnxnFactory(zooKeeperServerMain);
+        ZooKeeperServer zkServer = (ZooKeeperServer) ReflectionUtils.
+                tryToReadFieldValue(ServerCnxnFactory.class, "zkServer", serverCnxnFactory)
+                .get();
+        return zkServer;
+    }
+
+    private static ServerCnxnFactory getServerCnxnFactory(ZooKeeperServerMain zooKeeperServerMain) throws Exception {
+        ServerCnxnFactory serverCnxnFactory = (ServerCnxnFactory) ReflectionUtils.
+                tryToReadFieldValue(ZooKeeperServerMain.class, "cnxnFactory", zooKeeperServerMain)
+                .get();
+        return serverCnxnFactory;
     }
 
     public void checkContainers() throws Exception {
         // Make sure the container nodes are actually deleted
         Thread.sleep(1000);
 
-        // containerManager.checkContainers();
+        ContainerManager containerManager = getContainerManager(getZooKeeperServerMain(zooKeeperServerEmbedded));
+        containerManager.checkContainers();
     }
 
     public void stop() throws Exception {
@@ -80,24 +133,8 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void expireSession(long sessionId) {
-        /**
-        zks.expire(new SessionTracker.Session() {
-            @Override
-            public long getSessionId() {
-                return sessionId;
-            }
-
-            @Override
-            public int getTimeout() {
-                return 10_000;
-            }
-
-            @Override
-            public boolean isClosing() {
-                return false;
-            }
-        });
-         */
+        getZooKeeperServer(getZooKeeperServerMain(zooKeeperServerEmbedded))
+                .expire(sessionId);
     }
 
     @Override
