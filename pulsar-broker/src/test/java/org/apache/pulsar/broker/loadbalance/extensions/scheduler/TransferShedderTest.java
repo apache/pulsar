@@ -764,9 +764,9 @@ public class TransferShedderTest {
             }
 
             @Override
-            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
-                                                                           ServiceUnitId serviceUnit,
-                                                                           LoadManagerContext context) {
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
                 return FutureUtil.failedFuture(new BrokerFilterException("test"));
             }
         };

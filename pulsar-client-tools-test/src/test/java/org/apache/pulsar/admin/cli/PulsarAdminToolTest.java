@@ -2377,7 +2377,7 @@ public class PulsarAdminToolTest {
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("transaction-buffer-stats -t test -l"));
-        verify(transactions).getTransactionBufferStats("test", true);
+        verify(transactions).getTransactionBufferStats("test", true, false);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-stats -t test -s test -l"));
@@ -2386,6 +2386,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
         verify(transactions).getPendingAckInternalStats("test", "test", false);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("buffer-snapshot-internal-stats -t test"));
+        verify(transactions).getTransactionBufferInternalStats("test", false);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("scale-transactionCoordinators -r 3"));

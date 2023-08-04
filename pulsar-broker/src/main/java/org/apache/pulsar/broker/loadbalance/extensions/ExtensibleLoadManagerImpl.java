@@ -493,7 +493,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                             new ArrayList<>(filterPipeline.size());
                     for (final BrokerFilter filter : filterPipeline) {
                         CompletableFuture<Map<String, BrokerLookupData>> future =
-                                filter.filter(availableBrokerCandidates, bundle, context);
+                                filter.filterAsync(availableBrokerCandidates, bundle, context);
                         futures.add(future);
                     }
                     CompletableFuture<Optional<String>> result = new CompletableFuture<>();
