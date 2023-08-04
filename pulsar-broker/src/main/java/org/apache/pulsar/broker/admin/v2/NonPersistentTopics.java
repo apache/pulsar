@@ -234,7 +234,7 @@ public class NonPersistentTopics extends PersistentTopics {
                     authoritative, false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions == 0) {
                     asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                            String.format("Partitioned topic not found %s", topicName)));
+                            String.format("Partitioned topic not found %s", topicName.toString())));
                     return;
                 }
                 NonPersistentPartitionedTopicStatsImpl stats =

@@ -164,7 +164,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
             pulsar.getBrokerService().getTopic(topic, false);
@@ -174,7 +174,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
@@ -209,7 +209,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
             pulsar.getBrokerService().getTopic(topic, false);
@@ -220,7 +220,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
@@ -335,7 +335,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
             pulsar.getBrokerService().getTopic(topic, false);
@@ -345,7 +345,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
@@ -393,7 +393,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
             pulsar.getBrokerService().getTopic(topic, false);
@@ -403,7 +403,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -542,7 +542,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
             pulsar.getBrokerService().getTopic(topic, false);
@@ -552,7 +552,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
-            Assert.assertTrue(cause.getMessage().contains("Topic not found"));
+            assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();

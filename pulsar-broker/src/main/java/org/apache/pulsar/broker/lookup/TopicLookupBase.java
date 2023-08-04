@@ -80,7 +80,7 @@ public class TopicLookupBase extends PulsarWebResource {
                 .thenCompose(exist -> {
                     if (!exist) {
                         throw new RestException(Response.Status.NOT_FOUND,
-                                String.format("Topic not found %s", topicName));
+                                String.format("Topic not found %s", topicName.toString()));
                     }
                     CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
                             .getBrokerServiceUrlAsync(topicName,
