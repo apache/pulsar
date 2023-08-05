@@ -20,11 +20,11 @@ package org.apache.pulsar.cli.validators;
 
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtils;
+import org.apache.pulsar.cli.ValueValidationUtil;
 
 public class IntegerMaxValueLongValidator implements IValueValidator<Long> {
     @Override
     public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtils.maxValueCheck(name, value, Integer.MAX_VALUE);
+        ValueValidationUtil.maxValueCheck(name, value, Integer.MAX_VALUE);
     }
 }

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import static org.apache.pulsar.cli.ValueValidationUtils.emptyCheck;
+import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
 import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
 import com.beust.jcommander.converters.BaseConverter;
 

@@ -31,17 +31,21 @@ class ByteUnitUtil {
     private static Set<Character> sizeUnit = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList('k', 'K', 'm', 'M', 'g', 'G', 't', 'T')));
 
-    static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
+    static long validateSizeString(String byteStr) {
+        if (byteStr.isEmpty()) {
+            throw new IllegalArgumentException("byte string cannot be empty");
+        }
+
+        char last = byteStr.charAt(byteStr.length() - 1);
+        String subStr = byteStr.substring(0, byteStr.length() - 1);
         long size;
         try {
             size = sizeUnit.contains(last)
                     ? Long.parseLong(subStr)
-                    : Long.parseLong(s);
+                    : Long.parseLong(byteStr);
         } catch (IllegalArgumentException e) {
             throw new ParameterException(String.format("Invalid size '%s'. Valid formats are: %s",
-                    s, "(4096, 100K, 10M, 16G, 2T)"));
+                    byteStr, "(4096, 100K, 10M, 16G, 2T)"));
         }
         switch (last) {
             case 'k':

@@ -20,12 +20,12 @@ package org.apache.pulsar.cli.validators;
 
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtils;
+import org.apache.pulsar.cli.ValueValidationUtil;
 
 public class PositiveIntegerValueValidator implements IValueValidator<Integer> {
 
     @Override
     public void validate(String name, Integer value) throws ParameterException {
-        ValueValidationUtils.positiveCheck(name, value);
+        ValueValidationUtil.positiveCheck(name, value);
     }
 }

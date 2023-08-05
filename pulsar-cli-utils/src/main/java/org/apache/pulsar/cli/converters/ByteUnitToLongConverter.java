@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import static org.apache.pulsar.cli.ValueValidationUtils.emptyCheck;
+import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
 import com.beust.jcommander.converters.BaseConverter;
 
 public class ByteUnitToLongConverter extends BaseConverter<Long> {

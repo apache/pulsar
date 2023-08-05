@@ -20,11 +20,11 @@ package org.apache.pulsar.cli.validators;
 
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtils;
+import org.apache.pulsar.cli.ValueValidationUtil;
 
 public class MinNegativeOneValidator implements IValueValidator<Long> {
     @Override
     public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtils.minValueCheck(name, value, -1L);
+        ValueValidationUtil.minValueCheck(name, value, -1L);
     }
 }
