@@ -3076,7 +3076,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // in the meantime the mark-delete will be queued.
                 STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
 
-                mbean.persistToLedger(false);
                 // Before giving up, try to persist the position in the metadata store.
                 persistPositionMetaStore(mdEntry, callback);
             }
