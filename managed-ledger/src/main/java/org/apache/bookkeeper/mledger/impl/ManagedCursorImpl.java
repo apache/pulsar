@@ -2042,7 +2042,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     pendingMarkDeleteOps.add(mdEntry);
                 } else {
                     // Execute the mark delete immediately
-                    internalMarkDelete(mdEntry);
+                    internalMarkDelete(mdEntry, false);
                 }
                 break;
 
@@ -2054,7 +2054,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void internalMarkDelete(final MarkDeleteEntry mdEntry) {
+    void internalMarkDelete(final MarkDeleteEntry mdEntry, boolean directPersistMetadataStore) {
         if (persistentMarkDeletePosition != null
                 && mdEntry.newPosition.compareTo(persistentMarkDeletePosition) < 0) {
             if (log.isInfoEnabled()) {
@@ -2099,7 +2099,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         });
 
-        persistPositionToLedger(cursorLedger, mdEntry, new VoidCallback() {
+        VoidCallback cb = new VoidCallback() {
             @Override
             public void operationComplete() {
                 if (log.isDebugEnabled()) {
@@ -2119,7 +2119,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.EARLIEST,
                                 false, PositionImpl.get(mdEntry.newPosition.getLedgerId(),
-                                mdEntry.newPosition.getEntryId()), true);
+                                        mdEntry.newPosition.getEntryId()), true);
                         subMap.values().forEach(BitSetRecyclable::recycle);
                         subMap.clear();
                     }
@@ -2151,7 +2151,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 mdEntry.triggerFailed(exception);
             }
-        });
+        };
+
+        if (directPersistMetadataStore) {
+            persistPositionMetaStore(mdEntry, cb);
+        } else {
+            persistPositionToLedger(cursorLedger, mdEntry, cb);
+        }
     }
 
     @Override
@@ -2788,7 +2794,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationComplete() {
                 // We now have a new ledger where we can write
                 synchronized (pendingMarkDeleteOps) {
-                    flushPendingMarkDeletes();
+                    flushPendingMarkDeletes(false);
 
                     // Resume normal mark-delete operations
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
@@ -2800,13 +2806,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.error("[{}][{}] Metadata ledger creation failed", ledger.getName(), name, exception);
 
                 synchronized (pendingMarkDeleteOps) {
-                    while (!pendingMarkDeleteOps.isEmpty()) {
-                        MarkDeleteEntry entry = pendingMarkDeleteOps.poll();
-                        entry.callback.markDeleteFailed(exception, entry.ctx);
-                    }
-
                     // At this point we don't have a ledger ready
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
+                    // Before giving up, try to persist the position in the metadata store.
+                    flushPendingMarkDeletes(true);
                 }
             }
         });
@@ -2834,18 +2837,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         return notClosing.get();
     }
 
-    private void flushPendingMarkDeletes() {
+    private void flushPendingMarkDeletes(boolean directPersistMetadataStore) {
         if (!pendingMarkDeleteOps.isEmpty()) {
-            internalFlushPendingMarkDeletes();
+            internalFlushPendingMarkDeletes(directPersistMetadataStore);
         }
     }
 
-    void internalFlushPendingMarkDeletes() {
+    void internalFlushPendingMarkDeletes(boolean directPersistMetadataStore) {
         MarkDeleteEntry lastEntry = pendingMarkDeleteOps.getLast();
         lastEntry.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
         pendingMarkDeleteOps.clear();
 
-        internalMarkDelete(lastEntry);
+        internalMarkDelete(lastEntry, directPersistMetadataStore);
     }
 
     void createNewMetadataLedger(final VoidCallback callback) {
@@ -3074,29 +3077,37 @@ public class ManagedCursorImpl implements ManagedCursor {
                 STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
 
                 mbean.persistToLedger(false);
-                // Before giving up, try to persist the position in the metadata store
-                persistPositionMetaStore(-1, position, mdEntry.properties, new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Stat stat) {
-                        if (log.isDebugEnabled()) {
-                            log.debug(
-                                    "[{}][{}] Updated cursor in meta store after previous failure in ledger at position"
-                                    + " {}", ledger.getName(), name, position);
-                        }
-                        mbean.persistToZookeeper(true);
-                        callback.operationComplete();
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.warn("[{}][{}] Failed to update cursor in meta store after previous failure in ledger: {}",
-                                ledger.getName(), name, e.getMessage());
-                        mbean.persistToZookeeper(false);
-                        callback.operationFailed(createManagedLedgerException(rc));
-                    }
-                }, true);
+                // Before giving up, try to persist the position in the metadata store.
+                persistPositionMetaStore(mdEntry, callback);
             }
         }, null);
+    }
+
+    void persistPositionMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {
+        final PositionImpl newPosition = mdEntry.newPosition;
+        STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
+        mbean.persistToLedger(false);
+        // Before giving up, try to persist the position in the metadata store
+        persistPositionMetaStore(-1, newPosition, mdEntry.properties, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat stat) {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "[{}][{}] Updated cursor in meta store after previous failure in ledger at position"
+                            + " {}", ledger.getName(), name, newPosition);
+                }
+                mbean.persistToZookeeper(true);
+                callback.operationComplete();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.warn("[{}][{}] Failed to update cursor in meta store after previous failure in ledger: {}",
+                        ledger.getName(), name, e.getMessage());
+                mbean.persistToZookeeper(false);
+                callback.operationFailed(createManagedLedgerException(e));
+            }
+        }, true);
     }
 
     boolean shouldCloseLedger(LedgerHandle lh) {
@@ -3210,7 +3221,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             synchronized (pendingMarkDeleteOps) {
                 if (STATE_UPDATER.get(this) == State.Open) {
                     // Flush the pending writes only if the state is open.
-                    flushPendingMarkDeletes();
+                    flushPendingMarkDeletes(false);
                 } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
                     log.info(
                             "[{}] read operation completed and cursor was closed. need to call any queued cursor close",

@@ -229,6 +229,28 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
     }
 
+    @Test
+    void testPersistentMarkDeleteIfCreateCursorLedgerFailed() throws Exception {
+        ManagedLedgerImpl ml =
+                (ManagedLedgerImpl) factory.open("ml_test", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+
+        ManagedCursor cursor = ml.openCursor("c1");
+        Position lastEntry = null;
+        for (int i = 0; i < 10; i++) {
+            lastEntry = ml.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+
+        // Mock cursor ledger create failed.
+        bkc.failNow(BKException.Code.NoBookieAvailableException);
+
+        cursor.markDelete(lastEntry);
+
+        // Assert persist mark deleted position to ZK was successful.
+        PositionImpl slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
+        assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
+        assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
+    }
+
     @Test(timeOut = 20000)
     void readWithCacheDisabled() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
