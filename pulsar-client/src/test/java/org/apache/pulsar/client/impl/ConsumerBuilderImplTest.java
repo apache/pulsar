@@ -368,10 +368,15 @@ public class ConsumerBuilderImplTest {
                 .retryLetterChunkingEnabled(true)
                 .build());
         verify(consumerBuilder.getConf()).setDeadLetterPolicy(notNull());
-        assertFalse(consumerBuilder.getConf().getDeadLetterPolicy().isDeadLetterBatchingEnabled());
-        assertFalse(consumerBuilder.getConf().getDeadLetterPolicy().isDeadLetterChunkingEnabled());
-        assertTrue(consumerBuilder.getConf().getDeadLetterPolicy().isRetryLetterBatchingEnabled());
-        assertTrue(consumerBuilder.getConf().getDeadLetterPolicy().isRetryLetterChunkingEnabled());
+        DeadLetterPolicy policy = consumerBuilder.getConf().getDeadLetterPolicy();
+        assertThat(policy.getRetryLetterTopic()).isEqualTo("new-retry");
+        assertThat(policy.getInitialSubscriptionName()).isEqualTo("new-dlq-sub");
+        assertThat(policy.getDeadLetterTopic()).isEqualTo("new-dlq");
+        assertThat(policy.getMaxRedeliverCount()).isEqualTo(2);
+        assertFalse(policy.isDeadLetterBatchingEnabled());
+        assertFalse(policy.isDeadLetterChunkingEnabled());
+        assertTrue(policy.isRetryLetterBatchingEnabled());
+        assertTrue(policy.isRetryLetterChunkingEnabled());
     }
 
     @Test
