@@ -348,11 +348,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
                 this.deadLetterPolicy = DeadLetterPolicy.builder()
                         .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
+                        .retryLetterBatchingEnabled(conf.getDeadLetterPolicy().isRetryLetterBatchingEnabled())
+                        .retryLetterChunkingEnabled(conf.getDeadLetterPolicy().isRetryLetterChunkingEnabled())
+                        .deadLetterBatchingEnabled(conf.getDeadLetterPolicy().isDeadLetterBatchingEnabled())
+                        .deadLetterChunkingEnabled(conf.getDeadLetterPolicy().isDeadLetterChunkingEnabled())
                         .deadLetterTopic(conf.getDeadLetterPolicy().getDeadLetterTopic())
                         .build();
             } else {
                 this.deadLetterPolicy = DeadLetterPolicy.builder()
                         .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
+                        .retryLetterBatchingEnabled(conf.getDeadLetterPolicy().isRetryLetterBatchingEnabled())
+                        .retryLetterChunkingEnabled(conf.getDeadLetterPolicy().isRetryLetterChunkingEnabled())
+                        .deadLetterBatchingEnabled(conf.getDeadLetterPolicy().isDeadLetterBatchingEnabled())
+                        .deadLetterChunkingEnabled(conf.getDeadLetterPolicy().isDeadLetterChunkingEnabled())
                         .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
                                 topic, subscription))
                         .build();
