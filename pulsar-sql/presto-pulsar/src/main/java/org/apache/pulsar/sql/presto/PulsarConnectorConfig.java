@@ -522,7 +522,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
                 builder.authentication(getAuthPlugin(), getAuthParams());
             }
 
-            if (getAuthToken() != null){
+            if (getAuthToken() != null) {
                 builder.authentication(AuthenticationFactory.token(getAuthToken()));
             }
 
