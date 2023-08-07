@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
@@ -946,7 +947,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public void exceptionHandleFuture(Throwable t) {
         final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(t);
-        persistentSubscription.getTopic().getSubscriptions().remove(subName);
+        log.error("[{}][{}] Failed to init transaction pending ack handler",
+                persistentSubscription.getTopic().getName(), subName, t);
+        ((PersistentTopic)persistentSubscription.getTopic()).unloadSubscription(subName);
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
