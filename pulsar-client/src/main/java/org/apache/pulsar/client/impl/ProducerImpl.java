@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
@@ -531,6 +532,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     ? msg.getMessageBuilder().getOrderingKey() : null;
             // msg.messageId will be reset if previous message chunk is sent successfully.
             final MessageId messageId = msg.getMessageId();
+            final UUID chunkUUid = UUID.randomUUID();
             for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                 // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
                 // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
@@ -553,9 +555,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 synchronized (this) {
                     // Update the message metadata before computing the payload chunk size
                     // to avoid a large message cannot be split into chunks.
-                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
-                    String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
-
+                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata, chunkId > 0);
+                    String uuid = totalChunks > 1 ? String.format("%s-%s", producerName, chunkUUid) : null;
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
                             compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
@@ -594,9 +595,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata) {
+    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata, boolean isChunk) {
         final long sequenceId;
-        if (!msgMetadata.hasSequenceId()) {
+        if (!msgMetadata.hasSequenceId() || isChunk) {
             sequenceId = msgIdGenerator++;
             msgMetadata.setSequenceId(sequenceId);
         } else {

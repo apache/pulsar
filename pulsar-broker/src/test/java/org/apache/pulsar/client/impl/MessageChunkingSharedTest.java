@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -209,6 +210,32 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
             payload[i] = (byte) ('a' + random.nextInt(26));
         }
         return Schema.STRING.decode(payload);
+    }
+
+    @Test
+    public void testDuplicateForChunkMessage() throws Exception {
+        String topicName = "persistent://my-property/my-ns/testDuplicateForChunkMessage";
+        String producerName = "test-producer";
+        pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        // consumer
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .subscriptionName("test-sub")
+                .topic(topicName)
+                .subscribe();
+        // producer
+        Producer<String> partProducer = pulsarClient
+                .newProducer(Schema.AVRO(String.class))
+                .producerName(producerName)
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+        int messageSize = 6000; // payload size in KB
+        String message = "a".repeat(messageSize * 1000);
+        partProducer.newMessage().value(message).send();
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg);
     }
 
     private static void sendNonChunk(final PersistentTopic persistentTopic,
