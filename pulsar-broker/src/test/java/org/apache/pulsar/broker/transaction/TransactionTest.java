@@ -743,7 +743,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer2.getStats(false).state, "Ready"));
+                assertEquals(buffer2.getStats(false, false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
 
         doAnswer(invocation -> {
@@ -755,7 +755,7 @@ public class TransactionTest extends TransactionTestBase {
         managedCursors.add(managedCursor, managedCursor.getMarkDeletedPosition());
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer3.getStats(false).state, "Ready"));
+                assertEquals(buffer3.getStats(false, false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
             assertTrue(internalStats.cursors.isEmpty());
         });

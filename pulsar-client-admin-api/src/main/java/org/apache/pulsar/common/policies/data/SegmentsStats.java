@@ -16,23 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kafka;
+package org.apache.pulsar.common.policies.data;
 
-import java.nio.charset.StandardCharsets;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.pulsar.client.api.Schema;
+import java.util.List;
 
-/**
- * Simple Kafka Source that just transfers the value part of the kafka records as Strings.
- */
-public class KafkaStringSource extends KafkaAbstractSource<String> {
+public class SegmentsStats {
+    // The current number of the snapshot segments.
+    public long segmentsSize;
 
-    @Override
-    public KafkaRecord<String> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-        return new KafkaRecord<>(consumerRecord,
-                new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                Schema.STRING,
-                copyKafkaHeaders(consumerRecord));
-    }
+    // The capacity of snapshot segment calculated by the current config (transactionBufferSnapshotSegmentSize)
+    public long currentSegmentCapacity;
 
+    // The latest aborted txn IDs which number less than currentSegmentCapacity
+    public long unsealedAbortTxnIDSize;
+
+    // A list of individual segment stats
+    public List<SegmentStats> segmentStats;
+    /** The last snapshot segment timestamps of this transaction buffer. */
+    public long lastTookSnapshotSegmentTimestamp;
 }

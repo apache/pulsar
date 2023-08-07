@@ -16,23 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kafka;
+package org.apache.pulsar.common.policies.data;
 
-import java.nio.charset.StandardCharsets;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.pulsar.client.api.Schema;
+public class TransactionBufferInternalStats {
+    // The type of snapshot being used: either "Single" or "Segment"
+    public String snapshotType;
 
-/**
- * Simple Kafka Source that just transfers the value part of the kafka records as Strings.
- */
-public class KafkaStringSource extends KafkaAbstractSource<String> {
+    // If snapshotType is "Single", this field will provide the statistics of single snapshot log.
+    public SnapshotSystemTopicInternalStats singleSnapshotSystemTopicInternalStats;
 
-    @Override
-    public KafkaRecord<String> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-        return new KafkaRecord<>(consumerRecord,
-                new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                Schema.STRING,
-                copyKafkaHeaders(consumerRecord));
-    }
+    // If snapshotType is "Segment", this field will provide the statistics of snapshot segment topic.
+    public SnapshotSystemTopicInternalStats segmentInternalStats;
 
+    // If snapshotType is "Segment", this field will provide the statistics of snapshot segment index topic.
+    public SnapshotSystemTopicInternalStats segmentIndexInternalStats;
 }

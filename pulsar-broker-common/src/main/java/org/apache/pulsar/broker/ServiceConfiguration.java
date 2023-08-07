@@ -1654,6 +1654,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String kinitCommand = "/usr/bin/kinit";
 
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "how often the broker expires the inflight SASL context."
+    )
+    private long inflightSaslContextExpiryMs = 30_000L;
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Maximum number of inflight sasl context."
+    )
+    private long maxInflightSaslContext = 50_000L;
+
     /**** --- BookKeeper Client. --- ****/
     @FieldContext(
         category = CATEGORY_STORAGE_BK,

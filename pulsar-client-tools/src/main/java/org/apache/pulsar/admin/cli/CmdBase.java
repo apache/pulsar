@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.client.admin.internal.BaseResource.getApiException;
 import com.beust.jcommander.DefaultUsageFormatter;
 import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
@@ -26,16 +27,27 @@ import com.beust.jcommander.ParameterException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public abstract class CmdBase {
     protected final JCommander jcommander;
     private final Supplier<PulsarAdmin> adminSupplier;
     private PulsarAdmin admin;
     private IUsageFormatter usageFormatter;
+
+    /**
+     * Default read timeout in milliseconds.
+     * Used if not found from configuration data in {@link #getReadTimeoutMs()}
+     */
+    private static final long DEFAULT_READ_TIMEOUT_MILLIS = 60000;
 
     @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
     private boolean help = false;
@@ -124,6 +136,28 @@ public abstract class CmdBase {
         return admin;
     }
 
+    protected long getReadTimeoutMs() {
+        PulsarAdmin pulsarAdmin = getAdmin();
+        if (pulsarAdmin instanceof PulsarAdminImpl) {
+            return ((PulsarAdminImpl) pulsarAdmin).getClientConfigData().getReadTimeoutMs();
+        }
+        return DEFAULT_READ_TIMEOUT_MILLIS;
+    }
+
+    protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
+        try {
+            return executor.get().get(getReadTimeoutMs(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        } catch (ExecutionException e) {
+            throw PulsarAdminException.wrap(getApiException(e.getCause()));
+        } catch (Exception e) {
+            throw PulsarAdminException.wrap(getApiException(e));
+        }
+    }
 
     static Map<String, String> parseListKeyValueMap(List<String> metadata) {
         Map<String, String> map = null;
