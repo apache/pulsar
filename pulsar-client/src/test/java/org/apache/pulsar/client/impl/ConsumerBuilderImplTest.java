@@ -363,9 +363,9 @@ public class ConsumerBuilderImplTest {
                 .deadLetterTopic("new-dlq")
                 .maxRedeliverCount(2)
                 .deadLetterBatchingEnabled(false)
-                .deadLetterChunkingEnabled(false)
+                .deadLetterChunkingEnabled(true)
                 .retryLetterBatchingEnabled(true)
-                .retryLetterChunkingEnabled(true)
+                .retryLetterChunkingEnabled(false)
                 .build());
         verify(consumerBuilder.getConf()).setDeadLetterPolicy(notNull());
         DeadLetterPolicy policy = consumerBuilder.getConf().getDeadLetterPolicy();
@@ -374,9 +374,9 @@ public class ConsumerBuilderImplTest {
         assertThat(policy.getDeadLetterTopic()).isEqualTo("new-dlq");
         assertThat(policy.getMaxRedeliverCount()).isEqualTo(2);
         assertFalse(policy.isDeadLetterBatchingEnabled());
-        assertFalse(policy.isDeadLetterChunkingEnabled());
+        assertTrue(policy.isDeadLetterChunkingEnabled());
         assertTrue(policy.isRetryLetterBatchingEnabled());
-        assertTrue(policy.isRetryLetterChunkingEnabled());
+        assertFalse(policy.isRetryLetterChunkingEnabled());
     }
 
     @Test
