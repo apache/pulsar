@@ -2153,7 +2153,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         };
 
-        if (cursorLedger == null || State.NoLedger.equals(STATE_UPDATER.get(this))) {
+        if (State.NoLedger.equals(STATE_UPDATER.get(this))) {
             persistPositionMetaStore(mdEntry, cb);
         } else {
             persistPositionToLedger(cursorLedger, mdEntry, cb);
