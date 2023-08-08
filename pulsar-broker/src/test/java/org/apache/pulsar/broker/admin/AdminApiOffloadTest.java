@@ -426,7 +426,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                         .getTopic(TopicName.get(topicName).getPartition(i).toString(), false).get().get();
                 assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
                 assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                        , "mock");
+                        , "S3");
             }
         } else {
             PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
@@ -453,7 +453,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                         .getTopicIfExists(TopicName.get(topicName).getPartition(i).toString()).get().get();
                 assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
                 assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                        , "s3");
+                        , "S3");
             }
         } else {
             PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
