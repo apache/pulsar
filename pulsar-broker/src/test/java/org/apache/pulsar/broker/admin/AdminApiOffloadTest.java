@@ -406,12 +406,13 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         //3 construct a topic level offloadPolicies
         OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         offloadPolicies.setOffloadersDirectory(".");
-        offloadPolicies.setManagedLedgerOffloadDriver("mock");
+        offloadPolicies.setManagedLedgerOffloadDriver("S3");
+        offloadPolicies.setManagedLedgerOffloadBucket("bucket");
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024L);
 
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
-        when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
+        when(topicOffloader.getOffloadDriverName()).thenReturn("S3");
         doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
 
         //4 set topic level offload policies
@@ -432,11 +433,11 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                     .getTopic(topicName, false).get().get();
             assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
             assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                    , "mock");
+                    , "S3");
         }
         //6 remove topic level offload policy, offloader should become namespaceOffloader
         LedgerOffloader namespaceOffloader = mock(LedgerOffloader.class);
-        when(namespaceOffloader.getOffloadDriverName()).thenReturn("s3");
+        when(namespaceOffloader.getOffloadDriverName()).thenReturn("S3");
         Map<NamespaceName, LedgerOffloader> map = new HashMap<>();
         map.put(TopicName.get(topicName).getNamespaceObject(), namespaceOffloader);
         doReturn(map).when(pulsar).getLedgerOffloaderMap();
@@ -459,7 +460,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                     .getTopic(topicName, false).get().get();
             assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
             assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
-                    , "s3");
+                    , "S3");
         }
     }
 
