@@ -1215,6 +1215,7 @@ public class BacklogQuotaManagerTest {
         }
 
         assertTrue(gotException, "backlog exceeded exception did not occur");
+        assertFalse(producer.isConnected());
         // now remove backlog and ensure that producer is unblocked;
 
         TopicStats stats = getTopicStats(topic1);
@@ -1231,14 +1232,33 @@ public class BacklogQuotaManagerTest {
         Exception sendException = null;
         gotException = false;
         try {
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 10; i++) {
                 producer.send(content);
+                Message<?> msg = consumer.receive();
+                consumer.acknowledge(msg);
             }
         } catch (Exception e) {
             gotException = true;
             sendException = e;
         }
+        Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         assertFalse(gotException, "unable to publish due to " + sendException);
+
+        gotException = false;
+        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
+        try {
+            // try to send over backlog quota and make sure it passes
+            producer.send(content);
+            producer.send(content);
+        } catch (PulsarClientException ce) {
+            assertTrue(ce instanceof PulsarClientException.ProducerBlockedQuotaExceededException
+                    || ce instanceof PulsarClientException.TimeoutException, ce.getMessage());
+            gotException = true;
+            sendException = ce;
+        }
+        assertFalse(gotException, "unable to publish due to " + sendException);
+        assertEquals(lastDisconnectedTimestamp, producer.getLastDisconnectedTimestamp());
+
     }
 
     @Test

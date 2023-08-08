@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.destination_storage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -105,8 +103,10 @@ public class BacklogQuotaManager {
             break;
         case producer_exception:
         case producer_request_hold:
-            advanceSlowestMessageDeduplicationCursor(persistentTopic, backlogQuotaType);
-            disconnectProducers(persistentTopic);
+            if (!advanceSlowestSystemCursor(persistentTopic)) {
+                // The slowest is not a system cursor. Disconnecting producers to put backpressure.
+                disconnectProducers(persistentTopic);
+            }
             break;
         default:
             break;
@@ -272,28 +272,26 @@ public class BacklogQuotaManager {
         });
     }
 
-    private void advanceSlowestMessageDeduplicationCursor(PersistentTopic persistentTopic,
-                                                          BacklogQuotaType backlogQuotaType) {
-
-        if (backlogQuotaType != destination_storage) {
-            return;
-        }
-
-        MessageDeduplication dedup = persistentTopic.getMessageDeduplication();
-        if (dedup == null) {
-            return;
-        }
+    /**
+     * Advances the slowest cursor if that is a system cursor.
+     *
+     * @param persistentTopic
+     * @return true if the slowest cursor is a system cursor
+     */
+    private boolean advanceSlowestSystemCursor(PersistentTopic persistentTopic) {
 
         ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
         if (slowestConsumer == null) {
-            return;
+            return false;
         }
 
-        if (!PersistentTopic.isDedupCursorName(slowestConsumer.getName())) {
-            return;
+        if (PersistentTopic.isDedupCursorName(slowestConsumer.getName())) {
+            persistentTopic.getMessageDeduplication().takeSnapshot();
+            return true;
         }
 
-        dedup.takeSnapshot();
+        // We may need to check other system cursors here : replicator, compaction
+        return false;
     }
 }
