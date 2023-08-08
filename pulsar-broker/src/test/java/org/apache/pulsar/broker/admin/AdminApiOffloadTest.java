@@ -213,6 +213,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPoliciesImpl offload = new OffloadPoliciesImpl();
+        offload.setManagedLedgerOffloadDriver("S3");
+        offload.setManagedLedgerOffloadBucket("bucket");
         String path = "fileSystemPath";
         offload.setFileSystemProfilePath(path);
         admin.topics().setOffloadPolicies(topicName, offload);
