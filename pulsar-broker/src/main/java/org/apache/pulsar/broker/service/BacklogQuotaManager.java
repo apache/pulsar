@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.destination_storage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -103,6 +105,7 @@ public class BacklogQuotaManager {
             break;
         case producer_exception:
         case producer_request_hold:
+            advanceSlowestMessageDeduplicationCursor(persistentTopic, backlogQuotaType);
             disconnectProducers(persistentTopic);
             break;
         default:
@@ -267,5 +270,30 @@ public class BacklogQuotaManager {
             return null;
 
         });
+    }
+
+    private void advanceSlowestMessageDeduplicationCursor(PersistentTopic persistentTopic,
+                                                          BacklogQuotaType backlogQuotaType) {
+
+        if (backlogQuotaType != destination_storage) {
+            return;
+        }
+
+        MessageDeduplication dedup = persistentTopic.getMessageDeduplication();
+        if (dedup == null) {
+            return;
+        }
+
+        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
+        if (slowestConsumer == null) {
+            return;
+        }
+
+        if (!PersistentTopic.isDedupCursorName(slowestConsumer.getName())) {
+            return;
+        }
+
+        dedup.takeSnapshot();
     }
 }
