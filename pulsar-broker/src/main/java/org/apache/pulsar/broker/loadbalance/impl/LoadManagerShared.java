@@ -554,4 +554,10 @@ public class LoadManagerShared {
             brokerCandidateCache.addAll(filteredBrokerCandidates);
         }
     }
+
+    public static NamespaceBundle getNamespaceBundle(PulsarService pulsar, String bundle) {
+        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+        return pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
+    }
 }
