@@ -147,7 +147,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
 
     @Test
     public void testCloseTransactionBufferWhenTimeout() throws Exception {
-        String topic = "persistent://" + NAMESPACE1 + "/test_" + UUID.randomUUID();
+        String topic = "persistent://" + NAMESPACE1 + "/testCloseTransactionBufferWhenTimeout";
         PulsarService pulsar = pulsarServiceList.get(0);
         BrokerService brokerService0 = pulsar.getBrokerService();
         BrokerService brokerService = Mockito.spy(brokerService0);
