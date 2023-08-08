@@ -2042,7 +2042,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     pendingMarkDeleteOps.add(mdEntry);
                 } else {
                     // Execute the mark delete immediately
-                    internalMarkDelete(mdEntry, false);
+                    internalMarkDelete(mdEntry);
                 }
                 break;
 
@@ -2054,7 +2054,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void internalMarkDelete(final MarkDeleteEntry mdEntry, boolean directPersistMetadataStore) {
+    void internalMarkDelete(final MarkDeleteEntry mdEntry) {
         if (persistentMarkDeletePosition != null
                 && mdEntry.newPosition.compareTo(persistentMarkDeletePosition) < 0) {
             if (log.isInfoEnabled()) {
@@ -2119,7 +2119,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.EARLIEST,
                                 false, PositionImpl.get(mdEntry.newPosition.getLedgerId(),
-                                        mdEntry.newPosition.getEntryId()), true);
+                                mdEntry.newPosition.getEntryId()), true);
                         subMap.values().forEach(BitSetRecyclable::recycle);
                         subMap.clear();
                     }
@@ -2153,7 +2153,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         };
 
-        if (directPersistMetadataStore) {
+        if (cursorLedger == null || State.NoLedger.equals(STATE_UPDATER.get(this))) {
             persistPositionMetaStore(mdEntry, cb);
         } else {
             persistPositionToLedger(cursorLedger, mdEntry, cb);
@@ -2794,7 +2794,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationComplete() {
                 // We now have a new ledger where we can write
                 synchronized (pendingMarkDeleteOps) {
-                    flushPendingMarkDeletes(false);
+                    flushPendingMarkDeletes();
 
                     // Resume normal mark-delete operations
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
@@ -2809,8 +2809,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 synchronized (pendingMarkDeleteOps) {
                     // At this point we don't have a ledger ready
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
+                    // Note: if the stat is NoLedger, will persist the mark deleted position to metadata store.
                     // Before giving up, try to persist the position in the metadata store.
-                    flushPendingMarkDeletes(true);
+                    flushPendingMarkDeletes();
                 }
             }
         });
@@ -2838,18 +2839,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         return notClosing.get();
     }
 
-    private void flushPendingMarkDeletes(boolean directPersistMetadataStore) {
+    private void flushPendingMarkDeletes() {
         if (!pendingMarkDeleteOps.isEmpty()) {
-            internalFlushPendingMarkDeletes(directPersistMetadataStore);
+            internalFlushPendingMarkDeletes();
         }
     }
 
-    void internalFlushPendingMarkDeletes(boolean directPersistMetadataStore) {
+    void internalFlushPendingMarkDeletes() {
         MarkDeleteEntry lastEntry = pendingMarkDeleteOps.getLast();
         lastEntry.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
         pendingMarkDeleteOps.clear();
 
-        internalMarkDelete(lastEntry, directPersistMetadataStore);
+        internalMarkDelete(lastEntry);
     }
 
     void createNewMetadataLedger(final VoidCallback callback) {
@@ -3221,7 +3222,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             synchronized (pendingMarkDeleteOps) {
                 if (STATE_UPDATER.get(this) == State.Open) {
                     // Flush the pending writes only if the state is open.
-                    flushPendingMarkDeletes(false);
+                    flushPendingMarkDeletes();
                 } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
                     log.info(
                             "[{}] read operation completed and cursor was closed. need to call any queued cursor close",

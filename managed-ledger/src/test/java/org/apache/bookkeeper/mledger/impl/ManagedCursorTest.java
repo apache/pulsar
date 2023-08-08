@@ -249,6 +249,54 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         PositionImpl slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
         assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
+        assertEquals(cursor.getStats().getPersistLedgerSucceed(), 0);
+        assertTrue(cursor.getStats().getPersistZookeeperSucceed() > 0);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
+    void testPersistentMarkDeleteIfSwitchCursorLedgerFailed() throws Exception {
+        ManagedLedgerImpl ml =
+                (ManagedLedgerImpl) factory.open("ml_test", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        final int entryCount = 10;
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        ArrayList<Position> positions = new ArrayList<>();
+        for (int i = 0; i < entryCount; i++) {
+            positions.add(ml.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // Trigger the cursor ledger creating.
+        cursor.markDelete(positions.get(0));
+        assertTrue(cursor.getStats().getPersistLedgerSucceed() > 0);
+
+        // Mock cursor ledger write failed.
+        bkc.addEntryFailAfter(0, BKException.Code.NoBookieAvailableException);
+        // Trigger a failed writing of the cursor ledger, then wait the stat of cursor to be "NoLedger".
+        cursor.markDelete(positions.get(1));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor.getState(), "NoLedger");
+        });
+        assertTrue(cursor.getStats().getPersistLedgerErrors() > 0);
+        long persistZookeeperSucceed1 = cursor.getStats().getPersistZookeeperSucceed();
+        assertTrue(persistZookeeperSucceed1 > 0);
+
+        // Mock cursor ledger create failed.
+        bkc.failNow(BKException.Code.NoBookieAvailableException);
+        // Verify the cursor status will be persistent to ZK even if the cursor ledger creation always fails.
+        Position lastEntry = positions.get(entryCount -1);
+        cursor.markDelete(lastEntry);
+        long persistZookeeperSucceed2 = cursor.getStats().getPersistZookeeperSucceed();
+        assertTrue(persistZookeeperSucceed2 > persistZookeeperSucceed1);
+
+        // Assert persist mark deleted position to ZK was successful.
+        PositionImpl slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
+        assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
+        assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
+
+        // cleanup.
+        ml.delete();
     }
 
     @Test(timeOut = 20000)
