@@ -89,7 +89,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> isSuperUser(String role, AuthenticationDataSource authenticationData,
                                                   ServiceConfiguration serviceConfiguration) {
-        // if role contains in config, return true.
+        // if superUser role contains in config, return true.
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
         if (superUserRoles.isEmpty()) {
             return CompletableFuture.completedFuture(false);
