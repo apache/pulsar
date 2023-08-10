@@ -158,5 +158,5 @@ public interface MetadataCache<T> {
     /**
      * Force the invalidation of all objects in the metadata cache.
      */
-    public void invalidateAll();
+    void invalidateAll();
 }
