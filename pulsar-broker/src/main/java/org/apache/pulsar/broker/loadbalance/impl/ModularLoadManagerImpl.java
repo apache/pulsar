@@ -857,8 +857,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             log.info("LoadData is old, need to update loadData before make decision");
             updateAll();
             if (!isLeader()) {
-                log.info("Not leader broker, need to evict the cache after some times" +
-                        " in case of updating loadData continuously.");
+                log.info("Not leader broker, need to evict the cache after some times"
+                        + " in case of updating loadData continuously.");
                 // invalidate all cache after some times in case of non-leader broker requesting
                 // metadata store continuously.
                 scheduler.schedule(() -> {
