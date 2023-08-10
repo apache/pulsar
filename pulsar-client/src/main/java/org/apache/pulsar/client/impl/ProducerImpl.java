@@ -556,7 +556,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Update the message metadata before computing the payload chunk size
                     // to avoid a large message cannot be split into chunks.
                     final long sequenceId = updateMessageMetadataSequenceId(msgMetadata, chunkId > 0);
-                    String uuid = totalChunks > 1 ? String.format("%s-%s", producerName, chunkUUid) : null;
+                    String uuid = totalChunks > 1 ? String.format("%s-%s", producerName,  sequenceId - chunkId) : null;
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
                             compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
@@ -597,11 +597,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata, boolean isChunk) {
         final long sequenceId;
-        if (!msgMetadata.hasSequenceId() || isChunk) {
+        // We always need to increment the value of `msgIdGenerator`,
+        // regardless of whether the user has set a sequence ID when sending a message.
+        if (!msgMetadata.hasSequenceId()) {
             sequenceId = msgIdGenerator++;
             msgMetadata.setSequenceId(sequenceId);
+        } else if (isChunk) {
+            sequenceId = msgIdGenerator++;
         } else {
             sequenceId = msgMetadata.getSequenceId();
+            msgIdGenerator++;
         }
         return sequenceId;
     }

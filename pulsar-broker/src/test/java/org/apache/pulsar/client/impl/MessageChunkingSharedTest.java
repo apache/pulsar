@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -214,18 +215,20 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
 
     @Test
     public void testDuplicateForChunkMessage() throws Exception {
+        this.conf.setBrokerDeduplicationEnabled(true);
+        restartBroker();
         String topicName = "persistent://my-property/my-ns/testDuplicateForChunkMessage";
         String producerName = "test-producer";
         pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         // consumer
-        Consumer<byte[]> consumer = pulsarClient
-                .newConsumer()
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
                 .subscriptionName("test-sub")
                 .topic(topicName)
                 .subscribe();
         // producer
         Producer<String> partProducer = pulsarClient
-                .newProducer(Schema.AVRO(String.class))
+                .newProducer(Schema.STRING)
                 .producerName(producerName)
                 .topic(topicName)
                 .enableChunking(true)
@@ -234,8 +237,21 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         int messageSize = 6000; // payload size in KB
         String message = "a".repeat(messageSize * 1000);
         partProducer.newMessage().value(message).send();
-        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
+        assertEquals(msg.getValue(), message);
+
+        Field msgIdGenerator = ProducerImpl.class.getDeclaredField("msgIdGenerator");
+        msgIdGenerator.setAccessible(true);
+        assertEquals(msg.getSequenceId() + 2, msgIdGenerator.get(partProducer));
+
+        long sequenceID = (long) msgIdGenerator.get(partProducer);
+        String message2 = "b".repeat(messageSize * 1000);
+        partProducer.newMessage().value(message2).sequenceId(sequenceID).send();
+        Message<String> msg2 = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        assertEquals(msg2.getValue(), message2);
+        assertEquals(msg2.getSequenceId(), sequenceID);
     }
 
     private static void sendNonChunk(final PersistentTopic persistentTopic,
