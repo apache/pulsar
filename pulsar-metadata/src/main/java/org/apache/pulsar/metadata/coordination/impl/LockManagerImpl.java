@@ -179,4 +179,9 @@ class LockManagerImpl<T> implements LockManager<T> {
                 .map(ResourceLock::release)
                 .collect(Collectors.toList()));
     }
+
+    @Override
+    public void releaseAllResourcesInCache() {
+        cache.invalidateAll();
+    }
 }

@@ -92,4 +92,9 @@ public interface LockManager<T> extends AutoCloseable {
      */
     CompletableFuture<Void> asyncClose();
 
+    /**
+     * release all resources in cache.
+     * @return
+     */
+    void releaseAllResourcesInCache();
 }
