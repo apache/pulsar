@@ -532,7 +532,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     ? msg.getMessageBuilder().getOrderingKey() : null;
             // msg.messageId will be reset if previous message chunk is sent successfully.
             final MessageId messageId = msg.getMessageId();
-            final UUID chunkUUid = UUID.randomUUID();
             for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                 // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
                 // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
@@ -606,7 +605,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sequenceId = msgIdGenerator++;
         } else {
             sequenceId = msgMetadata.getSequenceId();
-            msgIdGenerator++;
+            msgIdGenerator = msgMetadata.getSequenceId() + 1;
         }
         return sequenceId;
     }

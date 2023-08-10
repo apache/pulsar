@@ -239,17 +239,19 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         partProducer.newMessage().value(message).send();
         Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
+        assertTrue(msg.getMessageId() instanceof ChunkMessageIdImpl);
         assertEquals(msg.getValue(), message);
 
         Field msgIdGenerator = ProducerImpl.class.getDeclaredField("msgIdGenerator");
         msgIdGenerator.setAccessible(true);
         assertEquals(msg.getSequenceId() + 2, msgIdGenerator.get(partProducer));
 
-        long sequenceID = (long) msgIdGenerator.get(partProducer);
+        long sequenceID = (long) msgIdGenerator.get(partProducer) + 1024L;
         String message2 = "b".repeat(messageSize * 1000);
         partProducer.newMessage().value(message2).sequenceId(sequenceID).send();
         Message<String> msg2 = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg2);
+        assertTrue(msg2.getMessageId() instanceof ChunkMessageIdImpl);
         assertEquals(msg2.getValue(), message2);
         assertEquals(msg2.getSequenceId(), sequenceID);
     }
