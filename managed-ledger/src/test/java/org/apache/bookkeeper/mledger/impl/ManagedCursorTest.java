@@ -231,8 +231,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void testPersistentMarkDeleteIfCreateCursorLedgerFailed() throws Exception {
-        ManagedLedgerImpl ml =
-                (ManagedLedgerImpl) factory.open("ml_test", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        final int entryCount = 10;
+        final String cursorName = "c1";
+        final String mlName = "ml_test";
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
 
         ManagedCursor cursor = ml.openCursor("c1");
         Position lastEntry = null;
@@ -251,6 +254,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
         assertEquals(cursor.getStats().getPersistLedgerSucceed(), 0);
         assertTrue(cursor.getStats().getPersistZookeeperSucceed() > 0);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // Verify the mark delete position can be recovered properly.
+        ml.close();
+        ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+        ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
+        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
 
         // cleanup.
         ml.delete();
@@ -258,11 +268,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void testPersistentMarkDeleteIfSwitchCursorLedgerFailed() throws Exception {
-        ManagedLedgerImpl ml =
-                (ManagedLedgerImpl) factory.open("ml_test", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
         final int entryCount = 10;
+        final String cursorName = "c1";
+        final String mlName = "ml_test";
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
 
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        final ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor(cursorName);
         ArrayList<Position> positions = new ArrayList<>();
         for (int i = 0; i < entryCount; i++) {
             positions.add(ml.addEntry(("entry-" + i).getBytes(Encoding)));
@@ -294,6 +306,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         PositionImpl slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
         assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
         assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // Verify the mark delete position can be recovered properly.
+        ml.close();
+        ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+        ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
+        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
 
         // cleanup.
         ml.delete();
