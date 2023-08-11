@@ -39,6 +39,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -392,6 +394,62 @@ public class ModularLoadManagerImplTest {
         for (int i = 1; i < totalBundles; i++) {
             assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]), maxTopicOwnedBroker);
         }
+    }
+
+    /**
+     * It verifies that load-manager doesn't update bundle-data to metadata-store if the throughput/msg rate of
+     * bundle is less than configured threshold.
+     */
+    @Test
+    public void testFilterSmallBundleWhileWritingToMetadataStore() throws Exception {
+        Map<String, PulsarService> pulsarServices = new HashMap<>();
+        pulsarServices.put(pulsar1.getWebServiceAddress(), pulsar1);
+        pulsarServices.put(pulsar2.getWebServiceAddress(), pulsar2);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        PulsarService leaderBroker = pulsarServices.get(pulsar1.getLeaderElectionService().getCurrentLeader().get().getServiceUrl());
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
+                leaderBroker.getLoadManager().get(), "loadManager");
+        leaderBroker.getConfiguration().setLoadBalancerBundleMsgThreshold(1000);
+        leaderBroker.getConfiguration().setLoadBalancerBundleThroughputThresholdInByte(1024);
+
+        // create and configure small and big bundle-data
+        final int totalBundles = 2;
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
+                nsFactory, "test", "test", "test", totalBundles);
+        final BundleData lowThroughputBundle = new BundleData(10, 1000);
+        final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
+        longTermMessageData.setMsgRateIn(100);
+        longTermMessageData.setMsgThroughputIn(24);
+        longTermMessageData.setNumSamples(1);
+        lowThroughputBundle.setLongTermData(longTermMessageData);
+
+        final BundleData highThroughputBundle = new BundleData(10, 1000);
+        final TimeAverageMessageData longTermMessageData1 = new TimeAverageMessageData(1000);
+        longTermMessageData1.setMsgRateIn(10000);
+        longTermMessageData1.setMsgThroughputIn(10240);
+        longTermMessageData1.setNumSamples(1);
+        highThroughputBundle.setLongTermData(longTermMessageData1);
+
+        LoadData loadData = (LoadData) getField(loadManager, "loadData");
+        loadData.getBundleData().put(bundles[0].toString(), lowThroughputBundle);
+        loadData.getBundleData().put(bundles[1].toString(), highThroughputBundle);
+        String protocol = "http://";
+        loadData.getBrokerData().get(leaderBroker.getWebServiceAddress().substring(protocol.length()))
+                .getLocalData().getLastStats().put(bundles[0].toString(), new NamespaceBundleStats());
+        loadData.getBrokerData().get(leaderBroker.getWebServiceAddress().substring(protocol.length()))
+                .getLocalData().getLastStats().put(bundles[1].toString(), new NamespaceBundleStats());
+
+        // write bundle data to zk, small bundle will not be filtered out, as it is not created yet.
+        loadManager.writeBundleDataOnZooKeeper();
+        final String smallBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[0]);
+        final String bigBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[1]);
+        assertEquals(0, metadataCache.getWithStats(smallBundleDataPath).get().get().getStat().getVersion());
+        assertEquals(0, metadataCache.getWithStats(bigBundleDataPath).get().get().getStat().getVersion());
+
+        // try to update bundle-data second times. small bundle will be filtered out.
+        loadManager.writeBundleDataOnZooKeeper();
+        assertEquals(0, metadataCache.getWithStats(smallBundleDataPath).get().get().getStat().getVersion());
+        assertEquals(1, metadataCache.getWithStats(bigBundleDataPath).get().get().getStat().getVersion());
     }
 
     // Test that load shedding works
