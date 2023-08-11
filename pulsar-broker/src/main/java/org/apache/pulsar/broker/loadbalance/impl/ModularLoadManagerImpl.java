@@ -853,20 +853,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public Optional<String> selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
-        if (oldFlag) {
-            log.info("LoadData is old, need to update loadData before make decision");
+        if (!isLeader() && oldFlag) {
+            log.info("Make decision on follower broker, but the LoadData is old," +
+                    " need to update LoadData before make decision");
             updateAll();
-            if (!isLeader()) {
-                log.info("Not leader broker, need to evict the cache after some times"
-                        + " in case of updating loadData continuously.");
-                // invalidate all cache after some times in case of non-leader broker requesting
-                // metadata store continuously.
-                scheduler.schedule(() -> {
-                    bundlesCache.invalidateAll();
-                    brokersData.releaseAllResourcesInCache();
-                }, Math.min(conf.getLoadBalancerResourceQuotaUpdateIntervalMinutes(),
-                        conf.getLoadBalancerReportUpdateMaxIntervalMinutes()), TimeUnit.MINUTES);
-            }
+            // invalidate all cache after some times in case of non-leader broker requesting
+            // metadata store continuously.
+            scheduler.schedule(() -> {
+                bundlesCache.invalidateAll();
+                brokersData.releaseAllResourcesInCache();
+                oldFlag = true;
+            }, Math.min(conf.getLoadBalancerResourceQuotaUpdateIntervalMinutes(),
+                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes()), TimeUnit.MINUTES);
         }
 
         // Use brokerCandidateCache as a lock to reduce synchronization.
