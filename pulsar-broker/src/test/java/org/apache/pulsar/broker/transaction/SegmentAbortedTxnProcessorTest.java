@@ -408,7 +408,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
         // Abort these transactions and verify the data.
         final String topicName = "persistent://" + NAMESPACE2 + "/testSnapshotProcessorUpgrade";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
 
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SingleSnapshotAbortedTxnProcessorImpl);
@@ -492,6 +494,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Create a new topic in the namespace
         String topicName = "persistent://" + namespaceName + "/newTopic";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
