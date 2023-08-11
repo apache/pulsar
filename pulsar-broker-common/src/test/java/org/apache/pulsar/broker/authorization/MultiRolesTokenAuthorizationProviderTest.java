@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
 
 import javax.crypto.SecretKey;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class MultiRolesTokenAuthorizationProviderTest {
@@ -197,5 +198,36 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
             return CompletableFuture.completedFuture(false);
         }).get());
+    }
+
+    @Test
+    public void testMultiRolesAuthzWithSuperUser() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        String testAdminRole = "admin";
+        String token = Jwts.builder().claim("sub", testAdminRole).signWith(secretKey).compact();
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setSuperUserRoles(Set.of(testAdminRole));
+
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        provider.initialize(conf, mock(PulsarResources.class));
+
+        AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        assertTrue(provider.isSuperUser(testAdminRole, ads, conf).get());
     }
 }
