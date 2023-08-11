@@ -2492,6 +2492,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "maximum number of bundles in a namespace"
     )
     private int loadBalancerNamespaceMaximumBundles = 128;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "minimum throughput in of bundle to be considered for updating data in metadata store"
+    )
+    private int loadBalancerBundleThroughputThresholdInByte = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "minimum message rate in of bundle to be considered for updating data in metadata store"
+    )
+    private int loadBalancerBundleMsgThreshold = 0;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
