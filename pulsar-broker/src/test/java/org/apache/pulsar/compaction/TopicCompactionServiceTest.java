@@ -36,19 +36,25 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class TopicCompactionServiceTest extends CompactorTest {
 
-    @Test
-    public void test() throws PulsarClientException, PulsarAdminException {
+    @BeforeMethod
+    @Override
+    public void setup() throws Exception {
+        super.setup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         String defaultTenant = "prop-xyz";
         admin.tenants().createTenant(defaultTenant, tenantInfo);
         String defaultNamespace = defaultTenant + "/ns1";
         admin.namespaces().createNamespace(defaultNamespace, Set.of("test"));
+    }
 
+    @Test
+    public void test() throws PulsarClientException, PulsarAdminException {
         String topic = "persistent://prop-xyz/ns1/my-topic";
 
         PulsarTopicCompactionService service = new PulsarTopicCompactionService(topic, bk, () -> compactor);
@@ -114,5 +120,8 @@ public class TopicCompactionServiceTest extends CompactorTest {
                 assertEquals(data, "B_3");
             }
         });
+
+        List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
+        assertEquals(entries2.size(), 1);
     }
 }
