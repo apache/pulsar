@@ -78,6 +78,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(TOPIC)
@@ -85,6 +86,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
@@ -124,6 +126,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(TOPIC)
@@ -131,6 +134,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
