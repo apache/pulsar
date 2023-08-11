@@ -122,7 +122,7 @@ public class TwoPhaseCompactor extends Compactor {
                 () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
         future.thenAcceptAsync(m -> {
-            try {
+            try (m) {
                 MessageId id = m.getMessageId();
                 boolean deletedMessage = false;
                 boolean replaceMessage = false;
@@ -162,20 +162,18 @@ public class TwoPhaseCompactor extends Compactor {
                         mxBean.addCompactionRemovedEvent(reader.getTopic());
                     }
                 }
-                MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
+                MessageId first = firstMessageId.orElse(id);
                 MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                 if (id.compareTo(lastMessageId) == 0) {
-                    loopPromise.complete(new PhaseOneResult(first == null ? id : first, to == null ? id : to,
+                    loopPromise.complete(new PhaseOneResult(first, to == null ? id : to,
                             lastMessageId, latestForKey));
                 } else {
                     phaseOneLoop(reader,
-                            Optional.ofNullable(first),
+                            Optional.of(first),
                             Optional.ofNullable(to),
                             lastMessageId,
                             latestForKey, loopPromise);
                 }
-            } finally {
-                m.close();
             }
         }, scheduler).exceptionally(ex -> {
             loopPromise.completeExceptionally(ex);
