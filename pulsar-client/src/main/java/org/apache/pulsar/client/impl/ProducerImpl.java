@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
@@ -554,8 +553,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 synchronized (this) {
                     // Update the message metadata before computing the payload chunk size
                     // to avoid a large message cannot be split into chunks.
-                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata, chunkId > 0);
-                    String uuid = totalChunks > 1 ? String.format("%s-%s", producerName,  sequenceId - chunkId) : null;
+                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
+                    String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
+
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
                             compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
@@ -594,18 +594,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata, boolean isChunk) {
+    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata) {
         final long sequenceId;
-        // We always need to increment the value of `msgIdGenerator`,
-        // regardless of whether the user has set a sequence ID when sending a message.
         if (!msgMetadata.hasSequenceId()) {
             sequenceId = msgIdGenerator++;
             msgMetadata.setSequenceId(sequenceId);
-        } else if (isChunk) {
-            sequenceId = msgIdGenerator++;
         } else {
             sequenceId = msgMetadata.getSequenceId();
-            msgIdGenerator = msgMetadata.getSequenceId() + 1;
         }
         return sequenceId;
     }

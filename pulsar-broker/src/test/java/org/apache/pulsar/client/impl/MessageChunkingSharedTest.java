@@ -244,7 +244,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
 
         Field msgIdGenerator = ProducerImpl.class.getDeclaredField("msgIdGenerator");
         msgIdGenerator.setAccessible(true);
-        assertEquals(msg.getSequenceId() + 2, msgIdGenerator.get(partProducer));
+        assertEquals(msg.getSequenceId() + 1, msgIdGenerator.get(partProducer));
 
         long sequenceID = (long) msgIdGenerator.get(partProducer) + 1024L;
         String message2 = "b".repeat(messageSize * 1000);

@@ -55,6 +55,8 @@ public class MessageDeduplication {
     private final ManagedLedger managedLedger;
     private ManagedCursor managedCursor;
 
+    private final ConcurrentOpenHashMap<String, Long> chunkMessageOngoing;
+
     enum Status {
 
         // Deduplication is initialized
@@ -139,6 +141,7 @@ public class MessageDeduplication {
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
+        this.chunkMessageOngoing = ConcurrentOpenHashMap.<String, Long>newBuilder().build();
     }
 
     private CompletableFuture<Void> recoverSequenceIdsMap() {
@@ -323,6 +326,19 @@ public class MessageDeduplication {
 
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
+        // The process of the Producer sending chunk messages is continuous, and all chunks of a message use the same
+        // message metadata and sequence ID. Therefore, it is only necessary to check if the sequence ID of the first
+        // chunk is duplicated.
+        // When we receive the initial message of a non-duplicated chunk message, we place it in the
+        // chunkMessageOngoing. Upon completion of sending this chunk message, if we receive other messages
+        // sent by this Producer, we will remove it from the chunkMessageOngoing.
+        if (chunkMessageOngoing.containsKey(producerName)) {
+            if (publishContext.isChunked() && chunkMessageOngoing.get(producerName).equals(sequenceId)) {
+                return MessageDupStatus.NotDup;
+            } else {
+                chunkMessageOngoing.remove(producerName);
+            }
+        }
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
@@ -362,6 +378,9 @@ public class MessageDeduplication {
                 }
             }
             highestSequencedPushed.put(producerName, highestSequenceId);
+        }
+        if (publishContext.isChunked()) {
+            chunkMessageOngoing.put(producerName, sequenceId);
         }
         return MessageDupStatus.NotDup;
     }
