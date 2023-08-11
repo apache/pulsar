@@ -320,8 +320,16 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (!isRedirectException(t)) {
+                        if (t instanceof RestException && ((RestException) t).getResponse().getStatus()
+                                == Response.Status.NOT_FOUND.getStatusCode()) {
+                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                                    clientAppId(), topicName, ex.getMessage());
+                        } else {
+                            log.error("[{}] Failed to get partitioned metadata topic {}",
+                                    clientAppId(), topicName, ex);
+                        }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
